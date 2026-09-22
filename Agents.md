@@ -122,7 +122,11 @@ Goal, Driver, Action, and Step should be visually distinguishable.
 
 Mandala should not look like an enterprise dashboard.
 
-Prefer warm neutrals, soft rounded controls, friendly accent colors, human microcopy, and a calm notebook-like canvas. Avoid cold corporate blue as the dominant language, dense admin chrome, and unnecessary uppercase UI text.
+Prefer a lightweight game-like visual language: vibrant warm colors, tactile rounded controls, obvious direct manipulation, visible completion progress, friendly microcopy, and short non-blocking celebrations. Any meaningful node should be easy to mark done directly.
+
+Animations must stay cheap and smooth. Prefer transform and opacity. Keep confetti bursts short and bounded, remove particles afterward, respect prefers-reduced-motion, and do not add animation libraries merely for spectacle.
+
+Avoid cold corporate blue as the dominant language, dense admin chrome, and unnecessary uppercase UI text.
 
 ### Avoid visual clutter
 
