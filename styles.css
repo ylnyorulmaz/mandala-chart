@@ -5777,3 +5777,34 @@ body.dark .philosophy-panel {
     animation: none !important;
   }
 }
+
+
+/* ==========================================================================
+   Spatial keyboard + smooth map navigation
+   ========================================================================== */
+
+.map-viewport.grabbing .map-world {
+  will-change: transform;
+}
+
+.map-node:focus {
+  outline: none;
+}
+
+.map-node:focus-visible {
+  box-shadow:
+    0 7px 0 rgba(55,112,98,.12),
+    0 18px 42px rgba(64,88,80,.17),
+    0 0 0 13px rgba(92,166,160,.09),
+    0 0 0 3px rgba(78,155,136,.82);
+}
+
+.map-viewport.keyboard-navigating .map-node.selected {
+  z-index: 12;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-viewport.keyboard-navigating .map-node.selected {
+    animation: none !important;
+  }
+}
