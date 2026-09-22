@@ -318,3 +318,15 @@ When changing the planner:
 - use progressive disclosure for Hand off and Later details,
 - keep map indicators small and game-like,
 - Review mode should summarize decisions and prompt plan revision after real-world feedback.
+
+
+### Calm + play visual invariant
+
+Mandala should combine two emotional states:
+
+1. **calm attention** while choosing and thinking,
+2. **bright reward** when completing useful work.
+
+Use natural colors, breathing space, subtle ring/water motifs, and gentle motion for the calm layer. Keep checkoffs, bounded confetti, progress feedback, and punchy completion moments for the game layer.
+
+Do not interpret "Eastern" inspiration as decorative cultural imitation. No kanji/bamboo/lantern/cherry-blossom theming. The target is philosophical lightness and ritual, not costume.
