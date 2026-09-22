@@ -8,7 +8,7 @@ The priority is not feature volume. The priority is proving that decomposition +
 
 The sequence is:
 
-**stabilize → break down → decide → do next → review → dogfood → validate → add real assistance → add persistence/sync only when demanded**
+**stabilize → break down → decide → do next → review → dogfood → validate → add real assistance → add optional sync only when demanded**
 
 ---
 
