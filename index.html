@@ -50,6 +50,7 @@
           <button class="soft-button" id="splitButton" type="button">+ Branch</button>
           <button class="soft-button" id="collapseButton" type="button">Hide branch</button>
           <button class="soft-button" id="nextButton" type="button">Next move</button>
+          <button class="soft-button review-button" id="reviewButton" type="button">Review</button>
           <button class="soft-button" id="exportButton" type="button">Save</button>
           <button class="soft-button muted" id="resetButton" type="button">Restart</button>
         </div>
@@ -101,6 +102,7 @@
           </div>
 
           <div class="table-view" id="tableView" hidden>
+            <div class="triage-summary" id="triageSummary" aria-live="polite"></div>
             <div class="node-table-wrap">
               <table class="node-table">
                 <thead>
@@ -108,7 +110,12 @@
                     <th class="done-col" scope="col">Done</th>
                     <th scope="col">Node</th>
                     <th scope="col">Kind</th>
-                    <th scope="col">Parent</th>
+                    <th scope="col">4D</th>
+                    <th scope="col">Important</th>
+                    <th scope="col">Urgent</th>
+                    <th scope="col">Impact</th>
+                    <th scope="col">Effort</th>
+                    <th scope="col">Ready</th>
                     <th scope="col">Status</th>
                     <th scope="col">Time</th>
                     <th class="row-actions-col" scope="col"><span class="sr-only">Actions</span></th>
@@ -151,7 +158,7 @@
       <textarea id="detailTitle" rows="3" maxlength="180"></textarea>
     </label>
 
-    <div class="metric-grid">
+    <div class="metric-grid metric-grid-two">
       <label class="metric">
         <span><b>Impact</b><output id="impactOutput">3</output></span>
         <input id="impactInput" type="range" min="1" max="5" value="3">
@@ -160,11 +167,63 @@
         <span><b>Effort</b><output id="effortOutput">3</output></span>
         <input id="effortInput" type="range" min="1" max="5" value="3">
       </label>
-      <label class="metric">
-        <span><b>Urgency</b><output id="urgencyOutput">3</output></span>
-        <input id="urgencyInput" type="range" min="1" max="5" value="3">
-      </label>
     </div>
+
+    <section class="triage-panel" aria-labelledby="triagePanelTitle">
+      <div class="triage-panel-head">
+        <span class="node-eyebrow">Triage</span>
+        <strong id="triagePanelTitle">Decide what deserves execution</strong>
+      </div>
+
+      <label class="field">
+        <span>4D decision</span>
+        <select id="decisionInput">
+          <option value="do">Do</option>
+          <option value="defer">Defer</option>
+          <option value="delegate">Delegate</option>
+          <option value="delete">Delete</option>
+        </select>
+      </label>
+
+      <div class="flag-grid">
+        <label class="flag-toggle">
+          <input id="importantInput" type="checkbox">
+          <span>Important</span>
+        </label>
+        <label class="flag-toggle">
+          <input id="urgentInput" type="checkbox">
+          <span>Urgent</span>
+        </label>
+      </div>
+
+      <div class="detail-row">
+        <label class="field">
+          <span>Delegatable</span>
+          <select id="delegatableInput">
+            <option value="no">No</option>
+            <option value="partly">Partly</option>
+            <option value="yes">Yes</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Dependency</span>
+          <select id="dependencyInput">
+            <option value="">Ready</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="detail-row">
+        <label class="field">
+          <span>Delegate to</span>
+          <input id="delegatedToInput" type="text" maxlength="120" placeholder="Person, agent, contractor…">
+        </label>
+        <label class="field">
+          <span>Defer until</span>
+          <input id="deferUntilInput" type="date">
+        </label>
+      </div>
+    </section>
 
     <div class="detail-row">
       <label class="field">
@@ -197,7 +256,7 @@
       <textarea id="notesInput" rows="5" maxlength="1200" placeholder="Definition of done, constraint, context…"></textarea>
     </label>
 
-    <button class="danger-button" id="deleteNodeButton" type="button">Delete this node</button>
+    <button class="danger-button" id="deleteNodeButton" type="button">Clear this node</button>
   </aside>
 
   <div class="modal-backdrop" id="suggestionModal" hidden>
@@ -227,6 +286,28 @@
       <div class="modal-actions centered">
         <button class="soft-button" id="openNextAction" type="button">Open in map</button>
         <button class="primary-button" id="completeNextAction" type="button">Mark done</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="reviewModal" hidden>
+    <section class="modal review-modal" role="dialog" aria-modal="true" aria-labelledby="reviewTitle">
+      <button class="icon-button modal-close" id="closeReviewModal" type="button" aria-label="Close review">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+      <span class="node-eyebrow">Review</span>
+      <h2 id="reviewTitle">Is the plan still true?</h2>
+      <div class="review-stats" id="reviewStats"></div>
+      <div class="review-prompts">
+        <p>Which drivers were wrong?</p>
+        <p>Which actions produced real progress?</p>
+        <p>What should be deleted now?</p>
+        <p>What new information changed priorities?</p>
+        <p>What is the next bottleneck?</p>
+      </div>
+      <div class="modal-actions centered">
+        <button class="soft-button" id="closeReviewButton" type="button">Keep playing</button>
+        <button class="primary-button" id="openTriageTableButton" type="button">Open triage table</button>
       </div>
     </section>
   </div>
