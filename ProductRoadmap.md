@@ -4,7 +4,7 @@
 
 This roadmap defines the next steps for Mandala as a small product experiment.
 
-The priority is not feature volume. The priority is proving that the visual goal-decomposition model changes user behavior.
+The priority is not feature volume. The priority is proving that decomposition + triage + next-action selection changes real user behavior.
 
 The sequence is:
 
@@ -161,7 +161,7 @@ For one week, record:
 - number of sessions,
 - number of nodes created,
 - number of actions completed,
-- number of times Next Action was used,
+- number of times Next Move was used,
 - number of times the map was revised,
 - actions that would likely have been postponed without the map,
 - places where the interface caused friction.
