@@ -8,7 +8,7 @@ The priority is not feature volume. The priority is proving that decomposition +
 
 The sequence is:
 
-**stabilize → break down → decide → do next → review → dogfood → validate → add real assistance → add persistence/sync only when demanded**
+**stabilize → break down → decide → do next → review → dogfood → validate → add real assistance → add optional sync only when demanded**
 
 ---
 
@@ -41,13 +41,19 @@ In progress / functional prototype.
 - impact / effort metadata,
 - dependency-aware Ready / Blocked state,
 - decision table,
-- classic 9×9 Mandala Grid view,
+- classic 9×9 Mandala Grid view on 1024px+ screens,
 - synchronized Grid selection and action creation,
+- spatial arrow-key node navigation and Shift+Arrow panning,
+- smoother cancellable pan/pinch/focus camera behavior,
+- four curated palettes: Light, Dark, Sage, Dawn,
 - Next Move restricted to ready Do actions,
 - Review mode and triage summary,
 - IndexedDB via locally vendored `idb`,
 - multiple local maps,
 - autosave snapshots + restore,
+- optional map Groups,
+- Related / Before-After / Parent-Child cross-map links,
+- cycle protection for hierarchy and sequence,
 - JSON export,
 - local demo suggestions.
 
@@ -328,6 +334,7 @@ Build on the now-shipped local multi-map + snapshot foundation and turn it into 
 ## Remaining features
 
 - richer map library,
+- optional visual "map of maps" only if the relationship editor proves useful,
 - rename/archive maps,
 - duplicate map,
 - templates,
@@ -509,16 +516,16 @@ Do not prioritize these now:
 
 # Near-term execution order
 
-1. Harden the zoomable canvas.
-2. Test desktop and mobile interaction.
-3. Add JSON import / recovery.
-4. Dogfood with one real commercial goal.
-5. Record friction for seven days.
-6. Fix repeated friction.
-7. Give the tool to 5 external users.
-8. Measure return usage.
+1. Browser-test the current Map / Table / Grid interactions on desktop.
+2. Physical-device-test phone and tablet behavior, especially pan/pinch, bottom sheets, and safe areas.
+3. Test IndexedDB migration, multi-map switching, autosave, restore, Groups, and cross-map links in real browsers.
+4. Add JSON import / recovery.
+5. Dogfood one real commercial goal and at least one parent goal with multiple child maps.
+6. Record friction for seven days and fix repeated friction.
+7. Give the tool to 5 external users and measure return usage.
+8. Validate whether the outer map graph needs a dedicated visual "map of maps" view before building one.
 9. Only then connect a real LLM.
-10. Only then consider multiple maps and cloud sync.
+10. Treat cloud sync as optional and demand-driven, not the automatic next step.
 
 ---
 

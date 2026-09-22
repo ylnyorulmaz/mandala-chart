@@ -7,9 +7,10 @@ This file defines working rules for coding agents and automated contributors ope
 Read these files before making substantial changes:
 
 1. `Product.md`
-2. `ProductRoadmap.md`
-3. `README.md`
-4. `Cloudy.md`
+2. `ExecutionFramework.md`
+3. `ProductRoadmap.md`
+4. `README.md`
+5. `Cloudy.md`
 
 The product intent matters more than adding features.
 
@@ -36,7 +37,10 @@ Use the existing stack unless explicitly asked to change it:
 - JavaScript
 - jQuery 3.7.1
 - SVG
-- localStorage
+- IndexedDB
+- locally vendored `idb` 6.1.5
+- `storage.js` persistence abstraction
+- localStorage for palette/preferences and fallback migration only
 - Service Worker
 - Web App Manifest
 
@@ -175,16 +179,19 @@ A node may contain fields such as:
 - `title`
 - `parentId`
 - `children`
-- `depth` / `type`
-- `x`
-- `y`
+- `depth`
 - `status`
 - `impact`
 - `effort`
-- `urgency`
+- `decision`
+- `dependencyId`
+- `delegatedTo`
+- `deferUntil`
 - `duration`
 - `notes`
-- collapse state
+- `collapsed` / `tableCollapsed`
+- `offsetX` / `offsetY`
+- `createdAt`
 
 Do not store DOM elements, functions, or non-serializable state inside the persistent data model.
 
@@ -200,7 +207,7 @@ When changing persistence:
 - do not silently erase a user's map,
 - prefer migration over destructive reset.
 
-Before changing the localStorage key or schema, provide a migration path.
+Before changing IndexedDB schema, object stores, record shapes, or fallback localStorage keys, provide a migration path. Cross-map Groups/links are separate from inner map snapshots; do not accidentally erase them when saving or restoring node state.
 
 ---
 
@@ -288,12 +295,15 @@ After editing:
 3. test fresh IndexedDB,
 4. test migration from existing localStorage state,
 5. test multiple maps and snapshot restore,
-6. test desktop,
-7. test narrow mobile viewport,
-8. test pan/zoom/focus,
-9. test editing,
-10. test export,
-11. test basic offline reload when relevant.
+6. test map Groups plus Related / Before-After / Parent-Child links and cycle guards,
+7. test Map / Table / Grid synchronization and the 1024px Grid breakpoint,
+8. test all four palettes and reduced-motion behavior,
+9. test desktop,
+10. test narrow mobile viewport,
+11. test pan/zoom/focus and arrow-key navigation,
+12. test editing,
+13. test export,
+14. test basic offline reload when relevant.
 
 ---
 
@@ -413,6 +423,7 @@ Design rules:
 - Keep the current calm/playful visual language; the reference image is structural inspiration only.
 
 - Grid view must be hidden below 1024px viewport width; if the viewport shrinks while Grid is active, fall back to Map.
+- Do not add a separate Grid persistence model; Map, Table, and Grid are projections of the same node state.
 
 
 ## Palette invariants
@@ -457,3 +468,4 @@ Design rules:
 - Deleting a map must delete every cross-map link that references it.
 - Autosave/restore of a map's internal state must not erase its group metadata or map-level relationships.
 - Do not copy map-level links into node state. The inner Mandala tree and outer map graph are separate layers.
+- A future visual "map of maps" must render the existing outer graph rather than introduce a second competing relationship model.

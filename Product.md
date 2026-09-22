@@ -358,6 +358,20 @@ All three views operate on the same local state. Changing a node in one view cha
 
 The Grid deliberately stops at Goal → Driver → Action. If an action has smaller steps, the Grid shows that deeper work as a compact descendant count; the Map remains the recursive view.
 
+### Opening intention state
+
+The first screen should remain minimal and ritual-like.
+
+The sentence is:
+
+> What do you want to *achieve* today?
+
+Only the action verb rotates:
+
+> *achieve* → *do* → *finish*
+
+The active word is italic. The starter uses a slow breathing pulse rather than an orbiting decorative ring. Reduced-motion preferences must remove this ambient motion.
+
 ### Classic 9×9 Grid
 
 The Grid view should remain faithful to the classic Mandalart layout while using Mandala's current visual language.
@@ -475,7 +489,9 @@ Each child remains its own full Mandala instead of becoming an oversized branch 
 
 The rule is optional structure. A user cleaning the house, shipping a product, and organizing computer files should not be forced into an artificial hierarchy merely because all three maps exist.
 
-Parent and sequence links must remain acyclic. Groups must not secretly imply parentage or ordering.
+Implementation-wise, cross-map edges are stored separately in IndexedDB's `mapLinks` store; they are not embedded into node state or autosave snapshots.
+
+Parent and sequence links must remain acyclic. A map may have at most one direct parent in the initial model. Groups must not secretly imply parentage, sequence, dependency, or execution priority. The outer graph must remain separate from the inner node tree and from snapshot history.
 
 ### Multiple local maps and recovery
 
@@ -544,7 +560,8 @@ The current front-end prototype supports:
 - one central goal,
 - eight driver nodes,
 - recursive child/action decomposition,
-- switchable spatial Map view and structured Table view,
+- synchronized **Map**, **Table**, and classic **9×9 Grid** views,
+- Grid available only at 1024px viewport width and above,
 - persistent zoomable mind-map canvas,
 - pan and zoom,
 - fit-to-screen,
@@ -566,12 +583,15 @@ The current front-end prototype supports:
 - plan Review mode with execution-state summary,
 - local demo suggestions,
 - IndexedDB multi-map persistence,
-- bounded autosave version history,
+- bounded autosave version history with restore,
+- optional map Groups,
+- Related / Before-After / Parent-Child cross-map links,
+- cycle protection for sequence and hierarchy,
 - JSON export,
 - PWA installation,
 - offline-capable service-worker caching,
-- dark/light visual modes,
-- locally vendored jQuery,
+- four curated palettes: Light, Dark, Sage, Dawn,
+- locally vendored jQuery and `idb`,
 - no runtime CDN dependency.
 
 ---
@@ -586,8 +606,11 @@ The product is deliberately simple.
 - CSS
 - JavaScript
 - jQuery 3.7.1
-- localStorage
 - SVG for graph connections
+- IndexedDB
+- locally vendored `idb` 6.1.5
+- `storage.js` persistence abstraction
+- localStorage only for lightweight preferences and IndexedDB fallback/migration
 - Web App Manifest
 - Service Worker
 
@@ -611,8 +634,9 @@ The prototype is intentionally incomplete.
 - There is no cloud sync.
 - There are no accounts.
 - There is no automatic cross-device access.
-- Export exists, but import/recovery workflows are still limited.
-- There is not yet a robust version/history model.
+- Multiple maps and bounded autosave history exist locally, but there is no cloud backup.
+- Snapshot restore exists; JSON import is still missing.
+- There is no full undo/redo model yet.
 
 ### AI limitations
 
@@ -628,7 +652,7 @@ The prototype is intentionally incomplete.
 - There is no advanced scheduling engine.
 - There is no calendar integration.
 - There is no recurring-habit engine.
-- There is no sophisticated project portfolio view.
+- Cross-map groups and typed relationships exist in the Maps library, but there is no dedicated visual portfolio / "map of maps" canvas yet.
 
 ### Collaboration limitations
 
