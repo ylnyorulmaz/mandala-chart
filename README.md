@@ -20,6 +20,11 @@ It supports:
 - eight driver nodes,
 - recursive actions and smaller steps,
 - switchable map and table views,
+- 4D triage: Do / Defer / Delegate / Delete,
+- Eisenhower-style Important / Urgent flags,
+- dependency-aware Ready / Blocked state,
+- smarter Next Move selection from ready DO actions,
+- lightweight plan Review loop,
 - persistent mind-map canvas,
 - pan and zoom,
 - fit-to-map,
@@ -220,3 +225,12 @@ Repeated use, completed actions, requests for history/sync, and users returning 
 ## License
 
 No explicit open-source license has been added yet. Until one exists, the repository is publicly visible but reuse rights are not automatically granted.
+
+
+## Execution framework
+
+The current product philosophy is documented in [ExecutionFramework.md](ExecutionFramework.md):
+
+**Goal → Drivers → Actions → Triage → Execute → Learn → Revise**
+
+The central rule is: **decompose broadly, triage ruthlessly, execute narrowly.**
