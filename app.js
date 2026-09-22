@@ -710,6 +710,18 @@
       if (initialRender) fitAll(false);
     }, 100));
 
+    $(window).on("orientationchange", function () {
+      setTimeout(function () {
+        if (!state.rootId || activeView !== "map") return;
+        renderAll(false);
+        if (selectedId && renderPositions[selectedId]) {
+          focusCameraOnNode(selectedId, Math.min(camera.scale, 1.05));
+        } else {
+          fitAll(false);
+        }
+      }, 180);
+    });
+
     $(document).on("keydown", function (e) {
       if (e.key === "Escape") {
         closeInspector();
@@ -993,12 +1005,12 @@
       ].filter(Boolean).join(" ");
 
       html += '<tr class="' + rowClasses + '" data-id="' + id + '">' +
-        '<td class="done-col"><label class="table-check" aria-label="' +
+        '<td class="done-col" data-label="Done"><label class="table-check" aria-label="' +
           escapeHtml(done ? "Mark open" : "Mark done") + '">' +
           '<input class="table-done-input" type="checkbox"' +
             (done ? " checked" : "") + ((!title || decision === "delete") ? " disabled" : "") + '>' +
           '<span>✓</span></label></td>' +
-        '<td class="node-col"><div class="table-node-cell" style="--depth:' + Math.min(node.depth || 0, 4) + '">' +
+        '<td class="node-col" data-label="Node"><div class="table-node-cell" style="--depth:' + Math.min(node.depth || 0, 4) + '">' +
           (canExpand
             ? '<button class="table-expand-button" type="button" aria-expanded="' +
                 (collapsed ? "false" : "true") + '" aria-label="' +
@@ -1012,24 +1024,24 @@
           '<input class="table-title-input" type="text" maxlength="180" value="' +
             escapeHtml(node.title || "") + '" placeholder="' + escapeHtml(placeholder) + '">' +
         '</div></td>' +
-        '<td><span class="table-kind kind-' + Math.min(node.depth || 0, 3) + '">' +
+        '<td data-label="Kind"><span class="table-kind kind-' + Math.min(node.depth || 0, 3) + '">' +
           escapeHtml(typeLabel(node).toLowerCase()) + '</span></td>' +
-        '<td><select class="table-decision-select decision-' + decision + '" aria-label="Decision">' +
+        '<td data-label="Decision"><select class="table-decision-select decision-' + decision + '" aria-label="Decision">' +
           decisionOptions(decision) +
         '</select></td>' +
-        '<td><select class="table-score-select table-impact-select" aria-label="Impact">' +
+        '<td data-label="Impact"><select class="table-score-select table-impact-select" aria-label="Impact">' +
           scoreOptions(node.impact || 3) + '</select></td>' +
-        '<td><select class="table-score-select table-effort-select" aria-label="Effort">' +
+        '<td data-label="Effort"><select class="table-score-select table-effort-select" aria-label="Effort">' +
           scoreOptions(node.effort || 3) + '</select></td>' +
-        '<td><span class="readiness-pill ' + (blocked ? "blocked" : "ready") + '" title="' +
+        '<td data-label="Ready"><span class="readiness-pill ' + (blocked ? "blocked" : "ready") + '" title="' +
           escapeHtml(dependencyText) + '">' + escapeHtml(blocked ? "Blocked" : "Ready") + '</span></td>' +
-        '<td><select class="table-status-select" aria-label="Status">' +
+        '<td data-label="Status"><select class="table-status-select" aria-label="Status">' +
           '<option value="open"' + (node.status === "open" ? " selected" : "") + '>Open</option>' +
           '<option value="doing"' + (node.status === "doing" ? " selected" : "") + '>Doing</option>' +
           '<option value="done"' + (node.status === "done" ? " selected" : "") + '>Done</option>' +
         '</select></td>' +
-        '<td class="table-time">' + estimate + '</td>' +
-        '<td class="table-row-actions">' +
+        '<td class="table-time" data-label="Time">' + estimate + '</td>' +
+        '<td class="table-row-actions" data-label="Actions">' +
           '<button class="table-icon-button table-details-button" type="button" title="Decide & details" aria-label="Open decision and details">•••</button>' +
           '<button class="table-icon-button table-focus-button" type="button" title="Show on map" aria-label="Show on map">↗</button>' +
         '</td>' +
@@ -1378,7 +1390,7 @@
     var pos = renderPositions[id];
     if (!pos) return;
 
-    var scale = clamp(targetScale || camera.scale, .24, 2.2);
+    var scale = clamp(targetScale || camera.scale, minimumCameraScale(), 2.2);
     var x = viewportWidth() / 2 - pos.x * scale;
     var y = viewportHeight() / 2 - pos.y * scale;
     animateCameraTo(x, y, scale, 360);
@@ -1392,10 +1404,10 @@
 
     var vw = viewportWidth();
     var vh = viewportHeight();
-    var pad = Math.min(vw, vh) * .13 + 60;
+    var pad = isCompactViewport() ? Math.max(18, Math.min(vw, vh) * .06) : Math.min(vw, vh) * .13 + 60;
     var scaleX = (vw - pad * 2) / Math.max(bounds.width, 1);
     var scaleY = (vh - pad * 2) / Math.max(bounds.height, 1);
-    var scale = clamp(Math.min(scaleX, scaleY), .24, 1.08);
+    var scale = clamp(Math.min(scaleX, scaleY), minimumCameraScale(), 1.08);
 
     var centerX = bounds.minX + bounds.width / 2;
     var centerY = bounds.minY + bounds.height / 2;
@@ -1476,7 +1488,7 @@
   function zoomAt(screenX, screenY, targetScale) {
     if (!state.rootId) return;
 
-    var newScale = clamp(targetScale, .24, 2.2);
+    var newScale = clamp(targetScale, minimumCameraScale(), 2.2);
     var worldX = (screenX - camera.x) / camera.scale;
     var worldY = (screenY - camera.y) / camera.scale;
 
@@ -1512,6 +1524,11 @@
   }
 
   function renderMinimap() {
+    if (isCompactViewport()) {
+      $("#minimap").attr("hidden", true);
+      return;
+    }
+
     var bounds = getWorldBounds();
     if (!bounds) {
       $("#minimap").attr("hidden", true);
@@ -1565,6 +1582,14 @@
       width: Math.max(width, 6) + "px",
       height: Math.max(height, 6) + "px"
     });
+  }
+
+  function isCompactViewport() {
+    return window.matchMedia && window.matchMedia("(max-width: 760px)").matches;
+  }
+
+  function minimumCameraScale() {
+    return isCompactViewport() ? .14 : .24;
   }
 
   function viewportWidth() {
