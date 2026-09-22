@@ -402,7 +402,7 @@
     });
 
     $("#mapViewport").on("pointerdown", function (e) {
-      if ($(e.target).closest(".map-node, .map-toolbar, .minimap, .empty-map").length) return;
+      if ($(e.target).closest(".map-node, .map-toolbar, .minimap, .empty-map, .quest-progress, .canvas-status").length) return;
 
       stopCameraMotion();
       pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
@@ -454,6 +454,7 @@
 
       delete pointers[e.pointerId];
       try { this.releasePointerCapture(e.pointerId); } catch (ignore) {}
+      flushCameraInput();
 
       var remainingIds = Object.keys(pointers);
 
@@ -1528,6 +1529,21 @@
       cameraInputFrame = null;
     }
     pendingCamera = null;
+  }
+
+  function flushCameraInput() {
+    if (cameraInputFrame !== null) {
+      cancelAnimationFrame(cameraInputFrame);
+      cameraInputFrame = null;
+    }
+
+    if (!pendingCamera) return;
+
+    camera.x = pendingCamera.x;
+    camera.y = pendingCamera.y;
+    camera.scale = pendingCamera.scale;
+    pendingCamera = null;
+    applyCamera();
   }
 
   function stopCameraMotion() {
