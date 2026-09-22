@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f5f7fb">
+  <meta name="theme-color" content="#fbf6ed">
   <meta name="description" content="Mandala is a zoomable visual goal map for turning intentions into drivers, actions, and next steps.">
-  <title>Mandala — Visual goal map</title>
+  <title>Mandala — Make the big thing feel doable</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
@@ -22,7 +22,7 @@
         </a>
 
         <nav class="main-nav" aria-label="Primary">
-          <a class="active" href="index.html">Planner</a>
+          <a class="active" href="index.html">Map</a>
           <a href="about.html">About</a>
           <a href="https://github.com/ylnyorulmaz/mandala-chart" target="_blank" rel="noreferrer">GitHub</a>
         </nav>
@@ -31,7 +31,7 @@
           <button class="icon-button" id="themeButton" type="button" aria-label="Toggle theme" title="Toggle theme">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.2A8 8 0 1 1 8.8 4a6.5 6.5 0 0 0 11.2 11.2Z"/></svg>
           </button>
-          <a class="support-button" href="https://buymeacoffee.com/ylnyorulmaz" target="_blank" rel="noreferrer">Support</a>
+          <a class="support-button" href="https://buymeacoffee.com/ylnyorulmaz" target="_blank" rel="noreferrer">Coffee</a>
         </div>
       </div>
     </header>
@@ -40,9 +40,9 @@
       <section class="planner-shell">
         <div class="planner-head">
           <div>
-            <span class="kicker">VISUAL GOAL MAP</span>
-            <h1>See the whole thing. Focus where it matters.</h1>
-            <p>Pan, zoom, expand branches, and keep the full structure visible while you work.</p>
+            <span class="kicker">MAKE IT FEEL DOABLE</span>
+            <h1>Put the big thing in the middle.</h1>
+            <p>Then untangle it into smaller pieces until the next move feels obvious.</p>
           </div>
 
           <div class="planner-actions" id="plannerActions" hidden>
@@ -66,7 +66,7 @@
           </div>
 
           <div class="map-hint" id="mapHint">
-            Drag empty space to pan · scroll or pinch to zoom · click to focus · double-click to edit · Shift-drag to reposition
+            Drag to roam · scroll or pinch to zoom · click a bubble to focus · double-click to edit
           </div>
 
           <div class="map-viewport" id="mapViewport" tabindex="0" aria-label="Mandala map canvas">
@@ -79,9 +79,9 @@
               <div class="root-starter" id="rootStarter" tabindex="0" role="button" aria-label="Enter your goal">
                 <div class="starter-glow" aria-hidden="true"></div>
                 <div class="starter-copy" id="starterCopy">
-                  <span>START HERE</span>
+                  <span>ONE THING</span>
                   <strong id="rotatingPrompt">What do you want to finish?</strong>
-                  <small>Click to type your goal</small>
+                  <small>Click and put it into words</small>
                 </div>
                 <textarea id="rootInput" rows="4" maxlength="180" placeholder="Type your goal…" hidden></textarea>
               </div>
@@ -94,7 +94,7 @@
 
             <div class="canvas-status" id="canvasStatus">
               <span class="status-dot"></span>
-              <span id="canvasStatusText">Local-first · no account required</span>
+              <span id="canvasStatusText">Saved on this device · no account needed</span>
             </div>
           </div>
 
@@ -106,15 +106,15 @@
             <div class="selection-actions">
               <button id="editSelectedButton" type="button">Edit</button>
               <button id="markDoneButton" type="button">Mark done</button>
-              <button id="focusSelectedButton" type="button">Center camera</button>
+              <button id="focusSelectedButton" type="button">Bring to center</button>
             </div>
           </div>
         </div>
       </section>
 
       <section class="manifesto-strip">
-        <p><strong>The map is not the work.</strong> Its job is to turn a vague goal into the next obvious move.</p>
-        <a href="about.html">How the system works →</a>
+        <p><strong>Big things feel lighter when you can see the pieces.</strong> The map exists to get you moving, not to give you more planning to do.</p>
+        <a href="about.html">Why this works →</a>
       </section>
     </main>
 
@@ -127,11 +127,11 @@
             </span>
             <span class="brand-name">mandala</span>
           </a>
-          <p>A visual execution map for turning goals into concrete, controllable actions.</p>
+          <p>A warm little map for turning “I should do this” into “I know what to do next.”</p>
         </div>
 
         <div class="footer-column">
-          <span>PROJECT</span>
+          <span>EXPLORE</span>
           <a href="about.html">About the method</a>
           <a href="https://github.com/ylnyorulmaz/mandala-chart" target="_blank" rel="noreferrer">Source on GitHub</a>
         </div>
@@ -143,14 +143,14 @@
         </div>
 
         <div class="footer-support">
-          <span>LIKE THE PROJECT?</span>
-          <p>If this helps you finish something, you can support the project.</p>
+          <span>HELP KEEP IT GOING</span>
+          <p>If Mandala helps you get unstuck, you can buy me a coffee.</p>
           <a class="coffee-button" href="https://buymeacoffee.com/ylnyorulmaz" target="_blank" rel="noreferrer">Buy me a coffee ↗</a>
         </div>
       </div>
 
       <div class="footer-bottom">
-        <span>Built as a local-first experiment in getting things done.</span>
+        <span>Made for getting unstuck, one branch at a time.</span>
         <span>© <span id="year"></span> Yalın Yorulmaz</span>
       </div>
     </footer>
@@ -159,7 +159,7 @@
   <aside class="inspector" id="inspector" aria-hidden="true">
     <div class="inspector-head">
       <div>
-        <span class="node-eyebrow">NODE DETAILS</span>
+        <span class="node-eyebrow">A LITTLE CONTEXT</span>
         <h2 id="inspectorTitle">Edit node</h2>
       </div>
       <button class="icon-button" id="closeInspector" type="button" aria-label="Close details">
@@ -227,9 +227,9 @@
       <button class="icon-button modal-close" id="closeSuggestionModal" type="button" aria-label="Close suggestions">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
       </button>
-      <span class="node-eyebrow">PLANNING ASSISTANT</span>
+      <span class="node-eyebrow">NEED A NUDGE?</span>
       <h2 id="suggestionTitle">Suggested drivers</h2>
-      <p>Prototype suggestions for now. A model integration can replace this later without changing the interaction.</p>
+      <p>Pick anything useful, ignore the rest. These are just prompts to help you think.</p>
       <div class="suggestion-list" id="suggestionList"></div>
       <div class="modal-actions">
         <button class="soft-button" id="shuffleSuggestions" type="button">Regenerate</button>
@@ -243,7 +243,7 @@
       <button class="icon-button modal-close" id="closeNextModal" type="button" aria-label="Close next action">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
       </button>
-      <span class="node-eyebrow">YOUR NEXT ACTION</span>
+      <span class="node-eyebrow">ONE THING AT A TIME</span>
       <div class="next-pulse"><span></span></div>
       <h2 id="nextActionTitle">Nothing actionable yet.</h2>
       <p id="nextActionMeta">Add or split a branch into concrete actions.</p>
