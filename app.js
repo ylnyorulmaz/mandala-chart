@@ -5,8 +5,16 @@
   var LEGACY_STORAGE_KEY = "mandala-chart-state-v1";
   var THEME_KEY = "mandala-chart-theme-v1";
 
-  var state = loadState();
-  var selectedId = state.rootId || null;
+  var state = defaultState();
+  var currentMapId = null;
+  var currentMapCreatedAt = null;
+  var storageReady = false;
+  var stateSaveTimer = null;
+  var snapshotTimer = null;
+  var lastSnapshotAt = 0;
+  var snapshotHistoryMapId = null;
+
+  var selectedId = null;
   var editingId = null;
   var selectedDetailId = null;
   var suggestionBuffer = [];
@@ -181,7 +189,7 @@
 
   $(init);
 
-  function init() {
+  async function init() {
     applyStoredTheme();
     $("#year").text(new Date().getFullYear());
     bindGlobalEvents();
@@ -189,9 +197,10 @@
     if (!$("#mapViewport").length) return;
 
     bindPlannerEvents();
+    await initializePlannerStorage();
 
     if (state.rootId && state.nodes[state.rootId]) {
-      selectedId = selectedId || state.rootId;
+      selectedId = state.rootId;
       normalizeState();
     }
 
@@ -242,6 +251,44 @@
       var delta = (e.key === "ArrowRight" || e.key === "ArrowDown") ? 1 : -1;
       var next = (current + delta + $choices.length) % $choices.length;
       $choices.eq(next).focus();
+    });
+
+    $("#mapsButton").on("click", function () {
+      openMapsModal();
+    });
+
+    $("#closeMapsModal").on("click", closeMapsModal);
+    $("#backToMapsButton").on("click", function () {
+      snapshotHistoryMapId = null;
+      $("#snapshotHistoryView").attr("hidden", true);
+      $("#mapsLibraryView").removeAttr("hidden");
+      renderMapsLibrary();
+    });
+
+    $("#newMapButton").on("click", async function () {
+      await persistCurrentMapNow();
+      closeMapsModal();
+      startNewMap();
+    });
+
+    $("#mapsList").on("click", ".map-open-button", function () {
+      openStoredMap($(this).closest(".map-card").data("map-id"));
+    });
+
+    $("#mapsList").on("click", ".map-history-button", function () {
+      openSnapshotHistory($(this).closest(".map-card").data("map-id"));
+    });
+
+    $("#mapsList").on("click", ".map-delete-button", function () {
+      deleteStoredMap($(this).closest(".map-card").data("map-id"));
+    });
+
+    $("#snapshotList").on("click", ".snapshot-restore-button", function () {
+      restoreSnapshot($(this).closest(".snapshot-row").data("snapshot-id"));
+    });
+
+    $("#mapsModal").on("click", function (e) {
+      if (e.target === this) closeMapsModal();
     });
 
     $("#continueButton").on("click", function () {
