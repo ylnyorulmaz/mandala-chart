@@ -184,18 +184,11 @@
     if (state.rootId && state.nodes[state.rootId]) {
       selectedId = selectedId || state.rootId;
       normalizeState();
-      stopPromptRotation();
-      showMap();
-      renderAll(false);
-      setTimeout(function () {
-        fitAll(false);
-        initialRender = false;
-      }, 40);
-    } else {
-      showEmptyMap();
-      startPromptRotation();
-      initialRender = false;
     }
+
+    showEmptyMap();
+    startPromptRotation();
+    initialRender = false;
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
@@ -206,6 +199,17 @@
 
   function bindGlobalEvents() {
     $("#themeButton").on("click", toggleTheme);
+
+    $("#continueButton").on("click", function () {
+      if (!state.rootId || !state.nodes[state.rootId]) return;
+      selectedId = selectedId || state.rootId;
+      stopPromptRotation();
+      showMap();
+      renderAll(false);
+      setTimeout(function () {
+        fitAll(true);
+      }, 30);
+    });
   }
 
   function bindPlannerEvents() {
@@ -646,6 +650,7 @@
 
   function showEmptyMap() {
     $("body").addClass("empty-start");
+    $("#continueButton").attr("hidden", !(state.rootId && state.nodes[state.rootId]));
     $("#plannerActions, #selectionBar, #minimap").attr("hidden", true);
     $("#emptyMap").removeAttr("hidden");
     $("#mapNodes, #mapEdges, #minimapWorld").empty();
@@ -657,6 +662,7 @@
 
   function showMap() {
     $("body").removeClass("empty-start");
+    $("#continueButton").attr("hidden", true);
     $("#emptyMap").attr("hidden", true);
     $("#plannerActions, #selectionBar, #minimap").removeAttr("hidden");
   }
