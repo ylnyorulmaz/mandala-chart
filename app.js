@@ -855,7 +855,7 @@
             var c = state.nodes[childId];
             return c && c.title.trim();
           })) &&
-          node.depth > 0;
+          node.depth >= 2;
       });
 
     candidates.sort(function (a, b) {
