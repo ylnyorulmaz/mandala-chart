@@ -33,6 +33,29 @@ The long-term vision is a lightweight visual operating system for personal execu
 
 ## Product philosophy
 
+### Visual personality
+
+Mandala should feel like a warm personal thinking space, not enterprise productivity software.
+
+Prefer:
+
+- warm paper-like neutrals,
+- friendly coral, butter, sage, sky, and lavender accents,
+- rounded and organic geometry,
+- soft depth rather than glossy corporate glass,
+- editorial warmth in headings,
+- human microcopy,
+- calm playful motion.
+
+Avoid:
+
+- cold blue SaaS dashboards,
+- dense admin-panel chrome,
+- excessive uppercase labels,
+- sterile enterprise language,
+- dark-tech visual clichés,
+- decoration that makes the map harder to read.
+
 ### 1. Overview first, focus second
 
 The user should be able to see the whole structure at a glance.

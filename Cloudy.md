@@ -91,13 +91,16 @@ The product should surface executable leaf actions.
 
 Preferred qualities:
 
-- sleek,
-- minimal,
-- calm,
+- warm,
+- friendly,
+- personal,
+- playful without becoming childish,
 - spatial,
 - readable,
 - responsive,
 - smooth but not theatrical.
+
+The product should feel closer to a calm notebook, mind map, or creative studio wall than a corporate SaaS dashboard. Warm cream surfaces, coral/butter/sage/lavender accents, rounded controls, and human microcopy are preferred over cold blue enterprise styling.
 
 Avoid:
 

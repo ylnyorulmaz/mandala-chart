@@ -1,16 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="g" x1="80" y1="70" x2="440" y2="450" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#b7aaff"/>
-      <stop offset=".55" stop-color="#7a8cff"/>
-      <stop offset="1" stop-color="#5eead4"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="118" fill="#0b0d12"/>
-  <g transform="translate(256 256) rotate(45) translate(-256 -256)">
-    <rect x="121" y="121" width="124" height="124" rx="34" fill="url(#g)"/>
-    <rect x="267" y="121" width="124" height="124" rx="34" fill="url(#g)" opacity=".52"/>
-    <rect x="121" y="267" width="124" height="124" rx="34" fill="url(#g)" opacity=".52"/>
-    <rect x="267" y="267" width="124" height="124" rx="34" fill="url(#g)"/>
+  <rect width="512" height="512" rx="118" fill="#fbf6ed"/>
+  <circle cx="256" cy="256" r="174" fill="#fffaf2" stroke="#eadbcb" stroke-width="12"/>
+  <g transform="translate(256 256) rotate(7) translate(-256 -256)">
+    <rect x="126" y="126" width="122" height="122" rx="42" fill="#ef8a72"/>
+    <rect x="264" y="126" width="122" height="122" rx="42" fill="#f3cb73"/>
+    <rect x="126" y="264" width="122" height="122" rx="42" fill="#94b49b"/>
+    <rect x="264" y="264" width="122" height="122" rx="42" fill="#a99ac6"/>
   </g>
+  <circle cx="256" cy="256" r="28" fill="#fffaf2"/>
 </svg>

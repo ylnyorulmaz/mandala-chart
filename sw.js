@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandala-v4";
+const CACHE_NAME = "mandala-v5";
 const LOCAL_ASSETS = [
   "./",
   "./index.html",
