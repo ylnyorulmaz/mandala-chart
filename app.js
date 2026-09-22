@@ -3265,6 +3265,18 @@
       return map.id !== mapId;
     });
 
+    var groups = maps.map(function (map) {
+      return String(map.group || "").trim();
+    }).filter(Boolean).filter(function (group, index, all) {
+      return all.indexOf(group) === index;
+    }).sort();
+
+    $("#mapGroupSuggestions").html(
+      groups.map(function (group) {
+        return '<option value="' + escapeHtml(group) + '"></option>';
+      }).join("")
+    );
+
     $("#mapRelationTarget").html(
       targets.length
         ? targets.map(function (map) {
@@ -3496,7 +3508,8 @@
     if (!record) return;
 
     snapshotHistoryMapId = mapId;
-    $("#mapsLibraryView").attr("hidden", true);
+    relationshipMapId = null;
+    $("#mapsLibraryView, #mapRelationshipsView").attr("hidden", true);
     $("#snapshotHistoryView").removeAttr("hidden");
     $("#snapshotMapTitle").text(record.title || "Untitled map");
 
