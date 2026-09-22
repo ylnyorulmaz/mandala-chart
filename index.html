@@ -22,17 +22,17 @@
         </a>
 
         <nav class="main-nav" aria-label="Primary">
-          <a class="active" href="index.html">Map</a>
+          <a class="active" href="index.html">Play</a>
           <a href="about.html">About</a>
           <a href="https://github.com/ylnyorulmaz/mandala-chart" target="_blank" rel="noreferrer">GitHub</a>
         </nav>
 
         <div class="nav-actions">
-          <button class="soft-button continue-button" id="continueButton" type="button" hidden>Continue</button>
+          <button class="soft-button continue-button" id="continueButton" type="button" hidden>Resume</button>
           <button class="icon-button" id="themeButton" type="button" aria-label="Toggle theme" title="Toggle theme">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.2A8 8 0 1 1 8.8 4a6.5 6.5 0 0 0 11.2 11.2Z"/></svg>
           </button>
-          <a class="support-button" href="https://buymeacoffee.com/ylnyorulmaz" target="_blank" rel="noreferrer">Coffee</a>
+          <a class="support-button" href="https://buymeacoffee.com/ylnyorulmaz" target="_blank" rel="noreferrer">☕ Coffee</a>
         </div>
       </div>
     </header>
@@ -61,6 +61,14 @@
           <div class="map-hint" id="mapHint">Drag to roam · scroll or pinch to zoom · click to focus · double-click to edit</div>
 
           <div class="map-viewport" id="mapViewport" tabindex="0" aria-label="Mandala map canvas">
+            <div class="quest-progress" id="questProgress" hidden>
+              <div class="quest-progress-copy">
+                <span>Quest progress</span>
+                <strong id="questProgressValue">0%</strong>
+              </div>
+              <div class="quest-progress-track"><i id="questProgressFill"></i></div>
+            </div>
+
             <div class="map-world" id="mapWorld">
               <svg class="map-edges" id="mapEdges" aria-hidden="true"></svg>
               <div class="map-nodes" id="mapNodes"></div>
@@ -200,6 +208,15 @@
   </div>
 
   <div class="toast" id="toast" role="status"></div>
+
+  <div class="celebration" id="celebration" hidden aria-live="polite">
+    <div class="celebration-card">
+      <span class="celebration-check">✓</span>
+      <strong id="celebrationTitle">Nice!</strong>
+      <small id="celebrationCopy">One step closer.</small>
+    </div>
+    <div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
+  </div>
 
   <script src="vendor/jquery-3.7.1.min.js"></script>
   <script src="app.js"></script>
