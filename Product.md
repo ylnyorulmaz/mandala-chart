@@ -389,6 +389,26 @@ Nodes may carry:
 - status,
 - notes.
 
+### Flow, ritual, and lightness
+
+The interface should carry a sense of calm practice rather than productivity pressure.
+
+The intended emotional blend is:
+
+- **space and breath** instead of dashboard density,
+- **flow** instead of rigid workflow ceremony,
+- **ritual** instead of nagging,
+- **natural color** instead of corporate status-color overload,
+- **playful reward** instead of sterile minimalism.
+
+The map may use water-like rings, soft organic gradients, quiet motion, natural jade/teal/gold/coral accents, and restrained philosophical microcopy. Completion should still feel satisfying: checks, spark/confetti, progress movement, and quick celebration remain part of the product.
+
+Do not turn this into decorative "Asian" theming. Avoid kanji, bamboo, lanterns, cherry-blossom clichés, faux calligraphy, or mystical ornament. The inspiration should come through **rhythm, emptiness, balance, practice, and flow**.
+
+A useful visual rule:
+
+> Calm before the action. Spark at the action. Calm after the action.
+
 ### Mobile interaction
 
 Mobile is a first-class surface, not a scaled-down desktop afterthought.

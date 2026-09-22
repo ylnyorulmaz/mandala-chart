@@ -5023,3 +5023,757 @@ body.dark .review-stats div {
     border-radius: 20px 20px 0 0;
   }
 }
+
+
+/* ==========================================================================
+   Flow / ritual layer
+   Calm enough to breathe, playful enough to reward motion.
+   No decorative faux-Zen clichés: the feeling comes from rhythm, space,
+   water-like motion, natural color, and small rituals of attention.
+   ========================================================================== */
+
+:root {
+  --flow-paper: #fbf8ef;
+  --flow-paper-2: #f5f0e4;
+  --flow-ink: #34433f;
+  --flow-muted: #7d8984;
+  --flow-jade: #4e9b88;
+  --flow-jade-deep: #337565;
+  --flow-teal: #5ca6a0;
+  --flow-sky: #79b8c8;
+  --flow-coral: #ed816b;
+  --flow-gold: #e4b95c;
+  --flow-violet: #8e88bf;
+  --flow-line: rgba(67, 105, 96, .13);
+  --flow-shadow: rgba(64, 88, 80, .13);
+}
+
+body {
+  color: var(--flow-ink);
+  background:
+    radial-gradient(circle at 8% 12%, rgba(228,185,92,.15), transparent 22%),
+    radial-gradient(circle at 92% 17%, rgba(121,184,200,.13), transparent 24%),
+    radial-gradient(circle at 78% 86%, rgba(78,155,136,.10), transparent 24%),
+    linear-gradient(180deg, #fcf9f2 0%, #f8f4e9 100%);
+}
+
+body.dark {
+  --flow-paper: #242a28;
+  --flow-paper-2: #202624;
+  --flow-ink: #edf4ef;
+  --flow-muted: #a9b8b2;
+  --flow-line: rgba(195, 226, 214, .10);
+  background:
+    radial-gradient(circle at 8% 12%, rgba(228,185,92,.07), transparent 23%),
+    radial-gradient(circle at 92% 17%, rgba(92,166,160,.09), transparent 25%),
+    linear-gradient(180deg, #202624 0%, #1d2221 100%);
+}
+
+/* Header: lighter, quieter, more like a threshold than a toolbar. */
+.site-header {
+  background: color-mix(in srgb, var(--flow-paper) 88%, transparent);
+  box-shadow:
+    0 1px 0 var(--flow-line),
+    0 10px 32px rgba(60,78,72,.035);
+}
+
+body.dark .site-header {
+  background: color-mix(in srgb, var(--flow-paper) 92%, transparent);
+}
+
+.brand-grid {
+  transform: rotate(45deg);
+  gap: 3px;
+}
+
+.brand-grid span {
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.brand-grid span:nth-child(1) { background: var(--flow-jade); }
+.brand-grid span:nth-child(2) { background: var(--flow-gold); }
+.brand-grid span:nth-child(3) { background: var(--flow-sky); }
+.brand-grid span:nth-child(4) { background: var(--flow-coral); }
+
+.main-nav {
+  border-color: var(--flow-line);
+  background: color-mix(in srgb, var(--flow-paper) 70%, transparent);
+  box-shadow: none;
+}
+
+.main-nav a.active {
+  color: #2e6358;
+  background: rgba(78,155,136,.12);
+  box-shadow: inset 0 0 0 1px rgba(78,155,136,.08);
+}
+
+body.dark .main-nav a.active {
+  color: #dff3eb;
+  background: rgba(92,166,160,.13);
+}
+
+.icon-button,
+.soft-button,
+.map-tool {
+  border-color: var(--flow-line);
+  background: color-mix(in srgb, var(--flow-paper) 80%, transparent);
+}
+
+.soft-button:hover,
+.map-tool:hover,
+.icon-button:hover {
+  color: #356f62;
+  background: rgba(78,155,136,.10);
+  border-color: rgba(78,155,136,.20);
+}
+
+/* The map becomes a quiet surface with faint water rings. */
+body:not(.empty-start) .minimal-map-frame .map-viewport {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 12% 14%, rgba(228,185,92,.08), transparent 21%),
+    radial-gradient(circle at 88% 20%, rgba(121,184,200,.08), transparent 22%),
+    radial-gradient(circle at 76% 82%, rgba(78,155,136,.07), transparent 24%),
+    radial-gradient(circle, rgba(76,112,103,.10) 1px, transparent 1.1px),
+    var(--flow-paper);
+  background-size: auto, auto, auto, 30px 30px, auto;
+}
+
+body.dark:not(.empty-start) .minimal-map-frame .map-viewport {
+  background:
+    radial-gradient(circle at 12% 14%, rgba(228,185,92,.04), transparent 21%),
+    radial-gradient(circle at 88% 20%, rgba(92,166,160,.06), transparent 22%),
+    radial-gradient(circle, rgba(198,226,215,.06) 1px, transparent 1.1px),
+    var(--flow-paper);
+  background-size: auto, auto, 30px 30px, auto;
+}
+
+.map-viewport::before,
+.map-viewport::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 50%;
+  opacity: .34;
+}
+
+body:not(.empty-start) .map-viewport::before {
+  width: 520px;
+  height: 520px;
+  left: -250px;
+  top: 18%;
+  border: 1px solid rgba(92,166,160,.12);
+  box-shadow:
+    0 0 0 54px rgba(92,166,160,.025),
+    0 0 0 108px rgba(92,166,160,.018),
+    0 0 0 162px rgba(92,166,160,.012);
+}
+
+body:not(.empty-start) .map-viewport::after {
+  width: 430px;
+  height: 430px;
+  right: -205px;
+  bottom: 6%;
+  border: 1px solid rgba(228,185,92,.10);
+  box-shadow:
+    0 0 0 48px rgba(228,185,92,.022),
+    0 0 0 96px rgba(228,185,92,.015);
+}
+
+.map-world,
+.map-toolbar,
+.quest-progress,
+.map-mantra,
+.minimap,
+.canvas-status {
+  position: absolute;
+}
+
+.map-world { z-index: 2; }
+
+/* Opening circle: intention / breath. Exact prompt remains untouched. */
+body.empty-start .minimal-map-frame .map-viewport {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(92,166,160,.07), transparent 35%),
+    radial-gradient(circle at 50% 50%, rgba(228,185,92,.05), transparent 58%),
+    var(--flow-paper);
+}
+
+body.empty-start .root-starter {
+  color: #fffdf7;
+  background:
+    radial-gradient(circle at 29% 23%, rgba(255,255,255,.18), transparent 28%),
+    radial-gradient(circle at 77% 78%, rgba(228,185,92,.18), transparent 30%),
+    linear-gradient(145deg, #5ca698, #397a70 70%, #326861);
+  border: 1px solid rgba(255,255,255,.42);
+  box-shadow:
+    0 26px 76px rgba(55,109,95,.20),
+    0 0 0 1px rgba(255,255,255,.14) inset;
+  animation: flowBreath 5.8s ease-in-out infinite;
+}
+
+body.empty-start .root-starter::before {
+  border-color: rgba(92,166,160,.22);
+}
+
+body.empty-start .starter-glow {
+  background:
+    radial-gradient(circle, rgba(92,166,160,.18), rgba(228,185,92,.045) 48%, transparent 70%);
+  animation: flowGlow 5.8s ease-in-out infinite;
+}
+
+@keyframes flowBreath {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
+      0 26px 76px rgba(55,109,95,.18),
+      0 0 0 1px rgba(255,255,255,.14) inset;
+  }
+  50% {
+    transform: scale(1.012);
+    box-shadow:
+      0 31px 86px rgba(55,109,95,.23),
+      0 0 0 1px rgba(255,255,255,.18) inset;
+  }
+}
+
+@keyframes flowGlow {
+  0%, 100% { opacity: .54; transform: scale(.98); }
+  50% { opacity: .82; transform: scale(1.035); }
+}
+
+/* Flowing branches rather than diagram wires. */
+.edge-line {
+  stroke: rgba(67,135,121,.34);
+  stroke-width: 1.8;
+  opacity: .86;
+}
+
+.edge-line.depth-2 {
+  stroke: rgba(83,143,132,.24);
+  stroke-width: 1.35;
+}
+
+.edge-line.depth-3 {
+  stroke: rgba(110,133,126,.20);
+  stroke-width: 1.05;
+}
+
+/* Main nodes: natural color family, still distinctly game-like. */
+.map-node.depth-0 {
+  color: #fffdf7;
+  background:
+    radial-gradient(circle at 31% 24%, rgba(255,255,255,.20), transparent 28%),
+    linear-gradient(145deg, #57a291, #337565);
+  border-color: rgba(255,255,255,.70);
+  box-shadow:
+    0 7px 0 #286657,
+    0 18px 40px rgba(46,112,96,.20),
+    0 0 0 7px rgba(78,155,136,.07);
+}
+
+.map-node.depth-1 {
+  color: #4b4435;
+  background: #e9c96f;
+  border-color: rgba(255,255,255,.72);
+  box-shadow: 0 6px 0 #c8a94e, 0 14px 28px rgba(143,116,54,.14);
+}
+
+.map-node.depth-1:nth-child(4n+2) {
+  color: #5c403b;
+  background: #efa08a;
+  box-shadow: 0 6px 0 #ce7f6a, 0 14px 28px rgba(152,87,73,.13);
+}
+
+.map-node.depth-1:nth-child(4n+3) {
+  color: #2f5147;
+  background: #9bcbb4;
+  box-shadow: 0 6px 0 #75ad94, 0 14px 28px rgba(72,124,103,.13);
+}
+
+.map-node.depth-1:nth-child(4n+4) {
+  color: #31505a;
+  background: #9fcbd5;
+  box-shadow: 0 6px 0 #76adba, 0 14px 28px rgba(74,122,136,.13);
+}
+
+.map-node.depth-2 {
+  color: #394943;
+  background: rgba(255,253,247,.97);
+  border-color: rgba(91,151,136,.26);
+  box-shadow:
+    0 4px 0 rgba(76,127,115,.10),
+    0 10px 24px rgba(64,88,80,.09);
+}
+
+.map-node.depth-3,
+.map-node.depth-4 {
+  color: #3d5149;
+  background: #edf5ee;
+  border-color: rgba(102,151,129,.28);
+  box-shadow:
+    0 4px 0 rgba(90,128,107,.09),
+    0 9px 20px rgba(64,88,80,.07);
+}
+
+body.dark .map-node.depth-2 {
+  color: #eaf3ef;
+  background: #2c3431;
+  border-color: rgba(125,185,165,.28);
+}
+
+body.dark .map-node.depth-3,
+body.dark .map-node.depth-4 {
+  color: #e3eee9;
+  background: #2b3631;
+  border-color: rgba(125,185,165,.22);
+}
+
+.map-node.placeholder {
+  opacity: .58;
+}
+
+.map-node.selected {
+  animation: flowSelected 1.9s ease-in-out infinite;
+  box-shadow:
+    0 7px 0 rgba(55,112,98,.12),
+    0 18px 40px rgba(64,88,80,.15),
+    0 0 0 7px rgba(92,166,160,.12),
+    0 0 0 2px rgba(78,155,136,.70);
+}
+
+@keyframes flowSelected {
+  50% {
+    filter: brightness(1.02) saturate(1.04);
+    box-shadow:
+      0 7px 0 rgba(55,112,98,.12),
+      0 18px 42px rgba(64,88,80,.16),
+      0 0 0 12px rgba(92,166,160,.075),
+      0 0 0 2px rgba(78,155,136,.76);
+  }
+}
+
+/* Completion stays joyful, but the color language becomes more organic. */
+.map-node.done {
+  color: #fff;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(255,255,255,.22), transparent 27%),
+    linear-gradient(145deg, #68c6a4, #3c9b77);
+  border-color: rgba(255,255,255,.82);
+  box-shadow:
+    0 6px 0 #2e7d60,
+    0 15px 31px rgba(60,155,119,.21),
+    0 0 0 7px rgba(98,198,164,.09);
+}
+
+.node-complete {
+  color: #388f70;
+  box-shadow: 0 3px 10px rgba(60,92,81,.15);
+}
+
+.node-complete:hover {
+  background: #eaf8f1;
+}
+
+/* Small mantra: present, not preachy. */
+.map-mantra {
+  z-index: 12;
+  left: 50%;
+  bottom: 54px;
+  max-width: min(560px, 56vw);
+  transform: translateX(-50%);
+  padding: 7px 12px;
+  color: rgba(61,82,75,.56);
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 11px;
+  font-style: italic;
+  letter-spacing: .005em;
+  text-align: center;
+  pointer-events: none;
+  text-wrap: balance;
+}
+
+body.dark .map-mantra {
+  color: rgba(225,239,233,.47);
+}
+
+body.empty-start .map-mantra {
+  display: none;
+}
+
+/* Controls feel less dashboard-like. */
+.floating-view-switcher {
+  border-color: rgba(255,255,255,.72);
+  background: rgba(48,82,75,.91);
+  box-shadow:
+    0 4px 0 rgba(35,66,59,.18),
+    0 12px 27px rgba(45,78,70,.15);
+}
+
+.view-button.active {
+  background: linear-gradient(135deg, #5ca698, #4a8992);
+  box-shadow: 0 3px 0 #346b67, 0 6px 13px rgba(72,133,128,.15);
+}
+
+.quest-progress {
+  border-color: rgba(78,155,136,.11);
+  background: rgba(251,248,239,.92);
+  box-shadow: 0 4px 0 rgba(62,104,94,.045), 0 10px 24px rgba(64,88,80,.07);
+}
+
+body.dark .quest-progress {
+  background: rgba(35,43,40,.94);
+}
+
+.quest-progress-copy strong {
+  color: var(--flow-jade);
+}
+
+.quest-progress-track {
+  background: rgba(72,104,94,.10);
+}
+
+.quest-progress-track i {
+  background:
+    linear-gradient(90deg,
+      var(--flow-jade),
+      var(--flow-sky),
+      var(--flow-gold),
+      var(--flow-coral),
+      var(--flow-jade));
+  background-size: 220% 100%;
+}
+
+.review-button {
+  background: linear-gradient(135deg, var(--flow-gold), var(--flow-coral));
+  box-shadow: 0 3px 0 #bd745f;
+}
+
+/* Celebration = spark + ripple, not casino noise. */
+.celebration-card {
+  border: 3px solid rgba(255,255,255,.84);
+  color: #fff;
+  background:
+    radial-gradient(circle at 20% 18%, rgba(255,255,255,.12), transparent 25%),
+    linear-gradient(135deg, #4e9b88, #4f8f9f 58%, #7d82b7);
+  box-shadow:
+    0 7px 0 rgba(48,103,91,.24),
+    0 24px 68px rgba(52,94,85,.27);
+}
+
+.celebration-check {
+  color: #2f725c;
+  background: #b5efd0;
+  box-shadow: 0 4px 0 #74c99a;
+}
+
+.celebration-card::before,
+.celebration-card::after {
+  content: "";
+  position: absolute;
+  inset: -16px;
+  z-index: -1;
+  border: 1px solid rgba(181,239,208,.38);
+  border-radius: 36px;
+  opacity: 0;
+}
+
+.celebration.show .celebration-card::before {
+  animation: celebrationRing 1.1s ease-out .06s both;
+}
+
+.celebration.show .celebration-card::after {
+  animation: celebrationRing 1.1s ease-out .20s both;
+}
+
+@keyframes celebrationRing {
+  0% { opacity: .6; transform: scale(.88); }
+  100% { opacity: 0; transform: scale(1.28); }
+}
+
+.completion-ripple {
+  --ripple-delay: 0s;
+  position: fixed;
+  z-index: 280;
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border: 2px solid rgba(92,166,160,.66);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: completionRipple .95s ease-out var(--ripple-delay) both;
+}
+
+@keyframes completionRipple {
+  0% {
+    opacity: .86;
+    transform: scale(.55);
+    box-shadow: 0 0 0 0 rgba(228,185,92,.18);
+  }
+  72% { opacity: .34; }
+  100% {
+    opacity: 0;
+    transform: scale(5.2);
+    box-shadow: 0 0 0 18px rgba(228,185,92,0);
+  }
+}
+
+/* Table / inspector retain function, but lose some enterprise visual weight. */
+.table-view {
+  background:
+    radial-gradient(circle at 8% 10%, rgba(228,185,92,.08), transparent 20%),
+    radial-gradient(circle at 92% 15%, rgba(92,166,160,.07), transparent 22%),
+    var(--flow-paper);
+}
+
+body.dark .table-view {
+  background:
+    radial-gradient(circle at 8% 10%, rgba(228,185,92,.035), transparent 20%),
+    radial-gradient(circle at 92% 15%, rgba(92,166,160,.05), transparent 22%),
+    var(--flow-paper);
+}
+
+.node-table-wrap {
+  border-color: rgba(72,112,101,.10);
+  background: rgba(255,253,247,.76);
+  box-shadow: 0 5px 0 rgba(64,88,80,.035), 0 16px 36px rgba(64,88,80,.07);
+}
+
+body.dark .node-table-wrap {
+  background: rgba(42,51,47,.88);
+  border-color: rgba(190,220,208,.08);
+}
+
+.triage-panel {
+  border-color: rgba(78,155,136,.10);
+  background:
+    radial-gradient(circle at 90% 10%, rgba(92,166,160,.06), transparent 36%),
+    rgba(255,255,255,.35);
+}
+
+.priority-card {
+  border-color: rgba(78,155,136,.12);
+  background: rgba(78,155,136,.055);
+}
+
+.inspector {
+  background: rgba(250,248,240,.97);
+  border-left-color: rgba(68,104,94,.10);
+  box-shadow: -26px 0 70px rgba(61,81,74,.13);
+}
+
+body.dark .inspector {
+  background: rgba(35,43,40,.98);
+}
+
+.toast {
+  background: #3c6259;
+  box-shadow: 0 4px 0 #2d4c45, 0 12px 26px rgba(45,76,69,.18);
+}
+
+/* About: give the philosophy room to breathe. */
+.philosophy-panel {
+  position: relative;
+  width: min(1000px, 100%);
+  margin: 54px auto 8px;
+  padding: clamp(28px, 5vw, 58px);
+  display: grid;
+  grid-template-columns: 150px minmax(0,1fr);
+  gap: clamp(22px, 5vw, 62px);
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(78,155,136,.11);
+  border-radius: 34px;
+  background:
+    radial-gradient(circle at 13% 18%, rgba(228,185,92,.10), transparent 25%),
+    radial-gradient(circle at 91% 78%, rgba(92,166,160,.09), transparent 28%),
+    rgba(255,253,247,.68);
+  box-shadow: 0 18px 52px rgba(61,81,74,.07);
+}
+
+body.dark .philosophy-panel {
+  background:
+    radial-gradient(circle at 13% 18%, rgba(228,185,92,.045), transparent 25%),
+    radial-gradient(circle at 91% 78%, rgba(92,166,160,.06), transparent 28%),
+    rgba(42,51,47,.72);
+}
+
+.philosophy-panel::after {
+  content: "";
+  position: absolute;
+  width: 380px;
+  height: 380px;
+  right: -220px;
+  top: -210px;
+  border: 1px solid rgba(92,166,160,.11);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 48px rgba(92,166,160,.018),
+    0 0 0 96px rgba(92,166,160,.012);
+  pointer-events: none;
+}
+
+.philosophy-mark {
+  width: 132px;
+  height: 132px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(78,155,136,.12);
+  border-radius: 50%;
+}
+
+.philosophy-mark::before,
+.philosophy-mark::after,
+.philosophy-mark span {
+  content: "";
+  position: absolute;
+  border: 1px solid rgba(78,155,136,.20);
+  border-radius: 50%;
+}
+
+.philosophy-mark::before { width: 92px; height: 92px; }
+.philosophy-mark::after { width: 52px; height: 52px; }
+.philosophy-mark span:nth-child(1) { width: 12px; height: 12px; background: var(--flow-jade); border: 0; }
+.philosophy-mark span:nth-child(2) { width: 152px; height: 152px; opacity: .45; }
+.philosophy-mark span:nth-child(3) { width: 176px; height: 176px; opacity: .22; }
+
+.philosophy-copy {
+  position: relative;
+  z-index: 2;
+}
+
+.philosophy-copy h2 {
+  margin: 7px 0 12px;
+  max-width: 700px;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1.04;
+  font-weight: 590;
+  letter-spacing: -.035em;
+}
+
+.philosophy-copy > p {
+  max-width: 760px;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.philosophy-copy blockquote {
+  margin: 26px 0 18px;
+  padding: 0 0 0 22px;
+  border-left: 2px solid var(--flow-jade);
+}
+
+.philosophy-copy blockquote p {
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: clamp(23px, 3vw, 34px);
+  font-style: italic;
+  line-height: 1.24;
+  letter-spacing: -.02em;
+}
+
+.philosophy-copy blockquote footer {
+  margin-top: 8px;
+  color: var(--flow-muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.philosophy-note {
+  font-size: 12px;
+}
+
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) {
+  .map-mantra {
+    display: none;
+  }
+
+  .minimal-planner > .planner-actions {
+    background: rgba(249,247,239,.97);
+    border-top-color: rgba(78,155,136,.10);
+    box-shadow: 0 -8px 26px rgba(55,80,71,.09);
+  }
+
+  body.dark .minimal-planner > .planner-actions {
+    background: rgba(32,39,36,.97);
+  }
+
+  .floating-view-switcher {
+    background: rgba(48,82,75,.93);
+  }
+
+  .quest-progress {
+    background: rgba(249,247,239,.94);
+  }
+
+  body.dark .quest-progress {
+    background: rgba(32,39,36,.95);
+  }
+
+  .selection-bar {
+    border-color: rgba(78,155,136,.10);
+    background: rgba(249,247,239,.97);
+    box-shadow: 0 8px 28px rgba(55,80,71,.12);
+  }
+
+  body.dark .selection-bar {
+    background: rgba(32,39,36,.97);
+  }
+
+  .inspector {
+    border-top-color: rgba(78,155,136,.11);
+  }
+
+  .node-table tbody tr {
+    border-color: rgba(78,155,136,.09);
+    background: rgba(255,253,247,.77);
+    box-shadow: 0 4px 0 rgba(64,88,80,.03), 0 11px 24px rgba(64,88,80,.06);
+  }
+
+  body.dark .node-table tbody tr {
+    background: rgba(43,52,48,.82);
+  }
+
+  .philosophy-panel {
+    margin-top: 34px;
+    padding: 26px 20px;
+    grid-template-columns: 1fr;
+    border-radius: 24px;
+  }
+
+  .philosophy-mark {
+    width: 92px;
+    height: 92px;
+    justify-self: center;
+  }
+
+  .philosophy-mark::before { width: 66px; height: 66px; }
+  .philosophy-mark::after { width: 38px; height: 38px; }
+  .philosophy-mark span:nth-child(2) { width: 108px; height: 108px; }
+  .philosophy-mark span:nth-child(3) { width: 124px; height: 124px; }
+
+  .philosophy-copy h2 {
+    font-size: clamp(30px, 10vw, 42px);
+  }
+
+  .philosophy-copy blockquote p {
+    font-size: clamp(22px, 7.5vw, 30px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .completion-ripple,
+  .celebration-card::before,
+  .celebration-card::after,
+  body.empty-start .root-starter,
+  body.empty-start .starter-glow,
+  .map-node.selected {
+    animation: none !important;
+  }
+}

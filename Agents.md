@@ -366,3 +366,21 @@ Implementation rules:
 - scoring is a sorting aid; never present fake precision as truth,
 - Review should help users revise or delete work when reality changes,
 - progress must not punish users for intentionally deleting work from the execution plan.
+
+
+## Flow and ritual design language
+
+The product should feel light, fluid, and quietly ritualistic without losing its game energy.
+
+Design rules:
+
+- use generous empty space and calm natural palettes,
+- prefer jade / teal / sky / warm gold / coral over loud dashboard status colors,
+- flowing curves and ripple-like feedback are welcome,
+- keep the opening state meditative and almost empty,
+- preserve completion dopamine: checkmarks, bounded confetti, progress movement, and celebration are intentional,
+- completion may combine a quick celebratory spark with a softer ripple/settle effect,
+- philosophical microcopy must be short and optional, never preachy,
+- do not add fake cultural decoration (kanji, bamboo, lanterns, cherry blossoms, temple imagery, faux calligraphy),
+- express the influence through rhythm, balance, space, flow, and practice rather than stereotypes,
+- reduced-motion preferences must disable new ambient/ripple animations.

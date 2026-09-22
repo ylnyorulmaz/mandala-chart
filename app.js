@@ -933,7 +933,7 @@
     showMap();
     renderAll(true);
     fitAll(true);
-    showToast("Goal mapped. Fill the eight driver nodes.");
+    showToast("Intention set. Eight directions unlocked.");
   }
 
   function renderAll(animateNew) {
@@ -1662,10 +1662,10 @@
 
     var messages = [
       ["Nice!", "One step closer."],
-      ["Boom. Done.", "Keep the momentum going."],
-      ["Level cleared!", "That one is off your plate."],
-      ["You did it!", "Small wins build the whole map."],
-      ["Hell yes.", "Another piece is complete."]
+      ["Boom. Done.", "Let it settle. Keep moving."],
+      ["Flow.", "One clear move changes the whole map."],
+      ["Level cleared!", "Make it visible. Make it real."],
+      ["Hell yes.", "Release it. Choose the next move."]
     ];
 
     var message = messages[Math.floor(Math.random() * messages.length)];
@@ -1676,6 +1676,7 @@
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     if (!reduceMotion) {
+      burstCompletionRipple(node.id);
       burstConfetti();
     }
 
@@ -1692,9 +1693,9 @@
   }
 
   function burstConfetti() {
-    var colors = ["#ff5f6d", "#ffb84d", "#5ee6a8", "#4ec5ff", "#a77bff", "#ff72c6"];
+    var colors = ["#ef7f69", "#e5b957", "#62c6a4", "#61b9cb", "#8f86cc", "#f19a79"];
     var fragment = document.createDocumentFragment();
-    var count = window.innerWidth < 680 ? 28 : 44;
+    var count = window.innerWidth < 680 ? 24 : 38;
 
     for (var i = 0; i < count; i++) {
       var piece = document.createElement("i");
@@ -1712,6 +1713,33 @@
     if (!layer) return;
     layer.innerHTML = "";
     layer.appendChild(fragment);
+  }
+
+  function burstCompletionRipple(id) {
+    var nodeEl = document.querySelector('.map-node[data-id="' + id + '"]');
+    if (!nodeEl) return;
+
+    var rect = nodeEl.getBoundingClientRect();
+    var x = rect.left + rect.width / 2;
+    var y = rect.top + rect.height / 2;
+    var fragment = document.createDocumentFragment();
+
+    for (var i = 0; i < 3; i++) {
+      var ring = document.createElement("i");
+      ring.className = "completion-ripple";
+      ring.style.left = x + "px";
+      ring.style.top = y + "px";
+      ring.style.setProperty("--ripple-delay", (i * .11) + "s");
+      fragment.appendChild(ring);
+    }
+
+    document.body.appendChild(fragment);
+
+    setTimeout(function () {
+      document.querySelectorAll(".completion-ripple").forEach(function (ring) {
+        ring.remove();
+      });
+    }, 1150);
   }
 
   function decisionValue(node) {
