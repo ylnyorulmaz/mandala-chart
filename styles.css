@@ -77,9 +77,21 @@ textarea, input, select { color: var(--text); }
   height: 68px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: 30px;
+}
+
+.nav-wrap > .brand {
+  justify-self: start;
+}
+
+.nav-wrap > .main-nav {
+  justify-self: center;
+}
+
+.nav-wrap > .nav-actions {
+  justify-self: end;
 }
 
 .brand {
@@ -4357,7 +4369,7 @@ body.dark .review-stats div {
   .nav-wrap {
     width: calc(100% - 16px);
     height: var(--mobile-nav-height);
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     gap: 7px;
   }
 
@@ -7405,3 +7417,8 @@ body.dark .blog-sources a {
     font-size: 11px;
   }
 }
+
+
+/* Header alignment invariant:
+   keep the primary nav centered in the viewport regardless of how wide the
+   left brand or page-specific right-side controls are. */
