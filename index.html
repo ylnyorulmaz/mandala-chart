@@ -39,11 +39,12 @@
 
     <main class="minimal-main">
       <section class="planner-shell minimal-planner">
+        <div class="view-switcher floating-view-switcher" id="viewSwitcher" role="group" aria-label="View" hidden>
+          <button class="view-button active" id="mapViewButton" type="button" aria-pressed="true">Map</button>
+          <button class="view-button" id="tableViewButton" type="button" aria-pressed="false">Table</button>
+        </div>
+
         <div class="planner-actions" id="plannerActions" hidden>
-          <div class="view-switcher" id="viewSwitcher" role="group" aria-label="View">
-            <button class="view-button active" id="mapViewButton" type="button" aria-pressed="true">Map</button>
-            <button class="view-button" id="tableViewButton" type="button" aria-pressed="false">Table</button>
-          </div>
           <button class="soft-button" id="suggestButton" type="button"><span class="spark">✦</span> Ideas</button>
           <button class="soft-button" id="detailsButton" type="button">Inspect</button>
           <button class="soft-button" id="splitButton" type="button">+ Branch</button>
