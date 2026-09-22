@@ -1220,18 +1220,8 @@
 
   function startPromptRotation() {
     stopPromptRotation();
-
-    promptTimer = setInterval(function () {
-      if (state.rootId || $("#rootInput").is(":visible")) return;
-
-      promptIndex = (promptIndex + 1) % PROMPTS.length;
-      var $prompt = $("#rotatingPrompt");
-      $prompt.addClass("swap-out");
-
-      setTimeout(function () {
-        $prompt.text(PROMPTS[promptIndex]).removeClass("swap-out");
-      }, 180);
-    }, 2800);
+    promptIndex = 0;
+    $("#rotatingPrompt").text(PROMPTS[0]);
   }
 
   function stopPromptRotation() {
