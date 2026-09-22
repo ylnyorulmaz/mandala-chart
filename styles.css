@@ -6320,3 +6320,13 @@ body.dark .mandala-grid-cell:hover:not(:disabled) {
     transition: none !important;
   }
 }
+
+
+/* Grid is intentionally a large-screen view.
+   Hidden on phones and smaller tablets; landscape tablets/desktops at 1024px+ can use it. */
+@media (max-width: 1023px) {
+  #gridViewButton,
+  #gridView {
+    display: none !important;
+  }
+}
