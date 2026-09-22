@@ -200,12 +200,15 @@ Deletion of a parent with children must make subtree impact clear.
 
 Current useful metadata:
 
+- decision: Do / Later / Hand off / Drop,
 - impact,
 - effort,
-- urgency,
+- lightweight dependency,
 - duration,
 - status,
 - notes.
+
+Do not expose Important/Urgent, Delegatable, or other methodology-derived fields by default. Keep those ideas in the reasoning layer unless real usage proves they deserve UI.
 
 Do not add more fields unless they visibly improve prioritization or execution.
 
@@ -299,19 +302,19 @@ Do not let development of Mandala become a sophisticated form of avoiding the wo
 Keep changes small, ship them, dogfood them, and let repeated real usage decide the next feature.
 
 
-### Triage invariants
+### Decision-model invariants
 
-The current philosophy is **decompose broadly, triage ruthlessly, execute narrowly**.
+The current visible philosophy is **Break it down → Decide → Do next → Review**.
 
 When changing the planner:
 
 - treat the map as a possibility space rather than a mandatory checklist,
-- preserve Do / Defer / Delegate / Delete as execution decisions,
-- never conflate 4D Delete with destructive node deletion,
-- keep Important/Urgent distinct from Impact/Effort,
+- preserve stable internal decision values while showing **Do / Later / Hand off / Drop** to users,
+- never conflate Drop with destructive node deletion,
+- do not expose Important/Urgent or Delegatable as permanent UI metadata,
 - keep dependency handling lightweight and explainable,
-- Next Move should favor only Ready + DO executable leaves,
-- a DEFER/DELEGATE/DELETE decision on a parent suppresses descendants from immediate execution,
-- show detailed triage controls in Table/Inspector, not as clutter on every map node,
+- Next Move should favor only Ready + Do executable leaves,
+- a Later / Hand off / Drop decision on a parent suppresses descendants from immediate execution,
+- use progressive disclosure for Hand off and Later details,
 - keep map indicators small and game-like,
 - Review mode should summarize decisions and prompt plan revision after real-world feedback.

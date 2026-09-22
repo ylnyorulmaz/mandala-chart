@@ -1,7 +1,7 @@
 {
   "name": "Mandala — Goal to Action",
   "short_name": "Mandala",
-  "description": "Decompose a goal, triage the work, and execute the strongest ready next moves.",
+  "description": "Break a goal down, decide what matters, do the next move, and review what changed.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

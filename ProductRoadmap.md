@@ -8,7 +8,7 @@ The priority is not feature volume. The priority is proving that decomposition +
 
 The sequence is:
 
-**stabilize → decompose → triage → execute → review → dogfood → validate → add real assistance → add persistence/sync only when demanded**
+**stabilize → break down → decide → do next → review → dogfood → validate → add real assistance → add persistence/sync only when demanded**
 
 ---
 
@@ -33,13 +33,11 @@ In progress / functional prototype.
 - branch collapse,
 - inline editing,
 - node repositioning,
+- simple Do / Later / Hand off / Drop decisions,
 - impact / effort metadata,
-- Important / Urgent flags,
-- 4D triage: Do / Defer / Delegate / Delete,
-- delegatability,
 - dependency-aware Ready / Blocked state,
-- triage table,
-- Next Move restricted to ready DO actions,
+- decision table,
+- Next Move restricted to ready Do actions,
 - Review mode and triage summary,
 - localStorage,
 - JSON export,
@@ -119,15 +117,15 @@ can be planned and navigated comfortably on desktop and mobile.
 
 ---
 
-## Triage philosophy gate
+## Simplicity gate
 
 Before adding more planning features, validate the central behavioral claim:
 
-> A broad decomposition is useful only if the product helps the user decide what **not** to do.
+> A broad decomposition is useful only if the product makes the next decision simpler, not more bureaucratic.
 
-Dogfood must therefore test the full loop:
+Dogfood must therefore test the visible loop:
 
-**Goal → Drivers → Actions → Do / Defer / Delegate / Delete → Next Move → Review**
+**Break it down → Decide → Do next → Review**
 
 ---
 
@@ -176,7 +174,7 @@ Fix the execution loop first.
 
 ---
 
-# Phase 3 — Strengthen triage and next-action intelligence
+# Phase 3 — Strengthen decision and next-move intelligence
 
 ## Goal
 
@@ -200,15 +198,14 @@ Detect whether a node is:
 
 Use:
 
-- 4D decision,
+- decision state,
 - dependency state,
-- Important / Urgent,
 - impact,
 - effort,
 - duration,
 - completion state.
 
-Only **DO + Ready** leaves should normally enter the Next Move queue. Deferred, delegated, deleted, blocked, and ancestor-suppressed work should remain visible without competing for immediate attention.
+Only **Do + Ready** leaves should normally enter the Next Move queue. Later, Hand off, Drop, blocked, and ancestor-suppressed work should remain visible without competing for immediate attention.
 
 A lightweight score may sort eligible DO actions, but it must not be treated as objective truth.
 

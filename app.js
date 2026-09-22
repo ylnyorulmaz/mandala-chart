@@ -543,22 +543,6 @@
       renderAll(false);
     });
 
-    $("#nodeTableBody").on("change", ".table-important-input", function () {
-      var id = $(this).closest("tr").data("id");
-      if (!id || !state.nodes[id]) return;
-      state.nodes[id].important = this.checked;
-      saveState();
-      renderAll(false);
-    });
-
-    $("#nodeTableBody").on("change", ".table-urgent-input", function () {
-      var id = $(this).closest("tr").data("id");
-      if (!id || !state.nodes[id]) return;
-      state.nodes[id].urgent = this.checked;
-      saveState();
-      renderAll(false);
-    });
-
     $("#nodeTableBody").on("change", ".table-impact-select, .table-effort-select", function () {
       var id = $(this).closest("tr").data("id");
       if (!id || !state.nodes[id]) return;
@@ -675,30 +659,11 @@
 
     $("#decisionInput").on("change", function () {
       updateSelectedDetail("decision", $(this).val());
+      syncDecisionFields($(this).val());
       if (selectedDetailId && state.nodes[selectedDetailId]) {
         updatePriorityCard(state.nodes[selectedDetailId]);
         renderAll(false);
       }
-    });
-
-    $("#importantInput").on("change", function () {
-      updateSelectedDetail("important", this.checked);
-      if (selectedDetailId && state.nodes[selectedDetailId]) {
-        updatePriorityCard(state.nodes[selectedDetailId]);
-        renderAll(false);
-      }
-    });
-
-    $("#urgentInput").on("change", function () {
-      updateSelectedDetail("urgent", this.checked);
-      if (selectedDetailId && state.nodes[selectedDetailId]) {
-        updatePriorityCard(state.nodes[selectedDetailId]);
-        renderAll(false);
-      }
-    });
-
-    $("#delegatableInput").on("change", function () {
-      updateSelectedDetail("delegatable", $(this).val());
     });
 
     $("#dependencyInput").on("change", function () {
@@ -781,7 +746,7 @@
     return {
       rootId: null,
       nodes: {},
-      version: 3
+      version: 4
     };
   }
 
@@ -793,7 +758,7 @@
 
       var parsed = JSON.parse(raw);
       if (!parsed || !parsed.nodes) return defaultState();
-      parsed.version = 3;
+      parsed.version = 4;
       return parsed;
     } catch (e) {
       return defaultState();
@@ -811,11 +776,7 @@
       if (!node.status) node.status = "open";
       if (!node.impact) node.impact = 3;
       if (!node.effort) node.effort = 3;
-      if (!node.urgency) node.urgency = 3;
-      if (typeof node.important !== "boolean") node.important = false;
-      if (typeof node.urgent !== "boolean") node.urgent = parseInt(node.urgency || 0, 10) >= 4;
       if (["do", "defer", "delegate", "delete"].indexOf(node.decision) === -1) node.decision = "do";
-      if (["no", "partly", "yes"].indexOf(node.delegatable) === -1) node.delegatable = "no";
       if (typeof node.delegatedTo !== "string") node.delegatedTo = "";
       if (typeof node.deferUntil !== "string") node.deferUntil = "";
       if (node.dependencyId && !state.nodes[node.dependencyId]) node.dependencyId = null;
@@ -843,11 +804,7 @@
       status: "open",
       impact: 3,
       effort: 3,
-      urgency: 3,
-      important: false,
-      urgent: false,
       decision: "do",
-      delegatable: "no",
       dependencyId: null,
       delegatedTo: "",
       deferUntil: "",
@@ -1057,13 +1014,9 @@
         '</div></td>' +
         '<td><span class="table-kind kind-' + Math.min(node.depth || 0, 3) + '">' +
           escapeHtml(typeLabel(node).toLowerCase()) + '</span></td>' +
-        '<td><select class="table-decision-select decision-' + decision + '" aria-label="4D decision">' +
+        '<td><select class="table-decision-select decision-' + decision + '" aria-label="Decision">' +
           decisionOptions(decision) +
         '</select></td>' +
-        '<td class="flag-col"><label class="mini-flag" title="Important"><input class="table-important-input" type="checkbox"' +
-          (node.important ? " checked" : "") + '><span>I</span></label></td>' +
-        '<td class="flag-col"><label class="mini-flag urgent" title="Urgent"><input class="table-urgent-input" type="checkbox"' +
-          (node.urgent ? " checked" : "") + '><span>U</span></label></td>' +
         '<td><select class="table-score-select table-impact-select" aria-label="Impact">' +
           scoreOptions(node.impact || 3) + '</select></td>' +
         '<td><select class="table-score-select table-effort-select" aria-label="Effort">' +
@@ -1077,7 +1030,7 @@
         '</select></td>' +
         '<td class="table-time">' + estimate + '</td>' +
         '<td class="table-row-actions">' +
-          '<button class="table-icon-button table-details-button" type="button" title="Triage & details" aria-label="Open triage and details">•••</button>' +
+          '<button class="table-icon-button table-details-button" type="button" title="Decide & details" aria-label="Open decision and details">•••</button>' +
           '<button class="table-icon-button table-focus-button" type="button" title="Show on map" aria-label="Show on map">↗</button>' +
         '</td>' +
       '</tr>';
@@ -1743,9 +1696,9 @@
   function decisionLabel(decision) {
     return {
       "do": "Do",
-      "defer": "Defer",
-      "delegate": "Delegate",
-      "delete": "Delete"
+      "defer": "Later",
+      "delegate": "Hand off",
+      "delete": "Drop"
     }[decision] || "Do";
   }
 
@@ -1817,9 +1770,9 @@
 
     var html =
       '<span class="triage-chip do"><b>' + counts.do + '</b> Do</span>' +
-      '<span class="triage-chip defer"><b>' + counts.defer + '</b> Defer</span>' +
-      '<span class="triage-chip delegate"><b>' + counts.delegate + '</b> Delegate</span>' +
-      '<span class="triage-chip delete"><b>' + counts.delete + '</b> Delete</span>' +
+      '<span class="triage-chip defer"><b>' + counts.defer + '</b> Later</span>' +
+      '<span class="triage-chip delegate"><b>' + counts.delegate + '</b> Hand off</span>' +
+      '<span class="triage-chip delete"><b>' + counts.delete + '</b> Drop</span>' +
       '<span class="triage-chip ready"><b>' + counts.ready + '</b> ready</span>' +
       '<span class="triage-chip blocked"><b>' + counts.blocked + '</b> blocked</span>';
 
@@ -1841,10 +1794,10 @@
 
     $("#reviewStats").html(
       '<div><b>' + counts.done + '</b><span>done</span></div>' +
-      '<div><b>' + counts.ready + '</b><span>ready DO</span></div>' +
-      '<div><b>' + counts.defer + '</b><span>deferred</span></div>' +
-      '<div><b>' + counts.delegate + '</b><span>delegated</span></div>' +
-      '<div><b>' + counts.delete + '</b><span>deleted</span></div>' +
+      '<div><b>' + counts.ready + '</b><span>ready</span></div>' +
+      '<div><b>' + counts.defer + '</b><span>later</span></div>' +
+      '<div><b>' + counts.delegate + '</b><span>handed off</span></div>' +
+      '<div><b>' + counts.delete + '</b><span>dropped</span></div>' +
       '<div><b>' + counts.blocked + '</b><span>blocked</span></div>'
     );
 
@@ -1863,7 +1816,7 @@
     var cut = nodes.filter(function (node) { return decisionValue(node) === "delete"; }).length;
 
     $("#canvasStatusText").text(
-      done + " active done · " + doNow + " ready DO · " + cut + " cut · Drag nodes to move"
+      done + " done · " + doNow + " ready · " + cut + " dropped · Drag nodes to move"
     );
   }
 
@@ -1991,8 +1944,8 @@
     currentNextId = candidates.length ? candidates[0].id : null;
 
     if (!currentNextId) {
-      $("#nextActionTitle").text("No ready DO action yet.");
-      $("#nextActionMeta").text("Triage actions in Table view: choose DO, resolve blockers, or split broad work.");
+      $("#nextActionTitle").text("No ready action yet.");
+      $("#nextActionMeta").text("Choose Do for an action, clear blockers, or split work that is still too broad.");
       $("#openNextAction, #completeNextAction").prop("disabled", true).css("opacity", .45);
     } else {
       var node = state.nodes[currentNextId];
@@ -2000,8 +1953,6 @@
       if (node.duration) meta.push(node.duration + " min");
       meta.push("impact " + (node.impact || 3) + "/5");
       meta.push("effort " + (node.effort || 3) + "/5");
-      if (node.important) meta.push("important");
-      if (node.urgent) meta.push("urgent");
       meta.push("ready");
 
       $("#nextActionTitle").text(node.title);
@@ -2017,8 +1968,7 @@
     var effort = parseInt(node.effort || 3, 10);
     var score = impact * 2 - effort;
 
-    if (node.important) score += 4;
-    if (node.urgent) score += 3;
+    if (node.status === "doing") score += 2;
     if (node.duration && parseInt(node.duration, 10) <= 30) score += 1;
 
     return score;
@@ -2036,13 +1986,11 @@
     $("#impactOutput").text(node.impact || 3);
     $("#effortOutput").text(node.effort || 3);
     $("#decisionInput").val(decisionValue(node));
-    $("#importantInput").prop("checked", !!node.important);
-    $("#urgentInput").prop("checked", !!node.urgent);
-    $("#delegatableInput").val(node.delegatable || "no");
     populateDependencyOptions(node);
     $("#dependencyInput").val(node.dependencyId || "");
     $("#delegatedToInput").val(node.delegatedTo || "");
     $("#deferUntilInput").val(node.deferUntil || "");
+    syncDecisionFields(decisionValue(node));
     $("#durationInput").val(node.duration || "");
     $("#statusInput").val(node.status || "open");
     $("#notesInput").val(node.notes || "");
@@ -2076,43 +2024,45 @@
     var decision = decisionValue(node);
     var blocked = isNodeBlocked(node);
     var label = decisionLabel(decision);
-    var copy = "Triaged for execution.";
+    var copy = "Keep it simple: decide, then move.";
 
     if (decision === "delete") {
-      label = "Delete";
-      copy = "Keep the decision visible, but do not spend execution time on this.";
+      label = "Drop";
+      copy = "Keep the decision visible, but stop spending time on it.";
     } else if (decision === "delegate") {
-      label = "Delegate";
-      copy = node.delegatedTo ? "Hand this to " + node.delegatedTo + "." : "This should happen, but not necessarily by you.";
+      label = "Hand off";
+      copy = node.delegatedTo ? "Hand this to " + node.delegatedTo + "." : "This should happen, but it does not need to be yours.";
     } else if (decision === "defer") {
-      label = "Defer";
-      copy = node.deferUntil ? "Not now. Revisit on " + node.deferUntil + "." : "Important enough to keep, but not part of the current execution queue.";
+      label = "Later";
+      copy = node.deferUntil ? "Bring it back on " + node.deferUntil + "." : "Keep it, but take it out of the current queue.";
     } else if (blocked) {
       label = "Blocked";
       copy = dependencyStateLabel(node);
-    } else if (node.important && node.urgent) {
-      label = "Do now";
-      copy = "Important, urgent, and ready. Strong immediate candidate.";
     } else if (impact >= 4 && effort <= 2) {
-      label = "Quick win";
-      copy = "High impact with relatively low effort. Strong DO candidate.";
-    } else if (node.important && !node.urgent) {
-      label = "Schedule";
-      copy = "Important but not urgent. Protect time for it without letting urgency theater take over.";
-    } else if (!node.important && node.urgent && node.delegatable !== "no") {
-      label = "Delegate";
-      copy = "Urgent but not important to do personally. Delegation is worth considering.";
+      label = "Strong move";
+      copy = "High impact, relatively low effort. Good candidate for Next move.";
+    } else if (impact >= 4 && effort >= 4) {
+      label = "Big move";
+      copy = "Worth doing, but expensive. Split it if the first step is not obvious.";
     } else if (impact <= 2 && effort >= 4) {
       label = "Question it";
-      copy = "Low impact and high effort. Consider DELETE or redesign.";
+      copy = "A lot of work for limited impact. Later or Drop may be better.";
+    } else {
+      label = "Ready";
+      copy = "This can stay in the active plan.";
     }
 
     $("#priorityLabel").text(label);
     $("#priorityCopy").text(copy);
   }
 
+  function syncDecisionFields(decision) {
+    $("#delegateField").attr("hidden", decision !== "delegate");
+    $("#deferField").attr("hidden", decision !== "defer");
+  }
+
   function populateDependencyOptions(node) {
-    var options = ['<option value="">Ready</option>'];
+    var options = ['<option value="">Nothing — ready</option>'];
 
     Object.keys(state.nodes).forEach(function (id) {
       var candidate = state.nodes[id];
@@ -2150,12 +2100,12 @@
     node.status = "open";
     node.impact = 3;
     node.effort = 3;
-    node.urgency = 3;
-    node.important = false;
-    node.urgent = false;
     node.decision = "do";
-    node.delegatable = "no";
     node.dependencyId = null;
+    delete node.urgency;
+    delete node.important;
+    delete node.urgent;
+    delete node.delegatable;
     node.delegatedTo = "";
     node.deferUntil = "";
     node.duration = "";
@@ -2205,7 +2155,7 @@
 
     var payload = {
       exportedAt: new Date().toISOString(),
-      version: state.version || 3,
+      version: state.version || 4,
       rootId: state.rootId,
       nodes: state.nodes
     };
