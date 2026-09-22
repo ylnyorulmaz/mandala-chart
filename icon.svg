@@ -1,11 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="118" fill="#fbf6ed"/>
-  <circle cx="256" cy="256" r="174" fill="#fffaf2" stroke="#eadbcb" stroke-width="12"/>
-  <g transform="translate(256 256) rotate(7) translate(-256 -256)">
-    <rect x="126" y="126" width="122" height="122" rx="42" fill="#ef8a72"/>
-    <rect x="264" y="126" width="122" height="122" rx="42" fill="#f3cb73"/>
-    <rect x="126" y="264" width="122" height="122" rx="42" fill="#94b49b"/>
-    <rect x="264" y="264" width="122" height="122" rx="42" fill="#a99ac6"/>
-  </g>
-  <circle cx="256" cy="256" r="28" fill="#fffaf2"/>
+  <defs>
+    <linearGradient id="bg" x1="70" y1="50" x2="450" y2="470" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff5f7a"/>
+      <stop offset=".28" stop-color="#ff9f43"/>
+      <stop offset=".52" stop-color="#ffd84d"/>
+      <stop offset=".75" stop-color="#53d98c"/>
+      <stop offset="1" stop-color="#5e7bff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="#fff8ec"/>
+  <circle cx="256" cy="256" r="176" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="128" fill="none" stroke="#fff" stroke-opacity=".36" stroke-width="10"/>
+  <circle cx="256" cy="256" r="42" fill="#fff"/>
+  <circle cx="256" cy="256" r="22" fill="#9b6cff"/>
 </svg>
