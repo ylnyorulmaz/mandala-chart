@@ -13,6 +13,7 @@
   var currentNextId = null;
   var toastTimer = null;
   var promptTimer = null;
+  var promptSwapTimer = null;
   var promptIndex = 0;
   var initialRender = true;
 
@@ -2167,10 +2168,11 @@
 
       $verb.addClass("swap-out");
 
-      setTimeout(function () {
+      promptSwapTimer = setTimeout(function () {
         $verb.text(PROMPTS[promptIndex]).removeClass("swap-out").addClass("swap-in");
-        setTimeout(function () {
+        promptSwapTimer = setTimeout(function () {
           $verb.removeClass("swap-in");
+          promptSwapTimer = null;
         }, 220);
       }, 180);
     }, 2800);
@@ -2181,6 +2183,13 @@
       clearInterval(promptTimer);
       promptTimer = null;
     }
+
+    if (promptSwapTimer) {
+      clearTimeout(promptSwapTimer);
+      promptSwapTimer = null;
+    }
+
+    $("#rotatingVerb").removeClass("swap-out swap-in");
   }
 
   function openSuggestionModal() {
