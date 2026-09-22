@@ -322,7 +322,7 @@
           <div>
             <span class="node-eyebrow">Local library</span>
             <h2 id="mapsTitle">Your maps</h2>
-            <p>Each map stays on this device. Recent versions are saved automatically.</p>
+            <p>Maps can stay independent, join a group, or connect as related, sequential, or parent/child work.</p>
           </div>
           <button class="primary-button" id="newMapButton" type="button">+ New map</button>
         </div>
@@ -339,6 +339,48 @@
         </div>
         <p class="snapshot-help">Restore any saved version. The current version is snapshotted first, so you can undo the restore.</p>
         <div class="snapshot-list" id="snapshotList" aria-live="polite"></div>
+      </div>
+
+      <div id="mapRelationshipsView" hidden>
+        <div class="snapshot-head">
+          <button class="soft-button" id="backFromRelationshipsButton" type="button">← Maps</button>
+          <div>
+            <span class="node-eyebrow">Map structure</span>
+            <h2 id="relationshipMapTitle">Connections</h2>
+          </div>
+        </div>
+
+        <p class="snapshot-help">Leave this empty for an independent map. Group maps loosely, or connect them with horizontal or vertical relationships.</p>
+
+        <div class="map-group-editor">
+          <label class="field">
+            <span>Group</span>
+            <input id="mapGroupInput" type="text" maxlength="80" placeholder="e.g. $10k/month, Home, Project 207">
+          </label>
+          <button class="soft-button" id="saveMapGroupButton" type="button">Save group</button>
+        </div>
+
+        <div class="map-link-editor">
+          <label class="field">
+            <span>Relationship</span>
+            <select id="mapRelationType">
+              <option value="related">Related to</option>
+              <option value="before">Comes before</option>
+              <option value="after">Comes after</option>
+              <option value="parent">Parent of</option>
+              <option value="child">Child of</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Other map</span>
+            <select id="mapRelationTarget"></select>
+          </label>
+
+          <button class="primary-button" id="addMapRelationButton" type="button">Connect maps</button>
+        </div>
+
+        <div class="map-relations-list" id="mapRelationsList" aria-live="polite"></div>
       </div>
     </section>
   </div>
