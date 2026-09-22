@@ -807,8 +807,11 @@
     $("#deleteNodeButton").on("click", clearSelectedNode);
 
     $(window).on("resize", debounce(function () {
+      if (activeView === "grid" && !gridViewAvailable()) {
+        activeView = "map";
+      }
       renderAll(false);
-      if (initialRender) fitAll(false);
+      if (initialRender && activeView === "map") fitAll(false);
     }, 100));
 
     $(window).on("orientationchange", function () {
@@ -981,9 +984,14 @@
     applyActiveView();
   }
 
+  function gridViewAvailable() {
+    return window.matchMedia && window.matchMedia("(min-width: 1024px)").matches;
+  }
+
   function switchView(view) {
     if (["map", "table", "grid"].indexOf(view) === -1) return;
     if (!state.rootId || !state.nodes[state.rootId]) return;
+    if (view === "grid" && !gridViewAvailable()) return;
 
     activeView = view;
     applyActiveView();
@@ -1001,6 +1009,10 @@
   }
 
   function applyActiveView() {
+    if (activeView === "grid" && !gridViewAvailable()) {
+      activeView = "map";
+    }
+
     var mapMode = activeView === "map";
     var tableMode = activeView === "table";
     var gridMode = activeView === "grid";
