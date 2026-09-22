@@ -19,6 +19,8 @@
   var camera = { x: 0, y: 0, scale: 1 };
   var panState = null;
   var nodeDragState = null;
+  var suppressNodeClickId = null;
+  var suppressNodeClickUntil = 0;
   var pointers = {};
   var pinchState = null;
   var renderPositions = {};
@@ -252,6 +254,12 @@
       var node = state.nodes[id];
       if (!node) return;
 
+      if (suppressNodeClickId === id && Date.now() < suppressNodeClickUntil) {
+        suppressNodeClickId = null;
+        suppressNodeClickUntil = 0;
+        return;
+      }
+
       if (!node.title.trim()) {
         selectedId = id;
         editingId = id;
@@ -304,7 +312,9 @@
     });
 
     $("#mapNodes").on("pointerdown", ".map-node", function (e) {
-      if (!e.shiftKey || $(e.target).is("textarea")) return;
+      if ($(e.target).is("textarea, button") || $(e.target).closest("button").length) return;
+      if (e.originalEvent && e.originalEvent.isPrimary === false) return;
+
       var id = $(this).data("id");
       var node = state.nodes[id];
       if (!node) return;
@@ -314,6 +324,7 @@
 
       nodeDragState = {
         id: id,
+        pointerId: e.pointerId,
         startX: e.clientX,
         startY: e.clientY,
         baseX: (node.offsetX || 0),
@@ -321,18 +332,31 @@
         moved: false
       };
 
+      $(this).addClass("dragging");
+
       try { this.setPointerCapture(e.pointerId); } catch (ignore) {}
     });
 
     $("#mapNodes").on("pointermove", ".map-node", function (e) {
-      if (!nodeDragState || nodeDragState.id !== $(this).data("id")) return;
+      if (!nodeDragState ||
+          nodeDragState.id !== $(this).data("id") ||
+          nodeDragState.pointerId !== e.pointerId) return;
+
       var node = state.nodes[nodeDragState.id];
       if (!node) return;
+
+      e.preventDefault();
+      e.stopPropagation();
 
       var dx = (e.clientX - nodeDragState.startX) / camera.scale;
       var dy = (e.clientY - nodeDragState.startY) / camera.scale;
 
-      if (Math.abs(dx) + Math.abs(dy) > 4) nodeDragState.moved = true;
+      if (Math.abs(dx) + Math.abs(dy) > 5) {
+        nodeDragState.moved = true;
+        $(this).addClass("dragging");
+      }
+
+      if (!nodeDragState.moved) return;
 
       node.offsetX = nodeDragState.baseX + dx;
       node.offsetY = nodeDragState.baseY + dy;
@@ -349,9 +373,25 @@
       renderMinimap();
     });
 
-    $("#mapNodes").on("pointerup pointercancel", ".map-node", function () {
-      if (!nodeDragState) return;
-      saveState();
+    $("#mapNodes").on("pointerup pointercancel", ".map-node", function (e) {
+      if (!nodeDragState ||
+          nodeDragState.id !== $(this).data("id") ||
+          nodeDragState.pointerId !== e.pointerId) return;
+
+      var moved = nodeDragState.moved;
+      var id = nodeDragState.id;
+
+      $(this).removeClass("dragging");
+
+      if (moved) {
+        selectedId = id;
+        suppressNodeClickId = id;
+        suppressNodeClickUntil = Date.now() + 350;
+        saveState();
+        updateSelectionBar();
+        renderMinimap();
+      }
+
       nodeDragState = null;
     });
 
@@ -1345,7 +1385,7 @@
     }).length;
 
     $("#canvasStatusText").text(
-      done + " cleared · " + Math.max(total - done, 0) + " left · Shift-drag to move"
+      done + " cleared · " + Math.max(total - done, 0) + " left · Drag nodes to move"
     );
   }
 
