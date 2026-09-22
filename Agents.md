@@ -340,3 +340,28 @@ When uncertain between two implementations, prefer the one that is:
 3. reversible,
 4. understandable without a build tool,
 5. aligned with execution rather than feature accumulation.
+
+
+## Decision and execution model
+
+Mandala is not a 64-item completion checklist.
+
+The product model is:
+
+**Goal → Drivers → Actions → Triage → Execute → Review → Revise**
+
+Implementation rules:
+
+- preserve the 8×8 structure as a decomposition constraint, not as an instruction to complete everything,
+- keep decision as one of do, defer, delegate, or delete,
+- decision=delete means "do not execute"; it MUST NOT physically delete or clear the node,
+- physical clearing/removal must remain a separate explicit action,
+- Next Move must normally consider only concrete leaf nodes that are DO, Ready, unfinished, and not suppressed by a non-DO ancestor,
+- blocked work remains visible but does not compete for Next Move,
+- use Important/Urgent separately from Impact/Effort,
+- dependencies should stay lightweight; do not recreate Jira,
+- the Table view is the primary triage surface,
+- the Map view should show only compact decision/readiness cues and remain visually playful,
+- scoring is a sorting aid; never present fake precision as truth,
+- Review should help users revise or delete work when reality changes,
+- progress must not punish users for intentionally deleting work from the execution plan.
