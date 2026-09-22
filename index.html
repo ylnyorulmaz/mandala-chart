@@ -355,7 +355,8 @@
         <div class="map-group-editor">
           <label class="field">
             <span>Group</span>
-            <input id="mapGroupInput" type="text" maxlength="80" placeholder="e.g. $10k/month, Home, Project 207">
+            <input id="mapGroupInput" type="text" maxlength="80" list="mapGroupSuggestions" placeholder="e.g. $10k/month, Home, Project 207">
+            <datalist id="mapGroupSuggestions"></datalist>
           </label>
           <button class="soft-button" id="saveMapGroupButton" type="button">Save group</button>
         </div>
