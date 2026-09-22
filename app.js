@@ -24,11 +24,7 @@
   var renderPositions = {};
 
   var PROMPTS = [
-    "What do you want to finish?",
-    "What do you want to achieve?",
-    "What is your goal?",
-    "What needs to get done?",
-    "What would make today count?"
+    "What do you want to achieve today?"
   ];
 
   var LABELS = {
@@ -649,6 +645,7 @@
   }
 
   function showEmptyMap() {
+    $("body").addClass("empty-start");
     $("#plannerActions, #selectionBar, #minimap").attr("hidden", true);
     $("#emptyMap").removeAttr("hidden");
     $("#mapNodes, #mapEdges, #minimapWorld").empty();
@@ -659,6 +656,7 @@
   }
 
   function showMap() {
+    $("body").removeClass("empty-start");
     $("#emptyMap").attr("hidden", true);
     $("#plannerActions, #selectionBar, #minimap").removeAttr("hidden");
   }
