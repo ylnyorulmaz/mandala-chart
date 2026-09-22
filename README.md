@@ -268,7 +268,7 @@ Keyboard and pointer navigation are designed to cooperate:
 
 ### 9×9 Grid view
 
-The third view is a classic Mandala / Mandalart matrix:
+The third view is a classic Mandala / Mandalart matrix. **Grid view is available only on screens 1024px wide or larger**, so phones do not get a cramped 9×9 experience:
 
 - exactly **9×9 cells**,
 - the goal sits in the exact center,
