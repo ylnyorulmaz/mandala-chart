@@ -3301,6 +3301,11 @@
     stateSaveTimer = null;
     snapshotTimer = null;
 
+    if (!storageReady) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+
     state = defaultState();
     currentMapId = null;
     currentMapCreatedAt = null;
