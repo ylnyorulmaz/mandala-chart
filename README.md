@@ -1,57 +1,143 @@
 # Mandala
 
-A local-first visual goal decomposition prototype.
+**Mandala is a local-first visual execution map for turning a vague goal into concrete next actions.**
 
-Mandala turns a fuzzy intention into a navigable execution tree:
+The product starts with one goal in the center, expands into the major drivers required to reach it, and lets each driver branch into actionable tasks and smaller steps while the whole structure remains visible on a zoomable canvas.
 
-**Goal → drivers → actions → next action**
+> **Goal → Drivers → Actions → Steps → Next Action**
 
-The first iteration is deliberately front-end only. It uses HTML, CSS, JavaScript and jQuery, stores the map in localStorage, and can be installed as a PWA.
+Mandala is not trying to be another generic to-do list. The core problem is the gap between **knowing what you want** and **knowing what to do next**.
 
-## Current interaction
+---
+
+## Current prototype
+
+The current version is a front-end-only PWA built with HTML, CSS, JavaScript, and jQuery.
+
+It supports:
+
+- one central goal,
+- eight driver nodes,
+- recursive actions and smaller steps,
+- persistent mind-map canvas,
+- pan and zoom,
+- fit-to-map,
+- smooth camera focus,
+- branch expansion/collapse,
+- SVG connections,
+- inline editing,
+- manual node repositioning,
+- minimap navigation,
+- impact / effort / urgency metadata,
+- duration, status, and notes,
+- simple next-action selection,
+- local demo suggestions,
+- localStorage persistence,
+- JSON export,
+- PWA installation,
+- offline caching,
+- dark/light themes.
+
+## Interaction model
 
 1. Enter one central goal.
-2. Eight driver nodes animate outward on a persistent mind-map canvas.
-3. Pan the canvas, scroll or pinch to zoom, and use **Fit** to see the entire map.
-4. Click a node to smoothly center the camera on it; double-click to edit it.
-5. Opening a driver reveals eight action nodes while the rest of the map remains visible.
-6. Split any action again when it is still too broad; collapse branches when you need less visual noise.
-7. Add impact, effort, urgency, duration, status and notes in the details inspector.
-8. Use **Next action** to surface a high-leverage unfinished leaf action.
-9. Shift-drag nodes for manual repositioning and use the minimap for fast navigation.
-10. Export the full map as JSON.
+2. Eight driver nodes animate outward.
+3. Pan and zoom while keeping the whole map available.
+4. Click a node to focus the camera on that branch.
+5. Expand a driver into executable actions.
+6. Split an action again only if it is still too broad.
+7. Collapse branches when the map becomes noisy.
+8. Add priority metadata where useful.
+9. Use **Next action** to surface an unfinished executable leaf.
+10. Revise the map as reality changes.
 
-## Planning ideas embedded in the UI
+The design principle is:
 
-- Mandala-style decomposition
-- Divide and conquer
-- Impact / effort prioritization
-- Urgency-aware triage
-- Concrete next actions
-- Recursive decomposition only when it reduces execution friction
+> **Overview first, focus second.**
 
-The app does **not** require users to learn those frameworks. They are implementation principles behind the interface.
+---
+
+## Product principles
+
+Mandala combines useful ideas from:
+
+- Mandala-style goal decomposition,
+- divide and conquer,
+- impact / effort prioritization,
+- urgency-aware triage,
+- next-action thinking,
+- recursive decomposition.
+
+The user should not need to learn productivity jargon. The interface should simply help answer:
+
+1. What am I trying to achieve?
+2. What has to happen for that to become possible?
+3. What can I actually do?
+4. What should I do next?
+
+See [Product.md](Product.md) for the full product vision and philosophy.
+
+---
+
+## Documentation
+
+- [Product.md](Product.md) — product vision, philosophy, audience, capabilities, constraints, limitations, and business hypothesis.
+- [ProductRoadmap.md](ProductRoadmap.md) — staged roadmap from prototype hardening through dogfooding, AI assistance, optional cloud sync, and validation.
+- [Agents.md](Agents.md) — rules and constraints for coding agents working in the repository.
+- [Cloudy.md](Cloudy.md) — coding-assistant guide focused on the product architecture and interaction model.
+- [about.html](about.html) — public-facing explanation of the product and method.
+
+---
 
 ## AI status
 
-The **Suggest** interaction is wired as a front-end demo with lightweight local suggestion sets. No external model or API key is used in v1.
+The current **Suggest** interaction uses lightweight local demo suggestions.
 
-A later iteration can replace the suggestion generator with OpenRouter, Gemini, Groq, or BYOK while keeping the same UI contract.
+There is currently:
+
+- no external model call,
+- no OpenRouter integration,
+- no Gemini integration,
+- no Groq integration,
+- no API key requirement.
+
+A later version may support provider-neutral AI assistance or BYOK.
+
+The intended AI role is to:
+
+- suggest missing drivers,
+- identify overlap,
+- rewrite vague nodes,
+- convert outcomes into controllable actions,
+- split oversized actions,
+- critique weak plans.
+
+AI should assist the plan, not silently replace it.
+
+---
 
 ## Stack
 
 - HTML
 - CSS
 - JavaScript
-- jQuery 3.7.1 (vendored locally; no runtime CDN dependency)
+- jQuery 3.7.1
+- SVG
 - localStorage
-- Service Worker + Web App Manifest
+- Service Worker
+- Web App Manifest
 
-No build step is required. Runtime assets are local; the app does not depend on a CDN.
+jQuery is vendored locally.
+
+**No runtime CDN dependencies.**
+
+There is currently no build step and no backend.
+
+---
 
 ## Run locally
 
-Serve the directory over HTTP so the service worker can register.
+Serve the repository over HTTP so the service worker can register.
 
 Example:
 
@@ -61,29 +147,74 @@ Then open:
 
     http://localhost:8080
 
-## Keyboard
-
-- \`Esc\` — close details / modal
-- \`Ctrl/Cmd + K\` — open Next Action mode
+---
 
 ## Data
 
-Everything is stored locally in the browser under:
+The current prototype stores its map locally in the browser.
+
+Primary local storage key:
 
     mandala-chart-state-v1
 
-Use the export button in the top bar to download the current map as JSON.
+Use the export control to download the current map as JSON.
 
-## v1 boundary
+Important: the current prototype does not yet provide cloud backup or cross-device sync.
 
-This iteration intentionally excludes:
+---
 
-- accounts
-- cloud sync
-- real LLM calls
-- payments
-- collaboration
-- native mobile apps
-- calendar integrations
+## Current limitations
 
-The current prototype validates the core interaction: **type an outcome → see the whole map → focus a branch → decompose → execute.**
+The current iteration intentionally excludes:
+
+- accounts,
+- cloud sync,
+- live LLM calls,
+- payments,
+- team collaboration,
+- native mobile apps,
+- calendar integrations,
+- advanced dependency management,
+- sophisticated history/versioning.
+
+Mandala should prove repeated usefulness before becoming a larger SaaS.
+
+---
+
+## Development rules
+
+The repository intentionally stays lightweight.
+
+Do not introduce:
+
+- runtime CDN dependencies,
+- framework rewrites,
+- a backend,
+- mandatory accounts,
+- heavy build tooling,
+
+without a concrete product reason.
+
+For detailed contributor rules, read [Agents.md](Agents.md).
+
+---
+
+## Validation goal
+
+The current prototype should be dogfooded on real work.
+
+The main acceptance question is not:
+
+> “Does the map look cool?”
+
+It is:
+
+> **“Did using Mandala cause useful actions to happen that would otherwise have been postponed?”**
+
+Repeated use, completed actions, requests for history/sync, and users returning to existing maps are stronger signals than one-time praise.
+
+---
+
+## License
+
+No explicit open-source license has been added yet. Until one exists, the repository is publicly visible but reuse rights are not automatically granted.
