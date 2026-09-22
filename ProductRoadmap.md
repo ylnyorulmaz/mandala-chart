@@ -21,6 +21,10 @@ In progress / functional prototype.
 ## Current foundation
 
 - local-first PWA,
+- responsive mobile bottom action dock,
+- mobile bottom-sheet Inspector/modals,
+- phone card layout for Table view,
+- safe-area-aware iPhone/PWA spacing,
 - HTML/CSS/JavaScript/jQuery,
 - no runtime CDN dependencies,
 - one central goal,
@@ -94,7 +98,7 @@ Reach a version that can be used every day without fighting the interface.
 - verify Android Chrome interaction,
 - ensure touch panning does not fight page scrolling,
 - ensure pinch zoom behaves predictably,
-- ensure safe-area layout works,
+- verify safe-area layout on physical iPhones and installed PWA mode,
 - verify installation and offline load.
 
 ### 5. State safety

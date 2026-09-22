@@ -4287,3 +4287,739 @@ body.dark .review-stats div {
     min-width: 860px;
   }
 }
+
+
+/* ==========================================================================
+   Mobile-first interaction layer
+   Keep the map playful, but make every primary interaction comfortable on touch.
+   ========================================================================== */
+
+@media (pointer: coarse) {
+  .icon-button,
+  .map-tool,
+  .view-button,
+  .soft-button,
+  .selection-actions button,
+  .table-icon-button,
+  .table-expand-button,
+  .primary-button,
+  .danger-button {
+    min-height: 44px;
+  }
+
+  .icon-button,
+  .map-tool {
+    min-width: 44px;
+  }
+
+  .node-complete {
+    width: 36px;
+    height: 36px;
+  }
+
+  .map-node:hover,
+  .soft-button:hover,
+  .map-tool:hover,
+  .table-expand-button:hover {
+    transform: none;
+  }
+}
+
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) {
+  :root {
+    --mobile-nav-height: 58px;
+    --mobile-header-height: calc(var(--mobile-nav-height) + env(safe-area-inset-top));
+    --mobile-action-dock: calc(60px + env(safe-area-inset-bottom));
+  }
+
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .app-page {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .site-header {
+    height: var(--mobile-header-height);
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .nav-wrap {
+    width: calc(100% - 16px);
+    height: var(--mobile-nav-height);
+    grid-template-columns: auto 1fr auto;
+    gap: 7px;
+  }
+
+  .brand-grid {
+    width: 28px;
+    height: 28px;
+  }
+
+  .brand-name {
+    display: none;
+  }
+
+  .main-nav {
+    justify-self: center;
+    max-width: 100%;
+    gap: 0;
+    padding: 3px;
+  }
+
+  .main-nav a {
+    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 8px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .nav-actions {
+    gap: 5px;
+  }
+
+  .nav-actions .icon-button {
+    width: 42px;
+    height: 42px;
+  }
+
+  .continue-button {
+    min-height: 42px;
+    padding: 0 10px;
+    font-size: 9px;
+  }
+
+  .support-button {
+    display: none;
+  }
+
+  .minimal-main,
+  .minimal-planner,
+  .minimal-map-frame,
+  .minimal-map-frame .map-viewport,
+  body.empty-start .minimal-main,
+  body.empty-start .minimal-planner,
+  body.empty-start .minimal-map-frame,
+  body.empty-start .minimal-map-frame .map-viewport {
+    width: 100%;
+    height: calc(100dvh - var(--mobile-header-height));
+    min-height: 0;
+  }
+
+  .minimal-map-frame,
+  .minimal-map-frame .map-viewport {
+    border-radius: 0;
+  }
+
+  .map-viewport {
+    overscroll-behavior: none;
+  }
+
+  /* First screen scales by BOTH width and height, so landscape phones work too. */
+  body.empty-start .root-starter {
+    width: min(82vw, 58dvh, 330px);
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    aspect-ratio: 1;
+    padding: clamp(28px, 8vw, 42px);
+    border-width: 4px;
+  }
+
+  body.empty-start .starter-glow {
+    inset: -42px;
+  }
+
+  body.empty-start .starter-copy strong {
+    max-width: 235px;
+    font-size: clamp(25px, 8vw, 35px);
+    line-height: 1.06;
+  }
+
+  body.empty-start #rootInput {
+    width: 88%;
+    min-height: 0;
+    max-height: 52%;
+    padding: 6px 2px;
+    font-size: 16px;
+    line-height: 1.16;
+  }
+
+  /* Keep the top map controls from colliding with one another. */
+  .floating-view-switcher {
+    top: 8px;
+    right: 8px;
+    left: auto;
+    transform: none;
+    padding: 3px;
+    border-width: 2px;
+  }
+
+  .floating-view-switcher .view-button {
+    min-width: 62px;
+    min-height: 40px;
+    padding: 0 9px;
+    font-size: 10px;
+  }
+
+  .map-toolbar {
+    top: 8px;
+    left: 8px;
+    gap: 3px;
+    padding: 3px;
+    border-radius: 16px;
+  }
+
+  #centerButton {
+    display: none;
+  }
+
+  .map-tool {
+    width: 40px;
+    height: 40px;
+    padding: 0 7px;
+    border-radius: 12px;
+  }
+
+  .map-tool.wide {
+    width: auto;
+    min-width: 50px;
+  }
+
+  .zoom-readout {
+    display: none;
+  }
+
+  .quest-progress {
+    top: 58px;
+    width: min(220px, 68vw);
+    padding: 7px 10px 8px;
+    border-radius: 14px;
+  }
+
+  .quest-progress-copy {
+    margin-bottom: 4px;
+  }
+
+  .quest-progress-track {
+    height: 7px;
+  }
+
+  .minimap,
+  .canvas-status {
+    display: none !important;
+  }
+
+  /* Put secondary commands in a thumb-friendly bottom dock, not over the top HUD. */
+  .minimal-planner > .planner-actions {
+    top: auto !important;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 60;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    padding:
+      7px
+      max(8px, env(safe-area-inset-right))
+      calc(7px + env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+    border: 0;
+    border-top: 2px solid rgba(89,64,126,.09);
+    border-radius: 0;
+    background: rgba(255,248,236,.96);
+    box-shadow: 0 -8px 28px rgba(62,45,84,.10);
+    scrollbar-width: none;
+  }
+
+  body.dark .minimal-planner > .planner-actions {
+    background: rgba(34,29,47,.97);
+  }
+
+  .minimal-planner > .planner-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .planner-actions .soft-button {
+    flex: 0 0 auto;
+    min-width: auto;
+    min-height: 44px;
+    padding: 0 13px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  /* Selection becomes a compact contextual card above the thumb dock. */
+  .selection-bar {
+    position: absolute;
+    right: 8px;
+    bottom: calc(var(--mobile-action-dock) + 6px);
+    left: 8px;
+    z-index: 58;
+    min-height: 0;
+    padding: 10px;
+    align-items: center;
+    flex-direction: row;
+    gap: 8px;
+    border: 2px solid rgba(89,64,126,.09);
+    border-radius: 18px;
+    box-shadow: 0 8px 28px rgba(62,45,84,.14);
+  }
+
+  .selection-copy {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .selection-copy strong {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+
+  .selection-actions {
+    width: auto;
+    flex: 0 0 auto;
+    gap: 4px;
+  }
+
+  .selection-actions button {
+    min-width: 44px;
+    min-height: 42px;
+    padding: 0 8px;
+    font-size: 9px;
+  }
+
+  /* Full-width bottom sheet is much easier to edit with a phone keyboard. */
+  .inspector {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: calc(100dvh - env(safe-area-inset-top) - 8px);
+    padding:
+      18px
+      max(16px, env(safe-area-inset-right))
+      calc(22px + env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+    border: 0;
+    border-top: 2px solid rgba(89,64,126,.10);
+    border-radius: 26px 26px 0 0;
+    box-shadow: 0 -22px 60px rgba(41,31,54,.24);
+    transform: translateY(102%);
+    overscroll-behavior: contain;
+  }
+
+  .inspector.open {
+    transform: translateY(0);
+  }
+
+  .inspector-head {
+    position: sticky;
+    top: -18px;
+    z-index: 4;
+    margin: -18px -4px 12px;
+    padding: 16px 4px 10px;
+    background: inherit;
+  }
+
+  .field input,
+  .field textarea,
+  .field select,
+  .table-title-input,
+  .table-decision-select,
+  .table-score-select,
+  .table-status-select {
+    font-size: 16px;
+  }
+
+  .field input,
+  .field select {
+    min-height: 46px;
+  }
+
+  .metric-grid-two,
+  .detail-row {
+    grid-template-columns: 1fr;
+  }
+
+  .metric {
+    min-height: 64px;
+  }
+
+  .danger-button {
+    width: 100%;
+    min-height: 48px;
+  }
+
+  /* Modals become bottom sheets and respect the home indicator. */
+  .modal-backdrop {
+    place-items: end center;
+    padding:
+      10px
+      max(8px, env(safe-area-inset-right))
+      env(safe-area-inset-bottom)
+      max(8px, env(safe-area-inset-left));
+  }
+
+  .modal {
+    width: 100%;
+    max-height: calc(100dvh - env(safe-area-inset-top) - 12px);
+    padding: 22px 18px calc(22px + env(safe-area-inset-bottom));
+    border-radius: 26px 26px 0 0;
+    overscroll-behavior: contain;
+  }
+
+  .modal-actions {
+    gap: 8px;
+  }
+
+  .modal-actions .soft-button,
+  .modal-actions .primary-button {
+    min-height: 46px;
+  }
+
+  .review-stats {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+
+  /* Mobile Table = readable cards, not a desktop table squeezed into 860px. */
+  .table-view {
+    height: calc(100dvh - var(--mobile-header-height));
+    padding:
+      60px
+      max(8px, env(safe-area-inset-right))
+      calc(var(--mobile-action-dock) + 14px)
+      max(8px, env(safe-area-inset-left));
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .triage-summary {
+    width: 100%;
+    margin: 0 0 10px;
+    gap: 5px;
+  }
+
+  .triage-chip {
+    min-height: 30px;
+    padding: 0 8px;
+  }
+
+  .node-table-wrap {
+    width: 100%;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .node-table,
+  .node-table tbody,
+  .node-table tr,
+  .node-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .node-table {
+    min-width: 0 !important;
+    border-spacing: 0;
+  }
+
+  .node-table thead {
+    display: none;
+  }
+
+  .node-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .node-table tbody tr {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    gap: 7px 10px;
+    padding: 12px;
+    border: 2px solid rgba(89,64,126,.08);
+    border-radius: 19px;
+    background: rgba(255,255,255,.72);
+    box-shadow: 0 4px 0 rgba(89,64,126,.045), 0 12px 26px rgba(89,64,126,.07);
+  }
+
+  body.dark .node-table tbody tr {
+    background: rgba(255,255,255,.055);
+  }
+
+  .node-table td {
+    height: auto;
+    min-width: 0;
+    padding: 6px 0;
+    border: 0;
+  }
+
+  .node-table td:not(.node-col):not(.done-col):not(.table-row-actions) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .node-table td:not(.node-col):not(.done-col):not(.table-row-actions)::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    color: var(--muted);
+    font-size: 8px;
+    font-weight: 950;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+  }
+
+  .node-table .node-col {
+    grid-column: 1 / -1;
+    min-width: 0;
+    padding: 0 44px 8px 0;
+    border-bottom: 1px solid rgba(89,64,126,.07);
+  }
+
+  .table-node-cell {
+    gap: 7px;
+    padding-left: calc(var(--depth) * 8px);
+  }
+
+  .table-title-input {
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 4px;
+    font-size: 16px;
+  }
+
+  .node-table .done-col {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: auto;
+    padding: 0;
+    z-index: 2;
+  }
+
+  .table-check {
+    width: 38px;
+    height: 38px;
+  }
+
+  .node-table td[data-label="Kind"] {
+    grid-column: 1 / -1;
+    justify-content: flex-start !important;
+  }
+
+  .node-table td[data-label="Kind"]::before {
+    display: none;
+  }
+
+  .table-kind {
+    min-height: 28px;
+  }
+
+  .table-decision-select,
+  .table-status-select,
+  .table-score-select {
+    min-height: 42px;
+  }
+
+  .table-decision-select,
+  .table-status-select {
+    min-width: 112px;
+  }
+
+  .table-score-select {
+    width: 64px;
+  }
+
+  .readiness-pill {
+    min-height: 30px;
+  }
+
+  .node-table .table-row-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+    gap: 7px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(89,64,126,.07);
+  }
+
+  .table-icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .table-expand-button,
+  .table-expand-spacer {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* About/read-only pages should breathe instead of inheriting desktop spacing. */
+  .about-page {
+    width: calc(100% - 28px);
+    padding-top: 34px;
+  }
+
+  .about-hero h1 {
+    font-size: clamp(34px, 11vw, 50px);
+  }
+
+  .about-hero p {
+    max-width: 100%;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .about-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 32px;
+  }
+
+  .about-card,
+  .about-wide {
+    grid-column: auto;
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .about-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .site-footer {
+    padding-right: max(14px, env(safe-area-inset-right));
+    padding-left: max(14px, env(safe-area-inset-left));
+  }
+}
+
+@media (max-width: 420px) {
+  .main-nav a[href*="github.com"] {
+    display: none;
+  }
+
+  .main-nav a {
+    padding: 0 7px;
+  }
+
+  .continue-button {
+    padding: 0 8px;
+  }
+
+  .floating-view-switcher .view-button {
+    min-width: 58px;
+    padding: 0 7px;
+  }
+
+  .map-tool {
+    min-width: 40px;
+    width: 40px;
+  }
+
+  .map-tool.wide {
+    min-width: 46px;
+  }
+
+  .selection-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .selection-actions {
+    width: 100%;
+  }
+
+  .selection-actions button {
+    flex: 1 1 0;
+  }
+
+  .node-table tbody tr {
+    grid-template-columns: 1fr;
+  }
+
+  .node-table td[data-label="Kind"],
+  .node-table .node-col,
+  .node-table .table-row-actions {
+    grid-column: 1;
+  }
+
+  .review-stats {
+    gap: 6px;
+  }
+}
+
+@media (max-height: 560px) and (orientation: landscape) and (max-width: 920px) {
+  :root {
+    --mobile-nav-height: 50px;
+  }
+
+  .brand-grid {
+    width: 24px;
+    height: 24px;
+  }
+
+  .main-nav a {
+    min-height: 34px;
+  }
+
+  .nav-actions .icon-button,
+  .continue-button {
+    min-height: 38px;
+    height: 38px;
+  }
+
+  body.empty-start .root-starter {
+    width: min(54dvh, 250px);
+    padding: 24px;
+  }
+
+  body.empty-start .starter-copy strong {
+    max-width: 195px;
+    font-size: clamp(22px, 4.5vw, 28px);
+  }
+
+  .quest-progress {
+    display: none !important;
+  }
+
+  .selection-bar {
+    bottom: calc(var(--mobile-action-dock) + 4px);
+  }
+
+  .inspector,
+  .modal {
+    max-height: calc(100dvh - env(safe-area-inset-top));
+    border-radius: 20px 20px 0 0;
+  }
+}
