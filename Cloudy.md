@@ -362,3 +362,10 @@ The third planner view is a classic Mandala 9×9 matrix:
 Do not copy the visual design of reference templates. Preserve Mandala's current natural palette, flow language, playful completion states, and responsive behavior.
 
 - Grid is large-screen only: hide it below 1024px viewport width and fall back to Map if a resize makes Grid unavailable.
+
+
+### Palette behavior
+
+Theme selection is now a four-choice palette menu: Light, Dark, Sage, Dawn.
+
+Persist the selected value using the existing theme localStorage key. Keep `body.dark` compatibility for the Dark palette, use root CSS variables for palette-wide backgrounds/surfaces, and keep all views readable before adding more palette choices.
