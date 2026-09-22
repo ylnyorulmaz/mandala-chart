@@ -489,6 +489,8 @@ Each child remains its own full Mandala instead of becoming an oversized branch 
 
 The rule is optional structure. A user cleaning the house, shipping a product, and organizing computer files should not be forced into an artificial hierarchy merely because all three maps exist.
 
+Implementation-wise, cross-map edges are stored separately in IndexedDB's `mapLinks` store; they are not embedded into node state or autosave snapshots.
+
 Parent and sequence links must remain acyclic. A map may have at most one direct parent in the initial model. Groups must not secretly imply parentage, sequence, dependency, or execution priority. The outer graph must remain separate from the inner node tree and from snapshot history.
 
 ### Multiple local maps and recovery
