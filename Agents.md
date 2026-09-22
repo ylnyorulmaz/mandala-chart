@@ -7,9 +7,10 @@ This file defines working rules for coding agents and automated contributors ope
 Read these files before making substantial changes:
 
 1. `Product.md`
-2. `ProductRoadmap.md`
-3. `README.md`
-4. `Cloudy.md`
+2. `ExecutionFramework.md`
+3. `ProductRoadmap.md`
+4. `README.md`
+5. `Cloudy.md`
 
 The product intent matters more than adding features.
 
