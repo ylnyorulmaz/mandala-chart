@@ -4008,50 +4008,6 @@ body.dark .triage-panel {
   letter-spacing: -.02em;
 }
 
-.flag-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap: 8px;
-  margin: 10px 0;
-}
-
-.flag-toggle {
-  position: relative;
-  display: flex;
-  align-items: center;
-  min-height: 42px;
-  padding: 0 12px;
-  border: 2px solid rgba(89,64,126,.08);
-  border-radius: 14px;
-  background: rgba(255,255,255,.66);
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 10px;
-  font-weight: 900;
-  transition: transform .15s ease, border-color .15s ease, background .15s ease, color .15s ease;
-}
-
-body.dark .flag-toggle {
-  background: rgba(255,255,255,.05);
-}
-
-.flag-toggle input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.flag-toggle:has(input:checked) {
-  color: #fff;
-  border-color: transparent;
-  background: linear-gradient(135deg, var(--game-purple), var(--game-blue));
-  box-shadow: 0 3px 0 #5359c8;
-}
-
-.flag-toggle:hover {
-  transform: translateY(-1px);
-}
-
 /* Map-level decision state */
 .node-decision-badge {
   position: absolute;
@@ -4162,12 +4118,7 @@ body.dark .triage-chip {
 .triage-chip.blocked b { color: #b35c5c; }
 
 .node-table {
-  min-width: 1120px;
-}
-
-.flag-col {
-  width: 74px;
-  text-align: center;
+  min-width: 900px;
 }
 
 .table-decision-select,
@@ -4200,55 +4151,6 @@ body.dark .table-score-select {
 .table-score-select {
   width: 56px;
   padding: 6px 19px 6px 8px;
-}
-
-.mini-flag {
-  position: relative;
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  cursor: pointer;
-}
-
-.mini-flag input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.mini-flag span {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border: 2px solid rgba(89,64,126,.10);
-  border-radius: 9px;
-  background: rgba(255,255,255,.74);
-  color: #9b90a5;
-  font-size: 9px;
-  font-weight: 950;
-  transition: transform .14s ease, color .14s ease, background .14s ease, border-color .14s ease;
-}
-
-body.dark .mini-flag span {
-  background: rgba(255,255,255,.06);
-}
-
-.mini-flag input:checked + span {
-  color: #fff;
-  border-color: transparent;
-  background: var(--game-purple);
-  box-shadow: 0 2px 0 #6c4ca9;
-}
-
-.mini-flag.urgent input:checked + span {
-  background: var(--game-pink);
-  box-shadow: 0 2px 0 #bd4961;
-}
-
-.mini-flag:hover span {
-  transform: scale(1.06);
 }
 
 .readiness-pill {
@@ -4376,5 +4278,25 @@ body.dark .review-stats div {
   .flag-toggle,
   .mini-flag span {
     transition: none !important;
+  }
+}
+
+
+/* Progressive disclosure: show extra fields only when the decision needs them. */
+.decision-extra[hidden] {
+  display: none !important;
+}
+
+.decision-extra {
+  margin-top: 10px;
+}
+
+.triage-panel > .field + .field {
+  margin-top: 10px;
+}
+
+@media (max-width: 680px) {
+  .node-table {
+    min-width: 860px;
   }
 }
