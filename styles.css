@@ -4252,12 +4252,7 @@ body.dark .review-stats div {
 }
 
 @media (max-width: 680px) {
-  .metric-grid-two,
-  .flag-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .triage-panel .detail-row {
+  .metric-grid-two {
     grid-template-columns: 1fr;
   }
 
@@ -4273,14 +4268,6 @@ body.dark .review-stats div {
     grid-template-columns: repeat(2, minmax(0,1fr));
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .flag-toggle,
-  .mini-flag span {
-    transition: none !important;
-  }
-}
-
 
 /* Progressive disclosure: show extra fields only when the decision needs them. */
 .decision-extra[hidden] {
