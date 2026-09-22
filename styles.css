@@ -3333,3 +3333,33 @@ body.dark .selection-bar {
     top: 14px;
   }
 }
+
+
+/* Direct node movement */
+.map-node {
+  cursor: grab;
+  touch-action: none;
+}
+
+.map-node:active,
+.map-node.dragging {
+  cursor: grabbing;
+}
+
+.map-node.dragging {
+  z-index: 40;
+  filter: saturate(1.08) brightness(1.035);
+  box-shadow:
+    0 10px 0 rgba(103,70,139,.14),
+    0 24px 46px rgba(91,66,130,.22),
+    0 0 0 9px rgba(66,199,245,.16);
+}
+
+.map-node .node-complete,
+.map-node .node-edit {
+  cursor: pointer;
+}
+
+.map-node .node-edit {
+  cursor: text;
+}
