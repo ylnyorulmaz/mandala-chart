@@ -129,11 +129,13 @@ This preserves the useful parts of feedback loops and review triggers without cr
 
 ## Product views
 
+The same inner map state can be seen through three synchronized views.
+
 ### Map
 
-The Map is for thinking spatially, decomposing, keeping context, and executing.
+The Map is for spatial thinking, recursive decomposition, context, movement, and execution.
 
-Decision indicators should stay small and playful.
+Decision indicators should stay small and playful. Arrow keys move spatially between visible nodes; Shift+Arrow pans. Manual pan/pinch/wheel input should cancel camera focus animation rather than fight it.
 
 ### Table
 
@@ -148,6 +150,17 @@ The Table is for scanning and changing:
 Driver rows can expand and collapse.
 
 Do not add methodology columns merely because the underlying philosophy knows about them.
+
+### Grid
+
+The Grid is the classic fixed-depth 9×9 Mandala view:
+
+- Goal in the exact center,
+- eight Drivers around it,
+- one outer 3×3 block per Driver,
+- eight Actions around the repeated Driver.
+
+Grid is an overview grammar, not the recursive source of truth. Deeper Steps stay in Map/Table. The Grid is hidden below 1024px because shrinking 81 cells onto a phone hurts clarity.
 
 ### Inspector
 
@@ -165,7 +178,40 @@ The Inspector contains deeper details only when needed:
 
 This is progressive disclosure: only ask for information relevant to the decision the user made.
 
+### Maps library
+
+The Maps library is the outer structural layer. It is not another task-management dashboard.
+
+A map may remain independent, or optionally use:
+
+- **Group** — loose organization,
+- **Related** — horizontal association,
+- **Before / After** — directional sequence,
+- **Parent / Child** — vertical hierarchy.
+
+Group membership does not imply sequence or hierarchy. Before/After and Parent/Child must remain acyclic. In the initial model, a map has at most one direct parent.
+
 ---
+
+## 5. Scale across maps
+
+Do not force every meaningful goal into one enormous tree.
+
+One Mandala map is one goal system:
+
+> Goal → Drivers → Actions → Steps
+
+When several goal systems matter together, connect the maps rather than turning one into a giant branch:
+
+> independent maps → optional Group / Related / Sequence / Hierarchy
+
+Examples:
+
+- **Earn $10k/month** may be the parent of separate product-launch maps.
+- **Build landing page** may come before **Launch campaign**.
+- **Clean computer files** may remain unrelated.
+
+Cross-map structure exists to preserve clarity at a larger scale. It should not become a portfolio-management bureaucracy.
 
 ## Progress
 
@@ -176,6 +222,21 @@ Later, Hand off, and Drop should not make the user feel that an intentionally na
 Reward useful execution, not completion theater.
 
 ---
+
+## Persistence and recovery
+
+Execution only works if the user's structure is safe enough to return to.
+
+The current local-first model uses IndexedDB for:
+
+- multiple maps,
+- the active-map record,
+- bounded autosave snapshots,
+- cross-map links.
+
+Snapshots preserve inner map state. Map Groups and cross-map relationships live outside the snapshot so restoring an old version does not silently rewrite the user's larger structure.
+
+Starting a new map is non-destructive. Restore should preserve the current version first.
 
 ## Design test
 
