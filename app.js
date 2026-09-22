@@ -911,7 +911,7 @@
     $(document).on("keydown", function (e) {
       if (e.key === "Escape") {
         closeInspector();
-        $("#suggestionModal, #nextModal, #reviewModal").attr("hidden", true);
+        $("#suggestionModal, #nextModal, #reviewModal, #mapsModal").attr("hidden", true);
         if (editingId) {
           editingId = null;
           renderAll(false);
@@ -1307,10 +1307,19 @@
     }
 
     state = defaultState();
+    currentMapId = mapUid();
+    currentMapCreatedAt = Date.now();
+    lastSnapshotAt = 0;
+
     var root = createNode(value, null, 0);
     state.rootId = root.id;
     selectedId = root.id;
     createEightSlots(root.id);
+
+    if (storageReady) {
+      window.MandalaStorage.setActiveMapId(currentMapId).catch(function () {});
+    }
+
     saveState();
 
     showMap();
@@ -2559,7 +2568,8 @@
     return $("#inspector").hasClass("open") ||
       !$("#suggestionModal").is("[hidden]") ||
       !$("#nextModal").is("[hidden]") ||
-      !$("#reviewModal").is("[hidden]");
+      !$("#reviewModal").is("[hidden]") ||
+      !$("#mapsModal").is("[hidden]");
   }
 
   function directionVector(key) {
@@ -3028,20 +3038,267 @@
     delete state.nodes[id];
   }
 
-  function resetAll() {
-    if (state.rootId && !window.confirm("Start a new map? Your current local map will be cleared.")) return;
+  async function openMapsModal() {
+    if (!storageReady) {
+      showToast("Map library needs IndexedDB in this browser.");
+      return;
+    }
+
+    await persistCurrentMapNow();
+    snapshotHistoryMapId = null;
+    $("#snapshotHistoryView").attr("hidden", true);
+    $("#mapsLibraryView").removeAttr("hidden");
+    await renderMapsLibrary();
+    $("#mapsModal").removeAttr("hidden");
+  }
+
+  function closeMapsModal() {
+    $("#mapsModal").attr("hidden", true);
+    snapshotHistoryMapId = null;
+    $("#snapshotHistoryView").attr("hidden", true);
+    $("#mapsLibraryView").removeAttr("hidden");
+  }
+
+  async function renderMapsLibrary() {
+    if (!storageReady) return;
+
+    var maps = await window.MandalaStorage.listMaps();
+
+    if (!maps.length) {
+      $("#mapsList").html(
+        '<div class="maps-empty">' +
+          '<strong>No saved maps yet.</strong>' +
+          '<p>Create a goal and it will appear here automatically.</p>' +
+        '</div>'
+      );
+      return;
+    }
+
+    var rows = await Promise.all(maps.map(async function (map) {
+      return {
+        map: map,
+        snapshotCount: await window.MandalaStorage.countSnapshots(map.id)
+      };
+    }));
+
+    var html = rows.map(function (entry) {
+      var map = entry.map;
+      var current = map.id === currentMapId;
+      return '<article class="map-card' + (current ? ' current' : '') + '" data-map-id="' + map.id + '">' +
+        '<div class="map-card-copy">' +
+          '<div class="map-card-title-row">' +
+            '<strong>' + escapeHtml(map.title || "Untitled map") + '</strong>' +
+            (current ? '<span class="current-map-pill">Open</span>' : '') +
+          '</div>' +
+          '<span>Updated ' + escapeHtml(formatStoredTime(map.updatedAt)) +
+            ' · ' + entry.snapshotCount + ' version' + (entry.snapshotCount === 1 ? '' : 's') + '</span>' +
+        '</div>' +
+        '<div class="map-card-actions">' +
+          '<button class="soft-button map-open-button" type="button">' + (current ? 'Return' : 'Open') + '</button>' +
+          '<button class="soft-button map-history-button" type="button">History</button>' +
+          '<button class="map-delete-button" type="button" aria-label="Delete map" title="Delete map">×</button>' +
+        '</div>' +
+      '</article>';
+    }).join("");
+
+    $("#mapsList").html(html);
+  }
+
+  async function openStoredMap(mapId) {
+    if (!storageReady || !mapId) return;
+
+    await persistCurrentMapNow();
+    var record = await window.MandalaStorage.getMap(mapId);
+    if (!record || !record.state) return;
+
+    currentMapId = record.id;
+    currentMapCreatedAt = record.createdAt || Date.now();
+    state = cloneState(record.state);
+    state.version = 5;
+    selectedId = state.rootId || null;
+    editingId = null;
+    selectedDetailId = null;
+    currentNextId = null;
+    activeView = "map";
+
+    var latest = (await window.MandalaStorage.listSnapshots(currentMapId, 1))[0];
+    lastSnapshotAt = latest ? (latest.createdAt || 0) : 0;
+
+    await window.MandalaStorage.setActiveMapId(currentMapId);
+    closeInspector();
+    closeMapsModal();
+
+    if (state.rootId && state.nodes[state.rootId]) {
+      normalizeState();
+      showMap();
+      renderAll(false);
+      setTimeout(function () { fitAll(true); }, 30);
+    } else {
+      showEmptyMap();
+      startPromptRotation();
+    }
+  }
+
+  async function deleteStoredMap(mapId) {
+    if (!storageReady || !mapId) return;
+
+    var record = await window.MandalaStorage.getMap(mapId);
+    if (!record) return;
+
+    if (!window.confirm('Delete "' + (record.title || "Untitled map") + '" and its autosave history?')) return;
+
+    await window.MandalaStorage.deleteMap(mapId);
+
+    if (mapId === currentMapId) {
+      var remaining = await window.MandalaStorage.listMaps();
+
+      if (remaining.length) {
+        await openStoredMap(remaining[0].id);
+        await openMapsModal();
+      } else {
+        closeMapsModal();
+        startNewMap();
+      }
+      return;
+    }
+
+    await renderMapsLibrary();
+  }
+
+  async function openSnapshotHistory(mapId) {
+    if (!storageReady || !mapId) return;
+
+    await persistCurrentMapNow();
+
+    var record = await window.MandalaStorage.getMap(mapId);
+    if (!record) return;
+
+    snapshotHistoryMapId = mapId;
+    $("#mapsLibraryView").attr("hidden", true);
+    $("#snapshotHistoryView").removeAttr("hidden");
+    $("#snapshotMapTitle").text(record.title || "Untitled map");
+
+    var snapshots = await window.MandalaStorage.listSnapshots(mapId);
+
+    if (!snapshots.length) {
+      $("#snapshotList").html(
+        '<div class="maps-empty">' +
+          '<strong>No versions yet.</strong>' +
+          '<p>Keep editing. Autosave history appears after a few seconds.</p>' +
+        '</div>'
+      );
+      return;
+    }
+
+    var html = snapshots.map(function (snapshot, index) {
+      return '<article class="snapshot-row" data-snapshot-id="' + snapshot.id + '">' +
+        '<div>' +
+          '<strong>' + escapeHtml(index === 0 ? "Latest saved version" : "Saved version") + '</strong>' +
+          '<span>' + escapeHtml(formatStoredTime(snapshot.createdAt)) +
+            ' · ' + escapeHtml(snapshot.reason || "Autosave") + '</span>' +
+        '</div>' +
+        '<button class="soft-button snapshot-restore-button" type="button">Restore</button>' +
+      '</article>';
+    }).join("");
+
+    $("#snapshotList").html(html);
+  }
+
+  async function restoreSnapshot(snapshotId) {
+    if (!storageReady || !snapshotId) return;
+
+    var snapshot = await window.MandalaStorage.getSnapshot(snapshotId);
+    if (!snapshot || !snapshot.state) return;
+
+    var record = await window.MandalaStorage.getMap(snapshot.mapId);
+    if (!record) return;
+
+    if (!window.confirm("Restore this version? The current version will be saved first.")) return;
+
+    if (snapshot.mapId === currentMapId) {
+      await persistCurrentMapNow();
+      await createAutosaveSnapshot("Before restore", true);
+      record = await window.MandalaStorage.getMap(snapshot.mapId);
+    } else if (record.state && record.state.rootId) {
+      await window.MandalaStorage.createSnapshot(
+        record.id,
+        record.title || "Untitled map",
+        cloneState(record.state),
+        "Before restore"
+      );
+    }
+
+    var restoredState = cloneState(snapshot.state);
+    restoredState.version = 5;
+
+    await window.MandalaStorage.saveMap({
+      id: record.id,
+      title: currentMapTitle(restoredState),
+      createdAt: record.createdAt || Date.now(),
+      updatedAt: Date.now(),
+      state: restoredState
+    });
+
+    currentMapId = record.id;
+    currentMapCreatedAt = record.createdAt || Date.now();
+    state = restoredState;
+    selectedId = state.rootId || null;
+    editingId = null;
+    selectedDetailId = null;
+    currentNextId = null;
+    activeView = "map";
+    lastSnapshotAt = snapshot.createdAt || 0;
+
+    await window.MandalaStorage.setActiveMapId(currentMapId);
+    closeInspector();
+    closeMapsModal();
+
+    normalizeState();
+    showMap();
+    renderAll(false);
+    setTimeout(function () { fitAll(true); }, 30);
+    showToast("Version restored.");
+  }
+
+  function formatStoredTime(timestamp) {
+    if (!timestamp) return "just now";
+
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short"
+      }).format(new Date(timestamp));
+    } catch (error) {
+      return new Date(timestamp).toLocaleString();
+    }
+  }
+
+  async function startNewMap() {
+    await persistCurrentMapNow();
+
+    clearTimeout(stateSaveTimer);
+    clearTimeout(snapshotTimer);
+    stateSaveTimer = null;
+    snapshotTimer = null;
 
     state = defaultState();
+    currentMapId = null;
+    currentMapCreatedAt = null;
+    lastSnapshotAt = 0;
     selectedId = null;
     editingId = null;
     selectedDetailId = null;
     currentNextId = null;
     activeView = "map";
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
+
     closeInspector();
     showEmptyMap();
     startPromptRotation();
+  }
+
+  async function resetAll() {
+    if (state.rootId && !window.confirm("Start a new map? Your current map will stay saved in Maps.")) return;
+    await startNewMap();
   }
 
   function exportState() {
@@ -3049,7 +3306,7 @@
 
     var payload = {
       exportedAt: new Date().toISOString(),
-      version: state.version || 4,
+      version: state.version || 5,
       rootId: state.rootId,
       nodes: state.nodes
     };
