@@ -348,19 +348,20 @@ Mandala is not a 64-item completion checklist.
 
 The product model is:
 
-**Goal → Drivers → Actions → Triage → Execute → Review → Revise**
+**Break it down → Decide → Do next → Review**
 
 Implementation rules:
 
 - preserve the 8×8 structure as a decomposition constraint, not as an instruction to complete everything,
-- keep decision as one of do, defer, delegate, or delete,
-- decision=delete means "do not execute"; it MUST NOT physically delete or clear the node,
+- keep stable internal decision values do/defer/delegate/delete for saved-state compatibility, but show users **Do / Later / Hand off / Drop**,
+- decision=delete means "Drop / do not execute"; it MUST NOT physically delete or clear the node,
 - physical clearing/removal must remain a separate explicit action,
-- Next Move must normally consider only concrete leaf nodes that are DO, Ready, unfinished, and not suppressed by a non-DO ancestor,
+- Next Move must normally consider only concrete leaf nodes that are Do, Ready, unfinished, and not suppressed by a non-Do ancestor,
 - blocked work remains visible but does not compete for Next Move,
-- use Important/Urgent separately from Impact/Effort,
+- do not expose Important/Urgent or Delegatable as permanent metadata unless user testing clearly requires them,
 - dependencies should stay lightweight; do not recreate Jira,
-- the Table view is the primary triage surface,
+- use progressive disclosure: Hand off reveals a target; Later reveals a date,
+- the Table view is the primary decision surface,
 - the Map view should show only compact decision/readiness cues and remain visually playful,
 - scoring is a sorting aid; never present fake precision as truth,
 - Review should help users revise or delete work when reality changes,
