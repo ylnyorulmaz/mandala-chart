@@ -540,6 +540,15 @@
       $(this).focus();
     });
 
+    $("#mandalaGrid").on("click", ".mandala-grid-cell[data-parent-id]:not([data-node-id])", function (e) {
+      e.preventDefault();
+      var id = ensureGridActionSlot($(this).data("parent-id"), parseInt($(this).data("slot-index"), 10));
+      if (!id || !state.nodes[id]) return;
+      selectedId = id;
+      renderGrid();
+      openInspector(id);
+    });
+
     $("#mandalaGrid").on("dblclick", ".mandala-grid-cell", function (e) {
       e.preventDefault();
       var id = $(this).data("node-id");
