@@ -484,6 +484,16 @@
       switchView("table");
     });
 
+    $("#nodeTableBody").on("click", ".table-expand-button", function () {
+      var id = $(this).closest("tr").data("id");
+      var node = state.nodes[id];
+      if (!node || !node.children || !node.children.length) return;
+
+      node.tableCollapsed = !node.tableCollapsed;
+      saveState();
+      renderTable();
+    });
+
     $("#nodeTableBody").on("change", ".table-done-input", function () {
       var id = $(this).closest("tr").data("id");
       if (!id || !state.nodes[id]) return;
@@ -709,6 +719,7 @@
       var node = state.nodes[id];
       if (!node.children) node.children = [];
       if (typeof node.collapsed !== "boolean") node.collapsed = false;
+      if (typeof node.tableCollapsed !== "boolean") node.tableCollapsed = false;
       if (typeof node.offsetX !== "number") node.offsetX = 0;
       if (typeof node.offsetY !== "number") node.offsetY = 0;
       if (!node.status) node.status = "open";
@@ -742,6 +753,7 @@
       duration: "",
       notes: "",
       collapsed: false,
+      tableCollapsed: false,
       offsetX: 0,
       offsetY: 0,
       createdAt: Date.now()
@@ -894,7 +906,7 @@
       return;
     }
 
-    var ids = getAllNodeIds();
+    var ids = getTableNodeIds();
     var html = "";
 
     ids.forEach(function (id) {
@@ -907,15 +919,34 @@
       var placeholder = placeholderText(node);
       var done = node.status === "done";
       var estimate = node.duration ? escapeHtml(String(node.duration)) + " min" : "—";
+      var hasChildren = !!(node.children && node.children.length);
+      var canExpand = hasChildren && node.depth >= 1;
+      var collapsed = canExpand && node.tableCollapsed;
+      var childCount = hasChildren ? node.children.length : 0;
+      var rowClasses = [
+        done ? "table-row-done" : "",
+        !title ? "table-row-placeholder" : "",
+        node.depth === 1 ? "table-driver-row" : "",
+        canExpand ? "table-expandable-row" : "",
+        collapsed ? "table-row-collapsed" : ""
+      ].filter(Boolean).join(" ");
 
-      html += '<tr class="' + (done ? "table-row-done " : "") +
-        (!title ? "table-row-placeholder" : "") + '" data-id="' + id + '">' +
+      html += '<tr class="' + rowClasses + '" data-id="' + id + '">' +
         '<td class="done-col"><label class="table-check" aria-label="' +
           escapeHtml(done ? "Mark open" : "Mark done") + '">' +
           '<input class="table-done-input" type="checkbox"' +
             (done ? " checked" : "") + (!title ? " disabled" : "") + '>' +
           '<span>✓</span></label></td>' +
         '<td class="node-col"><div class="table-node-cell" style="--depth:' + Math.min(node.depth || 0, 4) + '">' +
+          (canExpand
+            ? '<button class="table-expand-button" type="button" aria-expanded="' +
+                (collapsed ? "false" : "true") + '" aria-label="' +
+                escapeHtml(collapsed ? "Expand row" : "Collapse row") + '" title="' +
+                escapeHtml(collapsed ? "Expand" : "Collapse") + '">' +
+                '<span class="table-expand-chevron">›</span>' +
+                '<span class="table-child-count">' + childCount + '</span>' +
+              '</button>'
+            : '<span class="table-expand-spacer" aria-hidden="true"></span>') +
           '<span class="table-tree-dot depth-' + Math.min(node.depth || 0, 3) + '"></span>' +
           '<input class="table-title-input" type="text" maxlength="180" value="' +
             escapeHtml(node.title || "") + '" placeholder="' + escapeHtml(placeholder) + '">' +
@@ -939,13 +970,17 @@
     $("#nodeTableBody").html(html);
   }
 
-  function getAllNodeIds() {
+  function getTableNodeIds() {
     var result = [];
 
     function walk(id) {
       var node = state.nodes[id];
       if (!node) return;
+
       result.push(id);
+
+      if (node.tableCollapsed && node.depth >= 1) return;
+
       (node.children || []).forEach(function (childId) {
         if (state.nodes[childId]) walk(childId);
       });
@@ -1816,6 +1851,7 @@
     node.duration = "";
     node.notes = "";
     node.collapsed = false;
+    node.tableCollapsed = false;
     node.offsetX = 0;
     node.offsetY = 0;
 
