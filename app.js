@@ -955,11 +955,25 @@
     return {
       rootId: null,
       nodes: {},
-      version: 4
+      version: 5
     };
   }
 
-  function loadState() {
+  function mapUid() {
+    return "map_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 9);
+  }
+
+  function cloneState(value) {
+    return JSON.parse(JSON.stringify(value || defaultState()));
+  }
+
+  function currentMapTitle(sourceState) {
+    var target = sourceState || state;
+    var root = target.rootId && target.nodes ? target.nodes[target.rootId] : null;
+    return root && root.title && root.title.trim() ? root.title.trim() : "Untitled map";
+  }
+
+  function loadLegacyState() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) raw = localStorage.getItem(LEGACY_STORAGE_KEY);
@@ -967,10 +981,80 @@
 
       var parsed = JSON.parse(raw);
       if (!parsed || !parsed.nodes) return defaultState();
-      parsed.version = 4;
+      parsed.version = 5;
       return parsed;
     } catch (e) {
       return defaultState();
+    }
+  }
+
+  async function initializePlannerStorage() {
+    try {
+      if (!window.MandalaStorage) throw new Error("MandalaStorage unavailable");
+      await window.MandalaStorage.init();
+      storageReady = true;
+
+      var maps = await window.MandalaStorage.listMaps();
+
+      if (!maps.length) {
+        var legacy = loadLegacyState();
+
+        if (legacy.rootId && legacy.nodes[legacy.rootId]) {
+          currentMapId = mapUid();
+          currentMapCreatedAt = Date.now();
+          state = legacy;
+
+          await window.MandalaStorage.saveMap({
+            id: currentMapId,
+            title: currentMapTitle(legacy),
+            createdAt: currentMapCreatedAt,
+            updatedAt: Date.now(),
+            state: cloneState(legacy)
+          });
+          await window.MandalaStorage.setActiveMapId(currentMapId);
+          await window.MandalaStorage.createSnapshot(
+            currentMapId,
+            currentMapTitle(legacy),
+            cloneState(legacy),
+            "Migrated from localStorage"
+          );
+
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+          lastSnapshotAt = Date.now();
+          return;
+        }
+
+        state = defaultState();
+        return;
+      }
+
+      var activeId = await window.MandalaStorage.getActiveMapId();
+      var activeRecord = activeId ? await window.MandalaStorage.getMap(activeId) : null;
+
+      if (!activeRecord) {
+        activeRecord = maps[0];
+        activeId = activeRecord.id;
+        await window.MandalaStorage.setActiveMapId(activeId);
+      }
+
+      currentMapId = activeId;
+      currentMapCreatedAt = activeRecord.createdAt || Date.now();
+      state = activeRecord.state && activeRecord.state.nodes
+        ? cloneState(activeRecord.state)
+        : defaultState();
+      state.version = 5;
+
+      var latestSnapshot = (await window.MandalaStorage.listSnapshots(currentMapId, 1))[0];
+      lastSnapshotAt = latestSnapshot ? (latestSnapshot.createdAt || 0) : 0;
+    } catch (error) {
+      storageReady = false;
+      currentMapId = null;
+      currentMapCreatedAt = null;
+      state = loadLegacyState();
+      setTimeout(function () {
+        showToast("Local database unavailable — using single-map fallback.");
+      }, 0);
     }
   }
 
@@ -991,11 +1075,95 @@
       if (node.dependencyId && !state.nodes[node.dependencyId]) node.dependencyId = null;
       if (typeof node.dependencyId === "undefined") node.dependencyId = null;
     });
+    state.version = 5;
     saveState();
   }
 
   function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    state.version = 5;
+
+    if (!storageReady) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      return;
+    }
+
+    if (!state.rootId || !state.nodes[state.rootId]) return;
+
+    if (!currentMapId) {
+      currentMapId = mapUid();
+      currentMapCreatedAt = Date.now();
+      window.MandalaStorage.setActiveMapId(currentMapId).catch(function () {});
+    }
+
+    clearTimeout(stateSaveTimer);
+    stateSaveTimer = setTimeout(function () {
+      persistCurrentMapNow();
+    }, 220);
+
+    scheduleAutosaveSnapshot();
+  }
+
+  async function persistCurrentMapNow() {
+    clearTimeout(stateSaveTimer);
+    stateSaveTimer = null;
+
+    if (!storageReady || !currentMapId || !state.rootId || !state.nodes[state.rootId]) return;
+
+    try {
+      var now = Date.now();
+      var snapshot = cloneState(state);
+
+      await window.MandalaStorage.saveMap({
+        id: currentMapId,
+        title: currentMapTitle(snapshot),
+        createdAt: currentMapCreatedAt || now,
+        updatedAt: now,
+        state: snapshot
+      });
+    } catch (error) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+  }
+
+  function scheduleAutosaveSnapshot() {
+    if (!storageReady || !currentMapId || !state.rootId) return;
+
+    clearTimeout(snapshotTimer);
+    snapshotTimer = setTimeout(function () {
+      createAutosaveSnapshot();
+    }, 3500);
+  }
+
+  async function createAutosaveSnapshot(reason, force) {
+    clearTimeout(snapshotTimer);
+    snapshotTimer = null;
+
+    if (!storageReady || !currentMapId || !state.rootId || !state.nodes[state.rootId]) return null;
+
+    var now = Date.now();
+    var minimumGap = 30000;
+
+    if (!force && lastSnapshotAt && now - lastSnapshotAt < minimumGap) {
+      snapshotTimer = setTimeout(function () {
+        createAutosaveSnapshot(reason, false);
+      }, minimumGap - (now - lastSnapshotAt) + 100);
+      return null;
+    }
+
+    try {
+      await persistCurrentMapNow();
+      var created = await window.MandalaStorage.createSnapshot(
+        currentMapId,
+        currentMapTitle(),
+        cloneState(state),
+        reason || "Autosave"
+      );
+
+      if (created) lastSnapshotAt = created.createdAt || Date.now();
+      return created;
+    } catch (error) {
+      return null;
+    }
   }
 
   function uid() {
