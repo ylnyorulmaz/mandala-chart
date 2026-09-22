@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#fbf6ed">
-  <meta name="description" content="Mandala turns one goal into a visual decision map: decompose, triage, execute the strongest next moves, and revise.">
+  <meta name="description" content="Mandala helps you break a goal down, decide what matters, do the next move, and review what changed.">
   <title>Mandala</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -110,9 +110,7 @@
                     <th class="done-col" scope="col">Done</th>
                     <th scope="col">Node</th>
                     <th scope="col">Kind</th>
-                    <th scope="col">4D</th>
-                    <th scope="col">Important</th>
-                    <th scope="col">Urgent</th>
+                    <th scope="col">Decision</th>
                     <th scope="col">Impact</th>
                     <th scope="col">Effort</th>
                     <th scope="col">Ready</th>
@@ -171,58 +169,36 @@
 
     <section class="triage-panel" aria-labelledby="triagePanelTitle">
       <div class="triage-panel-head">
-        <span class="node-eyebrow">Triage</span>
-        <strong id="triagePanelTitle">Decide what deserves execution</strong>
+        <span class="node-eyebrow">Decide</span>
+        <strong id="triagePanelTitle">What happens to this?</strong>
       </div>
 
       <label class="field">
-        <span>4D decision</span>
+        <span>Decision</span>
         <select id="decisionInput">
           <option value="do">Do</option>
-          <option value="defer">Defer</option>
-          <option value="delegate">Delegate</option>
-          <option value="delete">Delete</option>
+          <option value="defer">Later</option>
+          <option value="delegate">Hand off</option>
+          <option value="delete">Drop</option>
         </select>
       </label>
 
-      <div class="flag-grid">
-        <label class="flag-toggle">
-          <input id="importantInput" type="checkbox">
-          <span>Important</span>
-        </label>
-        <label class="flag-toggle">
-          <input id="urgentInput" type="checkbox">
-          <span>Urgent</span>
-        </label>
-      </div>
+      <label class="field">
+        <span>Blocked by</span>
+        <select id="dependencyInput">
+          <option value="">Nothing — ready</option>
+        </select>
+      </label>
 
-      <div class="detail-row">
-        <label class="field">
-          <span>Delegatable</span>
-          <select id="delegatableInput">
-            <option value="no">No</option>
-            <option value="partly">Partly</option>
-            <option value="yes">Yes</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Dependency</span>
-          <select id="dependencyInput">
-            <option value="">Ready</option>
-          </select>
-        </label>
-      </div>
+      <label class="field decision-extra" id="delegateField" hidden>
+        <span>Hand off to</span>
+        <input id="delegatedToInput" type="text" maxlength="120" placeholder="Person, agent, contractor…">
+      </label>
 
-      <div class="detail-row">
-        <label class="field">
-          <span>Delegate to</span>
-          <input id="delegatedToInput" type="text" maxlength="120" placeholder="Person, agent, contractor…">
-        </label>
-        <label class="field">
-          <span>Defer until</span>
-          <input id="deferUntilInput" type="date">
-        </label>
-      </div>
+      <label class="field decision-extra" id="deferField" hidden>
+        <span>Bring back on</span>
+        <input id="deferUntilInput" type="date">
+      </label>
     </section>
 
     <div class="detail-row">
@@ -301,13 +277,13 @@
       <div class="review-prompts">
         <p>Which drivers were wrong?</p>
         <p>Which actions produced real progress?</p>
-        <p>What should be deleted now?</p>
+        <p>What should be dropped now?</p>
         <p>What new information changed priorities?</p>
         <p>What is the next bottleneck?</p>
       </div>
       <div class="modal-actions centered">
         <button class="soft-button" id="closeReviewButton" type="button">Keep playing</button>
-        <button class="primary-button" id="openTriageTableButton" type="button">Open triage table</button>
+        <button class="primary-button" id="openTriageTableButton" type="button">Open decisions</button>
       </div>
     </section>
   </div>
