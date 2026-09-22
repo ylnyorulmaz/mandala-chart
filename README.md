@@ -10,14 +10,16 @@ The first iteration is deliberately front-end only. It uses HTML, CSS, JavaScrip
 
 ## Current interaction
 
-1. Enter one goal.
-2. Eight driver nodes animate around it.
-3. Fill the drivers manually or use **Suggest** for local demo suggestions.
-4. Click a driver to focus it and reveal eight action slots.
-5. Split any broad action again when needed.
-6. Add impact, effort, urgency, duration, status and notes.
-7. Use **Next** to surface the highest-leverage unfinished leaf action.
-8. Export the full map as JSON.
+1. Enter one central goal.
+2. Eight driver nodes animate outward on a persistent mind-map canvas.
+3. Pan the canvas, scroll or pinch to zoom, and use **Fit** to see the entire map.
+4. Click a node to smoothly center the camera on it; double-click to edit it.
+5. Opening a driver reveals eight action nodes while the rest of the map remains visible.
+6. Split any action again when it is still too broad; collapse branches when you need less visual noise.
+7. Add impact, effort, urgency, duration, status and notes in the details inspector.
+8. Use **Next action** to surface a high-leverage unfinished leaf action.
+9. Shift-drag nodes for manual repositioning and use the minimap for fast navigation.
+10. Export the full map as JSON.
 
 ## Planning ideas embedded in the UI
 
@@ -84,4 +86,4 @@ This iteration intentionally excludes:
 - native mobile apps
 - calendar integrations
 
-The purpose of v1 is to validate the core interaction: **type an outcome → decompose → navigate → execute.**
+The current prototype validates the core interaction: **type an outcome → see the whole map → focus a branch → decompose → execute.**
