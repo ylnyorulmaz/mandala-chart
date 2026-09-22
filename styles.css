@@ -4809,7 +4809,7 @@ body.dark .review-stats div {
 
   .table-node-cell {
     gap: 7px;
-    padding-left: calc(min(var(--depth), 3) * 10px);
+    padding-left: calc(var(--depth) * 8px);
   }
 
   .table-title-input {
