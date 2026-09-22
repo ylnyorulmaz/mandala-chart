@@ -30,7 +30,9 @@
   var activeView = "map";
 
   var PROMPTS = [
-    "What do you want to achieve today?"
+    "achieve",
+    "do",
+    "finish"
   ];
 
   var LABELS = {
@@ -2149,7 +2151,29 @@
   function startPromptRotation() {
     stopPromptRotation();
     promptIndex = 0;
-    $("#rotatingPrompt").text(PROMPTS[0]);
+
+    var $verb = $("#rotatingVerb");
+    if (!$verb.length) return;
+
+    $verb.text(PROMPTS[0]);
+
+    promptTimer = setInterval(function () {
+      promptIndex = (promptIndex + 1) % PROMPTS.length;
+
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        $verb.text(PROMPTS[promptIndex]);
+        return;
+      }
+
+      $verb.addClass("swap-out");
+
+      setTimeout(function () {
+        $verb.text(PROMPTS[promptIndex]).removeClass("swap-out").addClass("swap-in");
+        setTimeout(function () {
+          $verb.removeClass("swap-in");
+        }, 220);
+      }, 180);
+    }, 2800);
   }
 
   function stopPromptRotation() {
