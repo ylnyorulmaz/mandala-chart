@@ -29,6 +29,9 @@ It supports:
 - lightweight Review loop,
 - persistent mind-map canvas,
 - pan and zoom,
+- spatial arrow-key navigation,
+- Shift + arrow keyboard panning,
+- cancellable camera motion so manual dragging never fights an old focus animation,
 - fit-to-map,
 - smooth camera focus,
 - branch expansion/collapse,
@@ -52,7 +55,7 @@ It supports:
 2. Eight driver nodes animate outward.
 3. Switch between the spatial Map view and a structured Table view at any time.
 4. Pan and zoom while keeping the whole map available.
-5. Click a node to focus the camera on that branch.
+5. Click a node to focus the camera on that branch, or use the arrow keys to hop spatially between visible nodes.
 6. Expand a driver into executable actions.
 7. Split an action again only if it is still too broad.
 8. Collapse branches when the map becomes noisy.
@@ -249,3 +252,15 @@ The planner is designed to remain usable on phones rather than merely shrink the
 - orientation changes re-center the active node.
 
 Actual device QA is still required before claiming full cross-device coverage.
+
+
+### Map navigation
+
+Keyboard and pointer navigation are designed to cooperate:
+
+- **Arrow keys** jump to the nearest visible node in that direction.
+- If no node is selected, arrow navigation starts from the current viewport center.
+- **Shift + Arrow** pans the canvas without changing selection.
+- Clicking empty canvas clears the active node; the next arrow key starts spatial navigation from what is currently on screen.
+- Manual drag, pinch, wheel, or node drag cancels any in-progress camera focus animation, so the camera does not fight the user.
+- Pointer movement is coalesced through animation frames for smoother canvas panning.

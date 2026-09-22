@@ -19,6 +19,9 @@
   var camera = { x: 0, y: 0, scale: 1 };
   var panState = null;
   var nodeDragState = null;
+  var cameraAnimationFrame = null;
+  var cameraInputFrame = null;
+  var pendingCamera = null;
   var suppressNodeClickId = null;
   var suppressNodeClickUntil = 0;
   var pointers = {};
@@ -322,6 +325,7 @@
 
       e.preventDefault();
       e.stopPropagation();
+      stopCameraMotion();
 
       nodeDragState = {
         id: id,
@@ -332,8 +336,6 @@
         baseY: (node.offsetY || 0),
         moved: false
       };
-
-      $(this).addClass("dragging");
 
       try { this.setPointerCapture(e.pointerId); } catch (ignore) {}
     });
@@ -349,16 +351,18 @@
       e.preventDefault();
       e.stopPropagation();
 
-      var dx = (e.clientX - nodeDragState.startX) / camera.scale;
-      var dy = (e.clientY - nodeDragState.startY) / camera.scale;
+      var screenDx = e.clientX - nodeDragState.startX;
+      var screenDy = e.clientY - nodeDragState.startY;
 
-      if (Math.abs(dx) + Math.abs(dy) > 5) {
+      if (Math.hypot(screenDx, screenDy) > 5) {
         nodeDragState.moved = true;
         $(this).addClass("dragging");
       }
 
       if (!nodeDragState.moved) return;
 
+      var dx = screenDx / camera.scale;
+      var dy = screenDy / camera.scale;
       node.offsetX = nodeDragState.baseX + dx;
       node.offsetY = nodeDragState.baseY + dy;
 
@@ -383,6 +387,7 @@
       var id = nodeDragState.id;
 
       $(this).removeClass("dragging");
+      try { this.releasePointerCapture(e.pointerId); } catch (ignore) {}
 
       if (moved) {
         selectedId = id;
@@ -397,23 +402,26 @@
     });
 
     $("#mapViewport").on("pointerdown", function (e) {
-      pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+      if ($(e.target).closest(".map-node, .map-toolbar, .minimap, .empty-map, .quest-progress, .canvas-status").length) return;
 
-      if ($(e.target).closest(".map-node, .map-toolbar, .minimap, .empty-map").length) return;
+      stopCameraMotion();
+      pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
 
       try { this.setPointerCapture(e.pointerId); } catch (ignore) {}
 
       if (Object.keys(pointers).length === 1) {
         panState = {
+          pointerId: e.pointerId,
           startX: e.clientX,
           startY: e.clientY,
           cameraX: camera.x,
-          cameraY: camera.y
+          cameraY: camera.y,
+          moved: false
         };
         $(this).addClass("grabbing");
+      } else if (Object.keys(pointers).length === 2) {
+        beginPinch();
       }
-
-      if (Object.keys(pointers).length === 2) beginPinch();
     });
 
     $("#mapViewport").on("pointermove", function (e) {
@@ -425,20 +433,50 @@
         return;
       }
 
-      if (!panState) return;
+      if (!panState || panState.pointerId !== e.pointerId) return;
 
-      camera.x = panState.cameraX + (e.clientX - panState.startX);
-      camera.y = panState.cameraY + (e.clientY - panState.startY);
-      applyCamera();
+      var dx = e.clientX - panState.startX;
+      var dy = e.clientY - panState.startY;
+      if (!panState.moved && Math.hypot(dx, dy) > 3) panState.moved = true;
+
+      scheduleCameraInput(
+        panState.cameraX + dx,
+        panState.cameraY + dy,
+        camera.scale
+      );
     });
 
     $("#mapViewport").on("pointerup pointercancel", function (e) {
+      var wasTap = !!(panState &&
+        panState.pointerId === e.pointerId &&
+        !panState.moved &&
+        e.type === "pointerup");
+
       delete pointers[e.pointerId];
-      if (Object.keys(pointers).length < 2) pinchState = null;
-      if (Object.keys(pointers).length === 0) {
+      try { this.releasePointerCapture(e.pointerId); } catch (ignore) {}
+      flushCameraInput();
+
+      var remainingIds = Object.keys(pointers);
+
+      if (remainingIds.length < 2) pinchState = null;
+
+      if (remainingIds.length === 1) {
+        var remainingId = remainingIds[0];
+        var remaining = pointers[remainingId];
+        panState = {
+          pointerId: Number(remainingId),
+          startX: remaining.x,
+          startY: remaining.y,
+          cameraX: camera.x,
+          cameraY: camera.y,
+          moved: true
+        };
+      } else if (remainingIds.length === 0) {
         panState = null;
         $(this).removeClass("grabbing");
       }
+
+      if (wasTap) clearMapSelection();
     });
 
     $("#mapViewport").on("wheel", function (e) {
@@ -739,17 +777,28 @@
         openNextModal();
       }
 
-      if (!$(e.target).is("textarea,input,select")) {
-        if (e.key === "+" || e.key === "=") {
-          e.preventDefault();
-          $("#zoomInButton").trigger("click");
-        } else if (e.key === "-") {
-          e.preventDefault();
-          $("#zoomOutButton").trigger("click");
-        } else if (e.key.toLowerCase() === "f") {
-          e.preventDefault();
-          fitAll(true);
+      if (isKeyboardTypingTarget(e.target)) return;
+
+      if (activeView === "map" && isArrowKey(e.key) && !isPlannerOverlayOpen()) {
+        e.preventDefault();
+
+        if (e.shiftKey) {
+          panMapByArrow(e.key);
+        } else {
+          navigateMapByArrow(e.key);
         }
+        return;
+      }
+
+      if (e.key === "+" || e.key === "=") {
+        e.preventDefault();
+        $("#zoomInButton").trigger("click");
+      } else if (e.key === "-") {
+        e.preventDefault();
+        $("#zoomOutButton").trigger("click");
+      } else if (e.key.toLowerCase() === "f") {
+        e.preventDefault();
+        fitAll(true);
       }
     });
   }
@@ -1249,6 +1298,7 @@
       var editing = editingId === id;
 
       html += '<div class="' + classes + '" data-id="' + id + '" data-hidden-count="+' + hiddenCount + '"' +
+        ' role="button" tabindex="-1" aria-label="' + escapeHtml(label) + '"' +
         ' style="left:' + round(pos.x) + 'px;top:' + round(pos.y) + 'px;' +
         (animateNew ? "animation-delay:" + Math.min(index * 18, 180) + "ms;" : "") + '">' +
         '<span class="node-type-dot"></span>';
@@ -1386,14 +1436,14 @@
     return LABELS[Math.min(node.depth || 0, 3)] || "STEP";
   }
 
-  function focusCameraOnNode(id, targetScale) {
+  function focusCameraOnNode(id, targetScale, duration) {
     var pos = renderPositions[id];
     if (!pos) return;
 
     var scale = clamp(targetScale || camera.scale, minimumCameraScale(), 2.2);
     var x = viewportWidth() / 2 - pos.x * scale;
     var y = viewportHeight() / 2 - pos.y * scale;
-    animateCameraTo(x, y, scale, 360);
+    animateCameraTo(x, y, scale, duration || 360);
   }
 
   function fitAll(animated) {
@@ -1416,6 +1466,7 @@
 
     if (animated) animateCameraTo(x, y, scale, 360);
     else {
+      stopCameraMotion();
       camera = { x: x, y: y, scale: scale };
       applyCamera();
     }
@@ -1465,7 +1516,65 @@
     renderMinimapCamera();
   }
 
+  function stopCameraAnimation() {
+    if (cameraAnimationFrame !== null) {
+      cancelAnimationFrame(cameraAnimationFrame);
+      cameraAnimationFrame = null;
+    }
+  }
+
+  function cancelCameraInputFrame() {
+    if (cameraInputFrame !== null) {
+      cancelAnimationFrame(cameraInputFrame);
+      cameraInputFrame = null;
+    }
+    pendingCamera = null;
+  }
+
+  function flushCameraInput() {
+    if (cameraInputFrame !== null) {
+      cancelAnimationFrame(cameraInputFrame);
+      cameraInputFrame = null;
+    }
+
+    if (!pendingCamera) return;
+
+    camera.x = pendingCamera.x;
+    camera.y = pendingCamera.y;
+    camera.scale = pendingCamera.scale;
+    pendingCamera = null;
+    applyCamera();
+  }
+
+  function stopCameraMotion() {
+    stopCameraAnimation();
+    cancelCameraInputFrame();
+  }
+
+  function scheduleCameraInput(x, y, scale) {
+    pendingCamera = {
+      x: x,
+      y: y,
+      scale: clamp(scale, minimumCameraScale(), 2.2)
+    };
+
+    if (cameraInputFrame !== null) return;
+
+    cameraInputFrame = requestAnimationFrame(function () {
+      cameraInputFrame = null;
+      if (!pendingCamera) return;
+
+      camera.x = pendingCamera.x;
+      camera.y = pendingCamera.y;
+      camera.scale = pendingCamera.scale;
+      pendingCamera = null;
+      applyCamera();
+    });
+  }
+
   function animateCameraTo(x, y, scale, duration) {
+    stopCameraMotion();
+
     var start = { x: camera.x, y: camera.y, scale: camera.scale };
     var started = performance.now();
     duration = duration || 300;
@@ -1479,14 +1588,20 @@
       camera.scale = lerp(start.scale, scale, eased);
       applyCamera();
 
-      if (t < 1) requestAnimationFrame(frame);
+      if (t < 1) {
+        cameraAnimationFrame = requestAnimationFrame(frame);
+      } else {
+        cameraAnimationFrame = null;
+      }
     }
 
-    requestAnimationFrame(frame);
+    cameraAnimationFrame = requestAnimationFrame(frame);
   }
 
   function zoomAt(screenX, screenY, targetScale) {
     if (!state.rootId) return;
+
+    stopCameraMotion();
 
     var newScale = clamp(targetScale, minimumCameraScale(), 2.2);
     var worldX = (screenX - camera.x) / camera.scale;
@@ -1502,10 +1617,18 @@
     var pts = Object.keys(pointers).map(function (id) { return pointers[id]; });
     if (pts.length !== 2) return;
 
+    stopCameraMotion();
+
+    var center = midpoint(pts[0], pts[1]);
+    var rect = document.getElementById("mapViewport").getBoundingClientRect();
+    var sx = center.x - rect.left;
+    var sy = center.y - rect.top;
+
     pinchState = {
-      distance: distance(pts[0], pts[1]),
+      distance: Math.max(distance(pts[0], pts[1]), 1),
       scale: camera.scale,
-      center: midpoint(pts[0], pts[1])
+      worldX: (sx - camera.x) / camera.scale,
+      worldY: (sy - camera.y) / camera.scale
     };
     panState = null;
   }
@@ -1520,7 +1643,17 @@
     var rect = document.getElementById("mapViewport").getBoundingClientRect();
     var sx = center.x - rect.left;
     var sy = center.y - rect.top;
-    zoomAt(sx, sy, pinchState.scale * (dist / pinchState.distance));
+    var scale = clamp(
+      pinchState.scale * (dist / pinchState.distance),
+      minimumCameraScale(),
+      2.2
+    );
+
+    scheduleCameraInput(
+      sx - pinchState.worldX * scale,
+      sy - pinchState.worldY * scale,
+      scale
+    );
   }
 
   function renderMinimap() {
@@ -1871,6 +2004,146 @@
     $("#canvasStatusText").text(
       done + " done · " + doNow + " ready · " + cut + " dropped · Drag nodes to move"
     );
+  }
+
+  function isArrowKey(key) {
+    return key === "ArrowUp" ||
+      key === "ArrowDown" ||
+      key === "ArrowLeft" ||
+      key === "ArrowRight";
+  }
+
+  function isKeyboardTypingTarget(target) {
+    return $(target).is("textarea,input,select,button,a,[contenteditable='true']");
+  }
+
+  function isPlannerOverlayOpen() {
+    return $("#inspector").hasClass("open") ||
+      !$("#suggestionModal").is("[hidden]") ||
+      !$("#nextModal").is("[hidden]") ||
+      !$("#reviewModal").is("[hidden]");
+  }
+
+  function directionVector(key) {
+    return {
+      ArrowUp: { x: 0, y: -1 },
+      ArrowDown: { x: 0, y: 1 },
+      ArrowLeft: { x: -1, y: 0 },
+      ArrowRight: { x: 1, y: 0 }
+    }[key] || null;
+  }
+
+  function viewportCenterWorld() {
+    return {
+      x: (viewportWidth() / 2 - camera.x) / camera.scale,
+      y: (viewportHeight() / 2 - camera.y) / camera.scale
+    };
+  }
+
+  function findDirectionalNode(origin, direction, excludeId, ids) {
+    var best = null;
+    var bestScore = Infinity;
+    var fallback = null;
+    var fallbackScore = Infinity;
+
+    ids.forEach(function (id) {
+      if (id === excludeId || !renderPositions[id] || !state.nodes[id]) return;
+
+      var pos = renderPositions[id];
+      var dx = pos.x - origin.x;
+      var dy = pos.y - origin.y;
+      var forward = dx * direction.x + dy * direction.y;
+      if (forward <= 8) return;
+
+      var distanceToNode = Math.max(Math.hypot(dx, dy), 1);
+      var alignment = forward / distanceToNode;
+      var lateral = Math.abs(dx * direction.y - dy * direction.x);
+
+      var looseScore = distanceToNode + lateral * 1.35;
+      if (looseScore < fallbackScore) {
+        fallbackScore = looseScore;
+        fallback = id;
+      }
+
+      if (alignment < .34) return;
+
+      var score = distanceToNode * (1 + (1 - alignment) * 2.8) + lateral * .22;
+      if (score < bestScore) {
+        bestScore = score;
+        best = id;
+      }
+    });
+
+    return best || fallback;
+  }
+
+  function navigateMapByArrow(key) {
+    if (!state.rootId || activeView !== "map") return;
+
+    var direction = directionVector(key);
+    if (!direction) return;
+
+    var ids = getVisibleNodeIds().filter(function (id) {
+      return state.nodes[id] && renderPositions[id];
+    });
+    if (!ids.length) return;
+
+    var origin = selectedId && renderPositions[selectedId]
+      ? renderPositions[selectedId]
+      : viewportCenterWorld();
+
+    var nextId = findDirectionalNode(origin, direction, selectedId, ids);
+
+    if (!nextId && !selectedId) {
+      nextId = ids.reduce(function (bestId, id) {
+        if (!bestId) return id;
+        var center = viewportCenterWorld();
+        var bestPos = renderPositions[bestId];
+        var pos = renderPositions[id];
+        var bestDist = Math.hypot(bestPos.x - center.x, bestPos.y - center.y);
+        var dist = Math.hypot(pos.x - center.x, pos.y - center.y);
+        return dist < bestDist ? id : bestId;
+      }, null);
+    }
+
+    if (!nextId) return;
+
+    selectedId = nextId;
+    editingId = null;
+
+    $("#mapNodes .map-node").removeClass("selected");
+    var $next = $('.map-node[data-id="' + nextId + '"]');
+    $next.addClass("selected");
+
+    $("#mapViewport").addClass("keyboard-navigating");
+    updateSelectionBar();
+    focusCameraOnNode(nextId, camera.scale, 220);
+
+    if ($next.length && $next[0].focus) {
+      try { $next[0].focus({ preventScroll: true }); }
+      catch (ignore) { $next[0].focus(); }
+    }
+  }
+
+  function panMapByArrow(key) {
+    var direction = directionVector(key);
+    if (!direction) return;
+
+    var step = Math.max(90, Math.min(viewportWidth(), viewportHeight()) * .18);
+    var targetX = camera.x - direction.x * step;
+    var targetY = camera.y - direction.y * step;
+
+    animateCameraTo(targetX, targetY, camera.scale, 180);
+  }
+
+  function clearMapSelection() {
+    if (!selectedId && !editingId) return;
+
+    selectedId = null;
+    editingId = null;
+    $("#mapNodes .map-node").removeClass("selected");
+    $("#mapViewport").removeClass("keyboard-navigating");
+    updateSelectionBar();
   }
 
   function startPromptRotation() {
