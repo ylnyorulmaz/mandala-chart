@@ -446,6 +446,19 @@ A useful visual rule:
 
 > Calm before the action. Spark at the action. Calm after the action.
 
+### Personal color palettes
+
+The user can choose the background mood without changing the product's visual language.
+
+Initial palettes:
+
+- **Light**
+- **Dark**
+- **Sage**
+- **Dawn**
+
+Palette selection is persistent and global across the app. This is customization, not a theme-builder: keep the choices curated so contrast, game feedback, and the calm/flow visual language remain coherent.
+
 ### Mobile interaction
 
 Mobile is a first-class surface, not a scaled-down desktop afterthought.
