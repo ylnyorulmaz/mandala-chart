@@ -5186,7 +5186,6 @@ body:not(.empty-start) .map-viewport::after {
 .map-toolbar,
 .quest-progress,
 .map-mantra,
-.selection-bar,
 .minimap,
 .canvas-status {
   position: absolute;
