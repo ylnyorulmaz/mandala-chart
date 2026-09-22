@@ -100,7 +100,7 @@ Preferred qualities:
 - responsive,
 - smooth but not theatrical.
 
-The product should feel closer to a calm notebook, mind map, or creative studio wall than a corporate SaaS dashboard. Warm cream surfaces, coral/butter/sage/lavender accents, rounded controls, and human microcopy are preferred over cold blue enterprise styling.
+The product should feel closer to a lightweight colorful game, playful mind map, or creative studio wall than a corporate SaaS dashboard. Use vibrant but warm colors, tactile controls, rounded/system game-like typography, smooth transform/opacity animations, visible quest progress, direct check-off controls, and brief confetti celebrations. Keep it fast: prefer CSS transforms and opacity, avoid heavy animation libraries, and remove celebration DOM after each burst.
 
 Avoid:
 
