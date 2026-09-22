@@ -360,3 +360,5 @@ The third planner view is a classic Mandala 9×9 matrix:
 - deeper descendants shown only as a count; recursive detail belongs in Map/Table.
 
 Do not copy the visual design of reference templates. Preserve Mandala's current natural palette, flow language, playful completion states, and responsive behavior.
+
+- Grid is large-screen only: hide it below 1024px viewport width and fall back to Map if a resize makes Grid unavailable.
