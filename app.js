@@ -207,7 +207,42 @@
   }
 
   function bindGlobalEvents() {
-    $("#themeButton").on("click", toggleTheme);
+    $("#themeButton").on("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleThemePalette();
+    });
+
+    $("#themePalette").on("click", ".theme-choice", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      setTheme($(this).data("theme"));
+      closeThemePalette();
+    });
+
+    $(document).on("click", function (e) {
+      if (!$(e.target).closest(".theme-picker").length) {
+        closeThemePalette();
+      }
+    });
+
+    $(document).on("keydown.themePalette", function (e) {
+      if (e.key === "Escape") {
+        closeThemePalette();
+        return;
+      }
+
+      if (!$("#themePalette").is(":visible")) return;
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" &&
+          e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+
+      e.preventDefault();
+      var $choices = $("#themePalette .theme-choice");
+      var current = Math.max($choices.index(document.activeElement), 0);
+      var delta = (e.key === "ArrowRight" || e.key === "ArrowDown") ? 1 : -1;
+      var next = (current + delta + $choices.length) % $choices.length;
+      $choices.eq(next).focus();
+    });
 
     $("#continueButton").on("click", function () {
       if (!state.rootId || !state.nodes[state.rootId]) return;
@@ -2816,16 +2851,84 @@
     showToast("Map exported.");
   }
 
-  function toggleTheme() {
-    var dark = !$("body").hasClass("dark");
-    $("body").toggleClass("dark", dark);
-    localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
+  function availableThemes() {
+    return ["light", "dark", "sage", "dawn"];
+  }
+
+  function normalizeTheme(theme) {
+    return availableThemes().indexOf(theme) !== -1 ? theme : "light";
+  }
+
+  function toggleThemePalette() {
+    var $palette = $("#themePalette");
+    var opening = $palette.is("[hidden]");
+
+    if (opening) {
+      $palette.removeAttr("hidden");
+      $("#themeButton").attr("aria-expanded", "true");
+      updateThemeChoiceState();
+      setTimeout(function () {
+        $("#themePalette .theme-choice[aria-checked='true']").focus();
+      }, 0);
+    } else {
+      closeThemePalette();
+    }
+  }
+
+  function closeThemePalette() {
+    $("#themePalette").attr("hidden", true);
+    $("#themeButton").attr("aria-expanded", "false");
+  }
+
+  function setTheme(theme) {
+    theme = normalizeTheme(theme);
+
+    $("html").attr("data-theme", theme);
+
+    $("body")
+      .removeClass("dark theme-sage theme-dawn")
+      .toggleClass("dark", theme === "dark")
+      .toggleClass("theme-sage", theme === "sage")
+      .toggleClass("theme-dawn", theme === "dawn")
+      .attr("data-theme", theme);
+
+    localStorage.setItem(THEME_KEY, theme);
+    updateThemeChoiceState();
+  }
+
+  function updateThemeChoiceState() {
+    var current = normalizeTheme($("body").attr("data-theme") || localStorage.getItem(THEME_KEY));
+    $("#themePalette .theme-choice").each(function () {
+      var active = $(this).data("theme") === current;
+      $(this)
+        .toggleClass("active", active)
+        .attr("aria-checked", active ? "true" : "false");
+    });
+
+    var labels = {
+      light: "Light",
+      dark: "Dark",
+      sage: "Sage",
+      dawn: "Dawn"
+    };
+
+    var themeColors = {
+      light: "#fbf8ef",
+      dark: "#202624",
+      sage: "#e7efe7",
+      dawn: "#f3e6df"
+    };
+
+    $("#themeButton")
+      .attr("title", "Palette: " + labels[current])
+      .attr("aria-label", "Choose color palette. Current: " + labels[current]);
+
+    $('meta[name="theme-color"]').attr("content", themeColors[current]);
   }
 
   function applyStoredTheme() {
-    var stored = localStorage.getItem(THEME_KEY);
-    var dark = stored ? stored === "dark" : false;
-    $("body").toggleClass("dark", dark);
+    var stored = normalizeTheme(localStorage.getItem(THEME_KEY));
+    setTheme(stored);
   }
 
   function showToast(message) {

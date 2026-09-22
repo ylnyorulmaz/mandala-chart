@@ -33,9 +33,37 @@
 
         <div class="nav-actions">
           <button class="soft-button continue-button" id="continueButton" type="button" hidden>Resume</button>
-          <button class="icon-button" id="themeButton" type="button" aria-label="Toggle theme" title="Toggle theme">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.2A8 8 0 1 1 8.8 4a6.5 6.5 0 0 0 11.2 11.2Z"/></svg>
-          </button>
+          <div class="theme-picker">
+            <button class="icon-button theme-button" id="themeButton" type="button"
+              aria-label="Choose color palette" title="Choose color palette"
+              aria-expanded="false" aria-controls="themePalette">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="8" cy="8" r="2.2"></circle>
+                <circle cx="16" cy="8" r="2.2"></circle>
+                <circle cx="8" cy="16" r="2.2"></circle>
+                <circle cx="16" cy="16" r="2.2"></circle>
+              </svg>
+            </button>
+
+            <div class="theme-palette" id="themePalette" role="menu" aria-label="Color palette" hidden>
+              <button class="theme-choice" type="button" role="menuitemradio" aria-checked="false" data-theme="light">
+                <span class="theme-swatch swatch-light" aria-hidden="true"></span>
+                <span>Light</span>
+              </button>
+              <button class="theme-choice" type="button" role="menuitemradio" aria-checked="false" data-theme="dark">
+                <span class="theme-swatch swatch-dark" aria-hidden="true"></span>
+                <span>Dark</span>
+              </button>
+              <button class="theme-choice" type="button" role="menuitemradio" aria-checked="false" data-theme="sage">
+                <span class="theme-swatch swatch-sage" aria-hidden="true"></span>
+                <span>Sage</span>
+              </button>
+              <button class="theme-choice" type="button" role="menuitemradio" aria-checked="false" data-theme="dawn">
+                <span class="theme-swatch swatch-dawn" aria-hidden="true"></span>
+                <span>Dawn</span>
+              </button>
+            </div>
+          </div>
           <a class="support-button" href="https://buymeacoffee.com/ylnyorulmaz" target="_blank" rel="noreferrer">☕ Coffee</a>
         </div>
       </div>
