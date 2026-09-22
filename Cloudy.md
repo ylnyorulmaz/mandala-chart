@@ -344,3 +344,19 @@ The map is a spatial surface.
 - Coalesce continuous pan/pinch camera writes with requestAnimationFrame.
 - Keep pinch anchored under the gesture midpoint.
 - Use screen-space thresholds for node dragging.
+
+
+### Grid view invariants
+
+The third planner view is a classic Mandala 9×9 matrix:
+
+- 81 cells, with the Goal at the exact center,
+- eight Drivers around the Goal in the center 3×3,
+- eight surrounding 3×3 blocks, one per Driver,
+- repeated Driver at each outer block center,
+- up to eight Actions around that repeated Driver,
+- same clockwise directional order as Map,
+- shared state with Map/Table,
+- deeper descendants shown only as a count; recursive detail belongs in Map/Table.
+
+Do not copy the visual design of reference templates. Preserve Mandala's current natural palette, flow language, playful completion states, and responsive behavior.

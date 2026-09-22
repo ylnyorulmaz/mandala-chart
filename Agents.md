@@ -396,3 +396,17 @@ Design rules:
 - High-frequency pointer camera updates should be requestAnimationFrame-coalesced.
 - Pinch zoom should keep the world point beneath the gesture midpoint stable.
 - Node drag thresholds must be measured in screen pixels so low zoom levels do not make nodes accidentally jump.
+
+
+## 9×9 Grid invariants
+
+- The Grid is exactly 9×9 / 81 cells.
+- Root goal is always at row 5, column 5 visually (zero-based 4,4).
+- The center 3×3 contains the eight root Drivers around the Goal.
+- Driver ordering must match Map's clockwise order: N, NE, E, SE, S, SW, W, NW.
+- Each Driver owns the corresponding outer 3×3 block and is repeated at that block's center.
+- The Driver's first eight children occupy that block's surrounding eight cells in the same directional order.
+- Empty action slots may create the Driver's eight action nodes on demand.
+- Do not force deeper recursive Steps into the fixed matrix; show a small descendant count and use Map/Table for deeper structure.
+- Grid, Map, and Table must all read/write the same node objects. Never create a separate Grid data model.
+- Keep the current calm/playful visual language; the reference image is structural inspiration only.

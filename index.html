@@ -46,6 +46,7 @@
         <div class="view-switcher floating-view-switcher" id="viewSwitcher" role="group" aria-label="View" hidden>
           <button class="view-button active" id="mapViewButton" type="button" aria-pressed="true">Map</button>
           <button class="view-button" id="tableViewButton" type="button" aria-pressed="false">Table</button>
+          <button class="view-button" id="gridViewButton" type="button" aria-pressed="false">Grid</button>
         </div>
 
         <div class="planner-actions" id="plannerActions" hidden>
@@ -130,6 +131,13 @@
                 <tbody id="nodeTableBody"></tbody>
               </table>
             </div>
+          </div>
+
+          <div class="grid-view" id="gridView" hidden>
+            <div class="mandala-grid-shell">
+              <div class="mandala-grid" id="mandalaGrid" role="grid" aria-label="9 by 9 Mandala grid"></div>
+            </div>
+            <p class="grid-hint">Goal in the center · drivers around it · each driver opens into eight actions</p>
           </div>
 
           <div class="selection-bar" id="selectionBar" hidden>

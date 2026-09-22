@@ -526,6 +526,66 @@
       switchView("table");
     });
 
+    $("#gridViewButton").on("click", function () {
+      switchView("grid");
+    });
+
+    $("#mandalaGrid").on("click", ".mandala-grid-cell[data-node-id]", function () {
+      var id = $(this).data("node-id");
+      if (!id || !state.nodes[id]) return;
+
+      selectedId = id;
+      editingId = null;
+      $("#mandalaGrid .mandala-grid-cell").removeClass("selected");
+      $('#mandalaGrid .mandala-grid-cell[data-node-id="' + id + '"]').addClass("selected");
+      $(this).focus();
+    });
+
+    $("#mandalaGrid").on("click", ".mandala-grid-cell[data-parent-id]:not([data-node-id])", function (e) {
+      e.preventDefault();
+      var id = ensureGridActionSlot($(this).data("parent-id"), parseInt($(this).data("slot-index"), 10));
+      if (!id || !state.nodes[id]) return;
+      selectedId = id;
+      renderGrid();
+      openInspector(id);
+    });
+
+    $("#mandalaGrid").on("dblclick", ".mandala-grid-cell", function (e) {
+      e.preventDefault();
+      var id = $(this).data("node-id");
+
+      if (!id) {
+        id = ensureGridActionSlot($(this).data("parent-id"), parseInt($(this).data("slot-index"), 10));
+      }
+
+      if (!id || !state.nodes[id]) return;
+      selectedId = id;
+      renderGrid();
+      openInspector(id);
+    });
+
+    $("#mandalaGrid").on("keydown", ".mandala-grid-cell", function (e) {
+      if (isArrowKey(e.key)) {
+        e.preventDefault();
+        moveGridFocus($(this), e.key);
+        return;
+      }
+
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        var id = $(this).data("node-id");
+
+        if (!id) {
+          id = ensureGridActionSlot($(this).data("parent-id"), parseInt($(this).data("slot-index"), 10));
+        }
+
+        if (!id || !state.nodes[id]) return;
+        selectedId = id;
+        renderGrid();
+        openInspector(id);
+      }
+    });
+
     $("#nodeTableBody").on("click", ".table-expand-button", function () {
       var id = $(this).closest("tr").data("id");
       var node = state.nodes[id];
@@ -903,7 +963,7 @@
   function showEmptyMap() {
     $("body").addClass("empty-start");
     $("#continueButton").attr("hidden", !(state.rootId && state.nodes[state.rootId]));
-    $("#plannerActions, #viewSwitcher, #selectionBar, #minimap, #tableView").attr("hidden", true);
+    $("#plannerActions, #viewSwitcher, #selectionBar, #minimap, #tableView, #gridView").attr("hidden", true);
     $("#mapViewport").removeAttr("hidden");
     $("#emptyMap").removeAttr("hidden");
     $("#mapNodes, #mapEdges, #minimapWorld").empty();
@@ -922,7 +982,7 @@
   }
 
   function switchView(view) {
-    if (view !== "map" && view !== "table") return;
+    if (["map", "table", "grid"].indexOf(view) === -1) return;
     if (!state.rootId || !state.nodes[state.rootId]) return;
 
     activeView = view;
@@ -930,6 +990,8 @@
 
     if (view === "table") {
       renderTable();
+    } else if (view === "grid") {
+      renderGrid();
     } else {
       renderAll(false);
       setTimeout(function () {
@@ -939,24 +1001,31 @@
   }
 
   function applyActiveView() {
+    var mapMode = activeView === "map";
     var tableMode = activeView === "table";
+    var gridMode = activeView === "grid";
 
     $("#mapViewButton")
-      .toggleClass("active", !tableMode)
-      .attr("aria-pressed", tableMode ? "false" : "true");
+      .toggleClass("active", mapMode)
+      .attr("aria-pressed", mapMode ? "true" : "false");
 
     $("#tableViewButton")
       .toggleClass("active", tableMode)
       .attr("aria-pressed", tableMode ? "true" : "false");
 
-    $("#mapViewport").attr("hidden", tableMode);
-    $("#tableView").attr("hidden", !tableMode);
+    $("#gridViewButton")
+      .toggleClass("active", gridMode)
+      .attr("aria-pressed", gridMode ? "true" : "false");
 
-    if (tableMode) {
-      $("#selectionBar, #minimap").attr("hidden", true);
-    } else {
+    $("#mapViewport").attr("hidden", !mapMode);
+    $("#tableView").attr("hidden", !tableMode);
+    $("#gridView").attr("hidden", !gridMode);
+
+    if (mapMode) {
       $("#minimap").removeAttr("hidden");
       updateSelectionBar();
+    } else {
+      $("#selectionBar, #minimap").attr("hidden", true);
     }
   }
 
@@ -1003,6 +1072,7 @@
     renderEdges(visibleIds);
     renderNodes(visibleIds, animateNew);
     renderTable();
+    renderGrid();
     updateSelectionBar();
     renderMinimap();
     updateCanvasStatus();
@@ -1102,6 +1172,209 @@
 
     $("#nodeTableBody").html(html);
     renderTriageSummary();
+  }
+
+  function renderGrid() {
+    if (!state.rootId || !state.nodes[state.rootId]) {
+      $("#mandalaGrid").empty();
+      return;
+    }
+
+    var root = state.nodes[state.rootId];
+    var directions = mandalaDirections();
+    var cells = new Array(81).fill(null);
+
+    function put(row, col, descriptor) {
+      if (row < 0 || row > 8 || col < 0 || col > 8) return;
+      cells[row * 9 + col] = descriptor;
+    }
+
+    // The center 3x3: goal in the middle, eight drivers around it.
+    put(4, 4, {
+      nodeId: root.id,
+      kind: "goal",
+      driverIndex: -1,
+      canonical: true
+    });
+
+    directions.forEach(function (point, driverIndex) {
+      var driverId = root.children && root.children[driverIndex];
+      var driver = driverId ? state.nodes[driverId] : null;
+
+      put(3 + point.row, 3 + point.col, {
+        nodeId: driver ? driver.id : null,
+        kind: "driver-reference",
+        driverIndex: driverIndex,
+        canonical: true
+      });
+
+      // Each surrounding 3x3 block repeats its driver in the center.
+      var blockRow = point.row * 3;
+      var blockCol = point.col * 3;
+
+      for (var localRow = 0; localRow < 3; localRow++) {
+        for (var localCol = 0; localCol < 3; localCol++) {
+          put(blockRow + localRow, blockCol + localCol, {
+            nodeId: null,
+            kind: "action-empty",
+            driverIndex: driverIndex,
+            parentId: driver ? driver.id : null,
+            slotIndex: mandalaSlotIndex(localRow, localCol)
+          });
+        }
+      }
+
+      put(blockRow + 1, blockCol + 1, {
+        nodeId: driver ? driver.id : null,
+        kind: "driver-anchor",
+        driverIndex: driverIndex,
+        canonical: false
+      });
+
+      if (!driver) return;
+
+      directions.forEach(function (actionPoint, actionIndex) {
+        var actionId = driver.children && driver.children[actionIndex];
+        var action = actionId ? state.nodes[actionId] : null;
+
+        put(blockRow + actionPoint.row, blockCol + actionPoint.col, {
+          nodeId: action ? action.id : null,
+          kind: action ? "action" : "action-empty",
+          driverIndex: driverIndex,
+          parentId: driver.id,
+          slotIndex: actionIndex
+        });
+      });
+    });
+
+    var html = "";
+
+    cells.forEach(function (descriptor, index) {
+      var row = Math.floor(index / 9);
+      var col = index % 9;
+      descriptor = descriptor || { kind: "blank", driverIndex: -1 };
+
+      var node = descriptor.nodeId ? state.nodes[descriptor.nodeId] : null;
+      var title = node && node.title ? node.title.trim() : "";
+      var done = !!(node && node.status === "done");
+      var decision = node ? decisionValue(node) : "do";
+      var blocked = !!(node && isNodeBlocked(node));
+      var descendantCount = node && node.depth >= 2 ? countDescendants(node.id) : 0;
+      var selected = !!(node && selectedId === node.id);
+      var classes = [
+        "mandala-grid-cell",
+        "grid-kind-" + descriptor.kind,
+        descriptor.driverIndex >= 0 ? "grid-driver-" + descriptor.driverIndex : "",
+        row % 3 === 0 ? "block-top" : "",
+        col % 3 === 0 ? "block-left" : "",
+        row % 3 === 2 ? "block-bottom" : "",
+        col % 3 === 2 ? "block-right" : "",
+        done ? "grid-done" : "",
+        decision === "delete" ? "grid-dropped" : "",
+        blocked ? "grid-blocked" : "",
+        selected ? "selected" : "",
+        !title ? "grid-untitled" : ""
+      ].filter(Boolean).join(" ");
+
+      var displayTitle = title;
+      if (!displayTitle && descriptor.kind.indexOf("driver") === 0) displayTitle = "Driver";
+      if (!displayTitle && descriptor.kind === "goal") displayTitle = "Goal";
+
+      var data = ' data-row="' + row + '" data-col="' + col + '"';
+      if (node) data += ' data-node-id="' + node.id + '"';
+      if (descriptor.parentId) data += ' data-parent-id="' + descriptor.parentId + '"';
+      if (typeof descriptor.slotIndex === "number" && descriptor.slotIndex >= 0) {
+        data += ' data-slot-index="' + descriptor.slotIndex + '"';
+      }
+
+      var canCreate = !node && descriptor.kind === "action-empty" && descriptor.parentId &&
+        typeof descriptor.slotIndex === "number" && descriptor.slotIndex >= 0;
+
+      var tabIndex = descriptor.kind === "goal" || selected ? "0" : "-1";
+      var aria = displayTitle ||
+        (canCreate ? "Empty action slot" : "Empty Mandala cell");
+
+      html += '<button class="' + classes + '" type="button" role="gridcell" tabindex="' + tabIndex + '"' +
+        ' aria-rowindex="' + (row + 1) + '" aria-colindex="' + (col + 1) + '"' +
+        ' aria-label="' + escapeHtml(aria) + '"' + data +
+        (node ? ' title="' + escapeHtml((displayTitle || placeholderText(node)) + " · double-click to inspect") + '"' :
+          (canCreate ? ' title="Double-click to add an action"' : ' disabled')) + '>';
+
+      if (node && done) html += '<span class="grid-state-mark" aria-hidden="true">✓</span>';
+      if (node && blocked) html += '<span class="grid-blocked-mark" aria-hidden="true">•</span>';
+      if (displayTitle) html += '<span class="grid-cell-title">' + escapeHtml(displayTitle) + '</span>';
+      if (canCreate) html += '<span class="grid-empty-plus" aria-hidden="true">+</span>';
+      if (descendantCount) html += '<span class="grid-more" title="Has smaller steps">+' + descendantCount + '</span>';
+
+      html += '</button>';
+    });
+
+    $("#mandalaGrid").html(html);
+  }
+
+  function mandalaDirections() {
+    // Clockwise from north, matching the Map view's driver order.
+    return [
+      { row: 0, col: 1 },
+      { row: 0, col: 2 },
+      { row: 1, col: 2 },
+      { row: 2, col: 2 },
+      { row: 2, col: 1 },
+      { row: 2, col: 0 },
+      { row: 1, col: 0 },
+      { row: 0, col: 0 }
+    ];
+  }
+
+  function mandalaSlotIndex(localRow, localCol) {
+    var directions = mandalaDirections();
+
+    for (var i = 0; i < directions.length; i++) {
+      if (directions[i].row === localRow && directions[i].col === localCol) return i;
+    }
+
+    return -1;
+  }
+
+  function ensureGridActionSlot(parentId, slotIndex) {
+    if (!parentId || !state.nodes[parentId] || slotIndex < 0 || slotIndex > 7) return null;
+
+    var parent = state.nodes[parentId];
+    if (!parent.children.length) createEightSlots(parentId);
+
+    var childId = parent.children[slotIndex];
+    if (!childId || !state.nodes[childId]) return null;
+
+    selectedId = childId;
+    saveState();
+    renderAll(false);
+    return childId;
+  }
+
+  function moveGridFocus($cell, key) {
+    var row = parseInt($cell.attr("data-row"), 10);
+    var col = parseInt($cell.attr("data-col"), 10);
+    if (isNaN(row) || isNaN(col)) return;
+
+    if (key === "ArrowUp") row -= 1;
+    if (key === "ArrowDown") row += 1;
+    if (key === "ArrowLeft") col -= 1;
+    if (key === "ArrowRight") col += 1;
+
+    row = clamp(row, 0, 8);
+    col = clamp(col, 0, 8);
+
+    var $next = $('#mandalaGrid .mandala-grid-cell[data-row="' + row + '"][data-col="' + col + '"]');
+    if (!$next.length) return;
+
+    $next.focus();
+
+    var id = $next.data("node-id");
+    if (id && state.nodes[id]) {
+      selectedId = id;
+      $("#mandalaGrid .mandala-grid-cell").removeClass("selected");
+      $('#mandalaGrid .mandala-grid-cell[data-node-id="' + id + '"]').addClass("selected");
+    }
   }
 
   function getTableNodeIds() {

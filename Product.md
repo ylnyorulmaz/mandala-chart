@@ -348,12 +348,32 @@ The user can:
 
 ### Views
 
-Mandala provides two synchronized ways to work with the same plan:
+Mandala provides three synchronized ways to work with the same plan:
 
-- **Map view** for spatial thinking, hierarchy, movement, zooming, and branch context.
+- **Map view** for spatial thinking, recursive hierarchy, movement, zooming, and branch context.
 - **Table view** for scanning many nodes quickly, editing titles inline, changing status, checking work done, and jumping back to any node on the map.
+- **Grid view** for the classic 9×9 Mandala overview: goal in the center, eight drivers around it, and one 3×3 action block for each driver.
 
-Both views operate on the same local state. Changing a node in one view changes it everywhere.
+All three views operate on the same local state. Changing a node in one view changes it everywhere.
+
+The Grid deliberately stops at Goal → Driver → Action. If an action has smaller steps, the Grid shows that deeper work as a compact descendant count; the Map remains the recursive view.
+
+### Classic 9×9 Grid
+
+The Grid view should remain faithful to the classic Mandalart layout while using Mandala's current visual language.
+
+Structure:
+
+- 81 cells total,
+- center cell = Goal,
+- middle 3×3 ring = eight Drivers,
+- eight surrounding 3×3 blocks = one block per Driver,
+- each outer block repeats its Driver in the block center,
+- the other eight cells in that block = the Driver's eight Actions.
+
+Driver order follows the same clockwise spatial order as Map: north, north-east, east, south-east, south, south-west, west, north-west.
+
+The Grid is fixed-depth by design. Recursive Step-level work stays in Map/Table instead of making the 9×9 grammar ambiguous.
 
 ### Map navigation
 
