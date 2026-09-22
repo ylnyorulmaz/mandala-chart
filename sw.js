@@ -1,9 +1,11 @@
-const CACHE_NAME = "mandala-v2";
+const CACHE_NAME = "mandala-v3";
 const LOCAL_ASSETS = [
   "./",
   "./index.html",
+  "./about.html",
   "./styles.css",
   "./app.js",
+  "./vendor/jquery-3.7.1.min.js",
   "./manifest.webmanifest",
   "./icon.svg"
 ];

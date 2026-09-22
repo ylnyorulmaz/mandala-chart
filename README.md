@@ -41,11 +41,11 @@ A later iteration can replace the suggestion generator with OpenRouter, Gemini, 
 - HTML
 - CSS
 - JavaScript
-- jQuery 3.7.1
+- jQuery 3.7.1 (vendored locally; no runtime CDN dependency)
 - localStorage
 - Service Worker + Web App Manifest
 
-No build step is required.
+No build step is required. Runtime assets are local; the app does not depend on a CDN.
 
 ## Run locally
 
