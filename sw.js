@@ -1,11 +1,13 @@
-const CACHE_NAME = "mandala-v21";
+const CACHE_NAME = "mandala-v22";
 const LOCAL_ASSETS = [
   "./",
   "./index.html",
   "./about.html",
   "./styles.css",
   "./app.js",
+  "./storage.js",
   "./vendor/jquery-3.7.1.min.js",
+  "./vendor/idb-6.1.5.min.js",
   "./manifest.webmanifest",
   "./icon.svg"
 ];
@@ -61,7 +63,7 @@ self.addEventListener("fetch", function (event) {
   }
 
   if (url.origin === self.location.origin &&
-      /\/(?:index\.html|about\.html|styles\.css|app\.js|manifest\.webmanifest)$/.test(url.pathname)) {
+      /\/(?:index\.html|about\.html|styles\.css|app\.js|storage\.js|manifest\.webmanifest)$/.test(url.pathname)) {
     event.respondWith(networkFirst(event.request));
     return;
   }
