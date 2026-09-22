@@ -43,7 +43,9 @@ It supports:
 - duration, status, and notes,
 
 - local demo suggestions,
-- localStorage persistence,
+- IndexedDB persistence via locally vendored `idb`,
+- multiple local maps,
+- autosave version snapshots and restore,
 - JSON export,
 - PWA installation,
 - offline caching,
@@ -131,7 +133,9 @@ AI should assist the plan, not silently replace it.
 - JavaScript
 - jQuery 3.7.1
 - SVG
-- localStorage
+- IndexedDB
+- `idb` 6.1.5 (vendored locally)
+- localStorage for lightweight preferences / migration fallback
 - Service Worker
 - Web App Manifest
 
@@ -159,15 +163,37 @@ Then open:
 
 ## Data
 
-The current prototype stores its map locally in the browser.
+Mandala is local-first.
 
-Primary local storage key:
+Planner data is stored in browser **IndexedDB** using the locally vendored `idb` wrapper.
 
-    mandala-chart-state-v1
+Database:
+
+    mandala-local
+
+Stores:
+
+- `maps` — multiple complete Mandala maps,
+- `snapshots` — autosaved map versions,
+- `meta` — active-map metadata.
+
+Autosave behavior:
+
+- the live map record is saved shortly after edits,
+- a version snapshot is created after the editing burst settles,
+- snapshots are deduplicated,
+- snapshot creation is rate-limited to roughly one every 30 seconds during continuous work,
+- the newest **30 versions per map** are retained,
+- switching maps / starting a new map preserves the map being left,
+- version restore saves the current version before restoration.
+
+Existing single-map `localStorage` data is migrated into IndexedDB on first successful database initialization.
+
+Theme/palette preferences remain in `localStorage`.
 
 Use the export control to download the current map as JSON.
 
-Important: the current prototype does not yet provide cloud backup or cross-device sync.
+Important: this remains **device-local** storage. There is no cloud backup or cross-device sync yet.
 
 ---
 
@@ -183,7 +209,6 @@ The current iteration intentionally excludes:
 - native mobile apps,
 - calendar integrations,
 - advanced dependency management,
-- sophisticated history/versioning.
 
 Mandala should prove repeated usefulness before becoming a larger SaaS.
 
