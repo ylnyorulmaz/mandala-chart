@@ -4325,7 +4325,7 @@ body.dark .review-stats div {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) {
   :root {
     --mobile-nav-height: 58px;
     --mobile-header-height: calc(var(--mobile-nav-height) + env(safe-area-inset-top));
