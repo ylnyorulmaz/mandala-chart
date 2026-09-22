@@ -769,7 +769,7 @@
   function showEmptyMap() {
     $("body").addClass("empty-start");
     $("#continueButton").attr("hidden", !(state.rootId && state.nodes[state.rootId]));
-    $("#plannerActions, #selectionBar, #minimap, #tableView").attr("hidden", true);
+    $("#plannerActions, #viewSwitcher, #selectionBar, #minimap, #tableView").attr("hidden", true);
     $("#mapViewport").removeAttr("hidden");
     $("#emptyMap").removeAttr("hidden");
     $("#mapNodes, #mapEdges, #minimapWorld").empty();
@@ -783,7 +783,7 @@
     $("body").removeClass("empty-start");
     $("#continueButton").attr("hidden", true);
     $("#emptyMap").attr("hidden", true);
-    $("#plannerActions").removeAttr("hidden");
+    $("#plannerActions, #viewSwitcher").removeAttr("hidden");
     applyActiveView();
   }
 
