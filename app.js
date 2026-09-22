@@ -1141,14 +1141,16 @@
     try {
       var now = Date.now();
       var snapshot = cloneState(state);
+      var existingRecord = await window.MandalaStorage.getMap(currentMapId);
 
-      await window.MandalaStorage.saveMap({
+      await window.MandalaStorage.saveMap(Object.assign({}, existingRecord || {}, {
         id: currentMapId,
         title: currentMapTitle(snapshot),
         createdAt: currentMapCreatedAt || now,
         updatedAt: now,
+        group: existingRecord && existingRecord.group ? existingRecord.group : "",
         state: snapshot
-      });
+      }));
     } catch (error) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
@@ -3265,13 +3267,13 @@
     var restoredState = cloneState(snapshot.state);
     restoredState.version = 5;
 
-    await window.MandalaStorage.saveMap({
+    await window.MandalaStorage.saveMap(Object.assign({}, record, {
       id: record.id,
       title: currentMapTitle(restoredState),
       createdAt: record.createdAt || Date.now(),
       updatedAt: Date.now(),
       state: restoredState
-    });
+    }));
 
     currentMapId = record.id;
     currentMapCreatedAt = record.createdAt || Date.now();
