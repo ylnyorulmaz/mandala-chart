@@ -1,10 +1,10 @@
 # Mandala
 
-**Mandala is a local-first visual execution map for turning a vague goal into concrete next actions.**
+**Mandala is a local-first visual tool for breaking a goal down, deciding what matters, and doing the next useful thing.**
 
 The product starts with one goal in the center, expands into the major drivers required to reach it, and lets each driver branch into actionable tasks and smaller steps while the whole structure remains visible on a zoomable canvas.
 
-> **Goal → Drivers → Actions → Steps → Next Action**
+> **Break it down → Decide → Do next → Review**
 
 Mandala is not trying to be another generic to-do list. The core problem is the gap between **knowing what you want** and **knowing what to do next**.
 
@@ -20,11 +20,11 @@ It supports:
 - eight driver nodes,
 - recursive actions and smaller steps,
 - switchable map and table views,
-- 4D triage: Do / Defer / Delegate / Delete,
-- Eisenhower-style Important / Urgent flags,
+- simple decisions: Do / Later / Hand off / Drop,
 - dependency-aware Ready / Blocked state,
-- smarter Next Move selection from ready DO actions,
-- lightweight plan Review loop,
+- Impact / Effort guidance,
+- smarter Next Move selection from ready Do actions,
+- lightweight Review loop,
 - persistent mind-map canvas,
 - pan and zoom,
 - fit-to-map,
@@ -34,9 +34,9 @@ It supports:
 - inline editing,
 - manual node repositioning,
 - minimap navigation,
-- impact / effort / urgency metadata,
+- impact / effort metadata,
 - duration, status, and notes,
-- simple next-action selection,
+
 - local demo suggestions,
 - localStorage persistence,
 - JSON export,
@@ -54,9 +54,10 @@ It supports:
 6. Expand a driver into executable actions.
 7. Split an action again only if it is still too broad.
 8. Collapse branches when the map becomes noisy.
-9. Add priority metadata where useful.
-10. Use **Next action** to surface an unfinished executable leaf.
-11. Revise the map as reality changes.
+9. Decide: **Do / Later / Hand off / Drop**.
+10. Add Impact / Effort or a blocker only when they help.
+11. Use **Next move** to surface a ready action.
+12. Review and revise the map as reality changes.
 
 The design principle is:
 
@@ -66,21 +67,16 @@ The design principle is:
 
 ## Product principles
 
-Mandala combines useful ideas from:
+Mandala borrows useful ideas from Mandala planning, divide-and-conquer, WBS, controllable-action thinking, Definition of Done, Impact/Effort, Eisenhower-style prioritization, the 4Ds, dependencies, and feedback loops.
 
-- Mandala-style goal decomposition,
-- divide and conquer,
-- impact / effort prioritization,
-- urgency-aware triage,
-- next-action thinking,
-- recursive decomposition.
+Those ideas belong **under the hood**. The user should not have to operate a pile of productivity frameworks.
 
-The user should not need to learn productivity jargon. The interface should simply help answer:
+The visible interaction is deliberately simpler:
 
-1. What am I trying to achieve?
-2. What has to happen for that to become possible?
-3. What can I actually do?
-4. What should I do next?
+1. **Break it down.**
+2. **Decide.**
+3. **Do next.**
+4. **Review.**
 
 See [Product.md](Product.md) for the full product vision and philosophy.
 
@@ -231,6 +227,6 @@ No explicit open-source license has been added yet. Until one exists, the reposi
 
 The current product philosophy is documented in [ExecutionFramework.md](ExecutionFramework.md):
 
-**Goal → Drivers → Actions → Triage → Execute → Learn → Revise**
+**Break it down → Decide → Do next → Review**
 
-The central rule is: **decompose broadly, triage ruthlessly, execute narrowly.**
+The central rule is: **keep the intelligence; remove the methodology tax from the UX.**
