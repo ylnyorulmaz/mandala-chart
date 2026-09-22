@@ -2883,6 +2883,8 @@
   function setTheme(theme) {
     theme = normalizeTheme(theme);
 
+    $("html").attr("data-theme", theme);
+
     $("body")
       .removeClass("dark theme-sage theme-dawn")
       .toggleClass("dark", theme === "dark")
