@@ -3312,3 +3312,24 @@ body.dark .selection-bar {
     animation: none !important;
   }
 }
+
+
+/* Small performance/layout refinements for the game layer. */
+.map-node {
+  will-change: auto;
+}
+
+.map-node.node-enter {
+  will-change: transform, opacity;
+}
+
+.map-hint {
+  top: auto;
+  bottom: 15px;
+}
+
+@media (max-width: 920px) {
+  .quest-progress {
+    top: 14px;
+  }
+}
