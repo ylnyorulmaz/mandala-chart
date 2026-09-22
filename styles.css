@@ -5808,3 +5808,98 @@ body.dark .philosophy-panel {
     animation: none !important;
   }
 }
+
+
+/* ==========================================================================
+   Opening intention pulse + rotating verb
+   ========================================================================== */
+
+body.empty-start .root-starter::before {
+  display: none !important;
+  animation: none !important;
+}
+
+body.empty-start .root-starter {
+  animation: intentionPulse 7.2s ease-in-out infinite !important;
+}
+
+body.empty-start .starter-glow {
+  animation: intentionGlow 7.2s ease-in-out infinite !important;
+}
+
+body.empty-start .starter-copy strong {
+  max-width: 340px;
+}
+
+body.empty-start .rotating-verb {
+  display: inline-block;
+  min-width: 3.35em;
+  margin: 0 .03em;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-style: italic;
+  font-weight: 560;
+  letter-spacing: -.025em;
+  transform-origin: 50% 70%;
+  transition:
+    opacity .18s ease,
+    transform .18s ease,
+    filter .18s ease;
+}
+
+body.empty-start .rotating-verb.swap-out {
+  opacity: 0;
+  transform: translateY(-5px) scale(.97);
+  filter: blur(2px);
+}
+
+body.empty-start .rotating-verb.swap-in {
+  animation: rotatingVerbIn .22s ease-out both;
+}
+
+@keyframes rotatingVerbIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(.97);
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes intentionPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
+      0 26px 76px rgba(55,109,95,.18),
+      0 0 0 1px rgba(255,255,255,.14) inset;
+  }
+  50% {
+    transform: scale(1.022);
+    box-shadow:
+      0 34px 94px rgba(55,109,95,.25),
+      0 0 0 1px rgba(255,255,255,.20) inset;
+  }
+}
+
+@keyframes intentionGlow {
+  0%, 100% {
+    opacity: .46;
+    transform: scale(.97);
+  }
+  50% {
+    opacity: .80;
+    transform: scale(1.055);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.empty-start .root-starter,
+  body.empty-start .starter-glow,
+  body.empty-start .rotating-verb {
+    animation: none !important;
+    transition: none !important;
+  }
+}
