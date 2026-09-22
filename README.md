@@ -100,6 +100,7 @@ See [Product.md](Product.md) for the full product vision and philosophy.
 - [Agents.md](Agents.md) — rules and constraints for coding agents working in the repository.
 - [Cloudy.md](Cloudy.md) — coding-assistant guide focused on the product architecture and interaction model.
 - [about.html](about.html) — public-facing explanation of the product and method.
+- [blog.html](blog.html) — Mandala essays and case studies; the first post tells the Shohei Ohtani goal-chart story in detail.
 
 ---
 
