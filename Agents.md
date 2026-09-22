@@ -384,3 +384,15 @@ Design rules:
 - do not add fake cultural decoration (kanji, bamboo, lanterns, cherry blossoms, temple imagery, faux calligraphy),
 - express the influence through rhythm, balance, space, flow, and practice rather than stereotypes,
 - reduced-motion preferences must disable new ambient/ripple animations.
+
+
+## Map navigation invariants
+
+- Arrow-key navigation is spatial: choose visible nodes by their rendered positions, not array/tree order.
+- With no selected node, use the viewport center as the directional-navigation origin.
+- Shift + Arrow pans without changing node selection.
+- Clicking empty canvas may clear selection.
+- Any direct user camera input must cancel an in-progress camera animation; never let focus animation and user drag compete.
+- High-frequency pointer camera updates should be requestAnimationFrame-coalesced.
+- Pinch zoom should keep the world point beneath the gesture midpoint stable.
+- Node drag thresholds must be measured in screen pixels so low zoom levels do not make nodes accidentally jump.
