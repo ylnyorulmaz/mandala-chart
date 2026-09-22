@@ -375,6 +375,8 @@ Driver order follows the same clockwise spatial order as Map: north, north-east,
 
 The Grid is fixed-depth by design. Recursive Step-level work stays in Map/Table instead of making the 9×9 grammar ambiguous.
 
+Grid is a large-screen-only surface: it should appear at **1024px viewport width and above**. Phones and narrow tablets should expose only Map and Table. Landscape/full-size tablets may use Grid when they meet that width.
+
 ### Map navigation
 
 The whole map remains available on one canvas.
