@@ -35,6 +35,12 @@ The long-term vision is a lightweight visual operating system for personal execu
 
 ### Visual personality
 
+Mandala should feel like a tiny game about getting unstuck, not enterprise productivity software.
+
+The interaction should be obvious enough to play with immediately: colorful nodes, tactile controls, quick movement, visible progress, satisfying completion states, and lightweight celebrations. The game layer must make action feel easier without turning the product into a childish points-and-badges system.
+
+Completion is a first-class interaction: any meaningful node can be checked off directly, progress should visibly move, and a fast confetti/congratulation moment should reward the action without blocking the user.
+
 Mandala should feel like a warm personal thinking space, not enterprise productivity software.
 
 Prefer:
