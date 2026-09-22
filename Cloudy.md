@@ -330,3 +330,17 @@ Mandala should combine two emotional states:
 Use natural colors, breathing space, subtle ring/water motifs, and gentle motion for the calm layer. Keep checkoffs, bounded confetti, progress feedback, and punchy completion moments for the game layer.
 
 Do not interpret "Eastern" inspiration as decorative cultural imitation. No kanji/bamboo/lantern/cherry-blossom theming. The target is philosophical lightness and ritual, not costume.
+
+
+### Navigation invariants
+
+The map is a spatial surface.
+
+- Arrow keys hop to the nearest rendered node in that direction.
+- No selection means directional navigation starts from viewport center.
+- Shift + Arrow pans the camera.
+- Empty-canvas click clears selection.
+- Cancel camera animations on drag, pinch, wheel, zoom, or node drag.
+- Coalesce continuous pan/pinch camera writes with requestAnimationFrame.
+- Keep pinch anchored under the gesture midpoint.
+- Use screen-space thresholds for node dragging.
