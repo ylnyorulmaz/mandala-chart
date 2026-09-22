@@ -912,7 +912,8 @@
         (!title ? "table-row-placeholder" : "") + '" data-id="' + id + '">' +
         '<td class="done-col"><label class="table-check" aria-label="' +
           escapeHtml(done ? "Mark open" : "Mark done") + '">' +
-          '<input class="table-done-input" type="checkbox"' + (done ? " checked" : "") + '>' +
+          '<input class="table-done-input" type="checkbox"' +
+            (done ? " checked" : "") + (!title ? " disabled" : "") + '>' +
           '<span>✓</span></label></td>' +
         '<td class="node-col"><div class="table-node-cell" style="--depth:' + Math.min(node.depth || 0, 4) + '">' +
           '<span class="table-tree-dot depth-' + Math.min(node.depth || 0, 3) + '"></span>' +
