@@ -3864,3 +3864,96 @@ body.empty-start .floating-view-switcher {
     padding-top: 112px;
   }
 }
+
+
+/* Expandable driver rows in Table view */
+.table-driver-row {
+  background: rgba(255,216,77,.08);
+}
+
+body.dark .table-driver-row {
+  background: rgba(255,216,77,.035);
+}
+
+.table-expandable-row .table-title-input {
+  font-weight: 900;
+}
+
+.table-expand-button,
+.table-expand-spacer {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 28px;
+}
+
+.table-expand-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 5px;
+  border: 2px solid rgba(89,64,126,.09);
+  border-radius: 999px;
+  background: rgba(255,255,255,.8);
+  color: #7256a5;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(89,64,126,.06);
+  transition:
+    transform .15s ease,
+    background .15s ease,
+    box-shadow .15s ease;
+}
+
+body.dark .table-expand-button {
+  background: rgba(255,255,255,.07);
+  color: #d1c6ff;
+}
+
+.table-expand-button:hover {
+  transform: translateY(-1px);
+  background: #f1ebff;
+  box-shadow: 0 3px 0 rgba(89,64,126,.07);
+}
+
+.table-expand-chevron {
+  display: inline-block;
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1;
+  transform: rotate(90deg);
+  transition: transform .18s ease;
+}
+
+.table-row-collapsed .table-expand-chevron {
+  transform: rotate(0deg);
+}
+
+.table-child-count {
+  min-width: 10px;
+  font-size: 8px;
+  font-weight: 950;
+  opacity: .65;
+}
+
+.table-row-collapsed {
+  background: rgba(155,108,255,.055);
+}
+
+.table-row-collapsed td {
+  border-bottom-color: rgba(155,108,255,.14);
+}
+
+@media (max-width: 680px) {
+  .table-expand-button,
+  .table-expand-spacer {
+    width: 32px;
+    height: 30px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table-expand-button,
+  .table-expand-chevron {
+    transition: none !important;
+  }
+}
