@@ -389,6 +389,24 @@ Nodes may carry:
 - status,
 - notes.
 
+### Mobile interaction
+
+Mobile is a first-class surface, not a scaled-down desktop afterthought.
+
+On narrow touch screens:
+
+- the canvas remains full-screen and pannable,
+- touch targets are enlarged,
+- secondary actions live in a bottom thumb dock,
+- the selected-node bar floats above that dock,
+- the Inspector and dialogs become bottom sheets,
+- the Table view becomes stacked cards instead of an 860px-wide desktop table,
+- safe-area insets are respected,
+- large maps can fit using a lower mobile zoom floor,
+- landscape height is treated as a constraint as well as width.
+
+Desktop behavior should remain unchanged.
+
 ### Execution
 
 A Next Move mode surfaces a **ready DO** leaf rather than treating all unfinished work as equally executable.
