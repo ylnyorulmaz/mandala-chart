@@ -784,7 +784,7 @@
     }
 
     var childIndex = path[1] || 0;
-    var sectorStep = deg(5.25);
+    var sectorStep = deg(5.65);
     var actionAngle = rootAngle + (childIndex - 3.5) * sectorStep;
 
     if (path.length === 2) {
@@ -1076,8 +1076,8 @@
   function nodeRadius(depth) {
     if (depth === 0) return 95;
     if (depth === 1) return 71;
-    if (depth === 2) return 54;
-    return 44;
+    if (depth === 2) return 43;
+    return 36;
   }
 
   function applyCamera() {
