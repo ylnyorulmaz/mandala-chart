@@ -236,6 +236,14 @@
       if ($(this).val().trim()) commitRoot();
     });
 
+    $("#mapNodes").on("click", ".node-complete", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      var id = $(this).closest(".map-node").data("id");
+      toggleNodeDone(id, true);
+    });
+
     $("#mapNodes").on("click", ".map-node", function (e) {
       if ($(e.target).is("textarea")) return;
       if (nodeDragState && nodeDragState.moved) return;
@@ -428,10 +436,7 @@
     $("#resetButton").on("click", resetAll);
 
     $("#markDoneButton").on("click", function () {
-      if (!selectedId || !state.nodes[selectedId]) return;
-      state.nodes[selectedId].status = state.nodes[selectedId].status === "done" ? "open" : "done";
-      saveState();
-      renderAll(false);
+      toggleNodeDone(selectedId, true);
     });
 
     $("#selectionBar").on("dblclick", function () {
@@ -481,11 +486,8 @@
 
     $("#completeNextAction").on("click", function () {
       if (!currentNextId || !state.nodes[currentNextId]) return;
-      state.nodes[currentNextId].status = "done";
-      saveState();
-      renderAll(false);
-      showToast("Done. Recalculating the next move.");
-      openNextModal();
+      setNodeStatus(currentNextId, "done", true);
+      setTimeout(openNextModal, 420);
     });
 
     $("#suggestionModal, #nextModal").on("click", function (e) {
@@ -516,8 +518,16 @@
     });
 
     $("#statusInput").on("change", function () {
-      updateSelectedDetail("status", $(this).val());
+      if (!selectedDetailId || !state.nodes[selectedDetailId]) return;
+      var nextStatus = $(this).val();
+      var wasDone = state.nodes[selectedDetailId].status === "done";
+      state.nodes[selectedDetailId].status = nextStatus;
+      saveState();
       renderAll(false);
+
+      if (!wasDone && nextStatus === "done") {
+        celebrateNode(state.nodes[selectedDetailId]);
+      }
     });
 
     $("#notesInput").on("input", function () {
@@ -712,6 +722,7 @@
     updateSelectionBar();
     renderMinimap();
     updateCanvasStatus();
+    updateQuestProgress();
     applyCamera();
 
     if (editingId) {
@@ -900,6 +911,11 @@
       }
 
       if (!placeholder) {
+        html += '<button class="node-complete" type="button" aria-label="' +
+          (node.status === "done" ? "Mark open" : "Mark done") + '" title="' +
+          (node.status === "done" ? "Mark open" : "Mark done") + '">' +
+          (node.status === "done" ? "✓" : "") + "</button>";
+
         html += '<span class="node-badge">' + typeLabel(node) +
           (node.status === "done" ? " · DONE" : "") + "</span>";
       }
@@ -1212,6 +1228,115 @@
     return $("#mapViewport").innerHeight() || 650;
   }
 
+  function toggleNodeDone(id, celebrate) {
+    if (!id || !state.nodes[id] || !state.nodes[id].title.trim()) return;
+
+    var node = state.nodes[id];
+    var nextStatus = node.status === "done" ? "open" : "done";
+    setNodeStatus(id, nextStatus, celebrate && nextStatus === "done");
+  }
+
+  function setNodeStatus(id, status, celebrate) {
+    var node = state.nodes[id];
+    if (!node) return;
+
+    node.status = status;
+    saveState();
+    renderAll(false);
+
+    if (celebrate && status === "done") {
+      celebrateNode(node);
+    }
+  }
+
+  function updateQuestProgress() {
+    if (!state.rootId) {
+      $("#questProgress").attr("hidden", true);
+      return;
+    }
+
+    var playable = Object.keys(state.nodes).filter(function (id) {
+      var node = state.nodes[id];
+      return node && node.title && node.title.trim();
+    });
+
+    if (!playable.length) {
+      $("#questProgress").attr("hidden", true);
+      return;
+    }
+
+    var done = playable.filter(function (id) {
+      return state.nodes[id].status === "done";
+    }).length;
+
+    var percent = Math.round((done / playable.length) * 100);
+    $("#questProgress").removeAttr("hidden");
+    $("#questProgressValue").text(percent + "%");
+    $("#questProgressFill").css("width", percent + "%");
+
+    var $hud = $("#questProgress");
+    $hud.removeClass("progress-pop");
+    void ($hud[0] && $hud[0].offsetWidth);
+    $hud.addClass("progress-pop");
+  }
+
+  function celebrateNode(node) {
+    if (!node) return;
+
+    var messages = [
+      ["Nice!", "One step closer."],
+      ["Boom. Done.", "Keep the momentum going."],
+      ["Level cleared!", "That one is off your plate."],
+      ["You did it!", "Small wins build the whole map."],
+      ["Hell yes.", "Another piece is complete."]
+    ];
+
+    var message = messages[Math.floor(Math.random() * messages.length)];
+    $("#celebrationTitle").text(message[0]);
+    $("#celebrationCopy").text(message[1]);
+
+    var reduceMotion = window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (!reduceMotion) {
+      burstConfetti();
+    }
+
+    $("#celebration").removeAttr("hidden").addClass("show");
+
+    setTimeout(function () {
+      $("#celebration").removeClass("show");
+    }, reduceMotion ? 650 : 1250);
+
+    setTimeout(function () {
+      $("#celebration").attr("hidden", true);
+      $("#confettiLayer").empty();
+    }, reduceMotion ? 850 : 1500);
+  }
+
+  function burstConfetti() {
+    var colors = ["#ff5f6d", "#ffb84d", "#5ee6a8", "#4ec5ff", "#a77bff", "#ff72c6"];
+    var fragment = document.createDocumentFragment();
+    var count = window.innerWidth < 680 ? 28 : 44;
+
+    for (var i = 0; i < count; i++) {
+      var piece = document.createElement("i");
+      piece.className = "confetti-piece";
+      piece.style.setProperty("--x", (Math.random() * 200 - 100).toFixed(1) + "vw");
+      piece.style.setProperty("--y", (55 + Math.random() * 45).toFixed(1) + "vh");
+      piece.style.setProperty("--r", Math.round(Math.random() * 720 - 360) + "deg");
+      piece.style.setProperty("--delay", (Math.random() * .12).toFixed(2) + "s");
+      piece.style.setProperty("--size", Math.round(7 + Math.random() * 7) + "px");
+      piece.style.background = colors[i % colors.length];
+      fragment.appendChild(piece);
+    }
+
+    var layer = document.getElementById("confettiLayer");
+    if (!layer) return;
+    layer.innerHTML = "";
+    layer.appendChild(fragment);
+  }
+
   function updateCanvasStatus() {
     var visibleCount = Object.keys(renderPositions).length;
     var total = Object.keys(state.nodes).length;
@@ -1220,7 +1345,7 @@
     }).length;
 
     $("#canvasStatusText").text(
-      visibleCount + " visible · " + total + " total · " + done + " done · Shift-drag to reposition"
+      done + " cleared · " + Math.max(total - done, 0) + " left · Shift-drag to move"
     );
   }
 
