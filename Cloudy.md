@@ -297,3 +297,21 @@ Mandala is itself a productivity project.
 Do not let development of Mandala become a sophisticated form of avoiding the work it is supposed to help complete.
 
 Keep changes small, ship them, dogfood them, and let repeated real usage decide the next feature.
+
+
+### Triage invariants
+
+The current philosophy is **decompose broadly, triage ruthlessly, execute narrowly**.
+
+When changing the planner:
+
+- treat the map as a possibility space rather than a mandatory checklist,
+- preserve Do / Defer / Delegate / Delete as execution decisions,
+- never conflate 4D Delete with destructive node deletion,
+- keep Important/Urgent distinct from Impact/Effort,
+- keep dependency handling lightweight and explainable,
+- Next Move should favor only Ready + DO executable leaves,
+- a DEFER/DELEGATE/DELETE decision on a parent suppresses descendants from immediate execution,
+- show detailed triage controls in Table/Inspector, not as clutter on every map node,
+- keep map indicators small and game-like,
+- Review mode should summarize decisions and prompt plan revision after real-world feedback.

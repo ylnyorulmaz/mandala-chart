@@ -1,7 +1,7 @@
 {
   "name": "Mandala — Goal to Action",
   "short_name": "Mandala",
-  "description": "Turn one intention into clear, executable next actions.",
+  "description": "Decompose a goal, triage the work, and execute the strongest ready next moves.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

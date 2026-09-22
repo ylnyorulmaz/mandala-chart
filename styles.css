@@ -3957,3 +3957,424 @@ body.dark .table-expand-button {
     transition: none !important;
   }
 }
+
+
+/* ==========================================================================
+   Triage + execution philosophy
+   Explore broadly. Decide ruthlessly. Execute narrowly.
+   ========================================================================== */
+
+.review-button {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--game-orange), var(--game-pink));
+  box-shadow: 0 3px 0 #c85d5e;
+}
+
+.review-button:hover {
+  color: #fff;
+  background: linear-gradient(135deg, #ffad54, #ff6682);
+}
+
+.metric-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.triage-panel {
+  margin: 2px 0 14px;
+  padding: 14px;
+  border: 2px solid rgba(155,108,255,.10);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(155,108,255,.08), transparent 36%),
+    rgba(255,255,255,.44);
+}
+
+body.dark .triage-panel {
+  background:
+    radial-gradient(circle at 90% 10%, rgba(155,108,255,.10), transparent 36%),
+    rgba(255,255,255,.025);
+}
+
+.triage-panel-head {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 12px;
+}
+
+.triage-panel-head strong {
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: -.02em;
+}
+
+.flag-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.flag-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 2px solid rgba(89,64,126,.08);
+  border-radius: 14px;
+  background: rgba(255,255,255,.66);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 900;
+  transition: transform .15s ease, border-color .15s ease, background .15s ease, color .15s ease;
+}
+
+body.dark .flag-toggle {
+  background: rgba(255,255,255,.05);
+}
+
+.flag-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.flag-toggle:has(input:checked) {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--game-purple), var(--game-blue));
+  box-shadow: 0 3px 0 #5359c8;
+}
+
+.flag-toggle:hover {
+  transform: translateY(-1px);
+}
+
+/* Map-level decision state */
+.node-decision-badge {
+  position: absolute;
+  left: 50%;
+  bottom: 7px;
+  z-index: 7;
+  transform: translateX(-50%);
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 2px solid rgba(255,255,255,.82);
+  color: #fff;
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  box-shadow: 0 2px 0 rgba(61,43,83,.13);
+  pointer-events: none;
+}
+
+.node-decision-badge.decision-do {
+  background: #2fbd74;
+}
+
+.node-decision-badge.decision-defer {
+  background: #a58d42;
+}
+
+.node-decision-badge.decision-delegate {
+  background: #379bc7;
+}
+
+.node-decision-badge.decision-delete {
+  background: #8b7d94;
+}
+
+.map-node.decision-defer:not(.done) {
+  filter: saturate(.72);
+  opacity: .82;
+}
+
+.map-node.decision-delegate:not(.done) {
+  box-shadow:
+    0 6px 0 rgba(47,135,174,.24),
+    0 14px 28px rgba(55,155,199,.13),
+    0 0 0 5px rgba(66,199,245,.10);
+}
+
+.map-node.decision-delete:not(.done) {
+  opacity: .48;
+  filter: grayscale(.38) saturate(.55);
+}
+
+.map-node.decision-delete:not(.done) .node-label {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.map-node.blocked:not(.done) {
+  box-shadow:
+    0 5px 0 rgba(111,92,120,.12),
+    0 11px 24px rgba(69,54,82,.10),
+    0 0 0 5px rgba(115,103,125,.08);
+}
+
+/* Triage table */
+.table-view {
+  padding-top: 76px;
+}
+
+.triage-summary {
+  width: min(1180px, 100%);
+  margin: 0 auto 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.triage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 29px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 2px solid rgba(89,64,126,.07);
+  background: rgba(255,255,255,.70);
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 900;
+  box-shadow: 0 2px 0 rgba(89,64,126,.04);
+}
+
+body.dark .triage-chip {
+  background: rgba(255,255,255,.055);
+}
+
+.triage-chip b {
+  color: var(--game-ink);
+  font-size: 10px;
+}
+
+.triage-chip.do b,
+.triage-chip.ready b { color: #28a968; }
+.triage-chip.defer b { color: #9d7d20; }
+.triage-chip.delegate b { color: #2989b5; }
+.triage-chip.delete b { color: #836f8f; }
+.triage-chip.blocked b { color: #b35c5c; }
+
+.node-table {
+  min-width: 1120px;
+}
+
+.flag-col {
+  width: 74px;
+  text-align: center;
+}
+
+.table-decision-select,
+.table-score-select {
+  border: 2px solid rgba(89,64,126,.08);
+  border-radius: 999px;
+  outline: 0;
+  background: rgba(255,255,255,.78);
+  color: var(--game-ink);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+body.dark .table-decision-select,
+body.dark .table-score-select {
+  background: rgba(255,255,255,.06);
+  color: var(--game-ink);
+}
+
+.table-decision-select {
+  min-width: 88px;
+  padding: 6px 22px 6px 9px;
+}
+
+.table-decision-select.decision-do { border-color: rgba(47,189,116,.30); }
+.table-decision-select.decision-defer { border-color: rgba(165,141,66,.30); }
+.table-decision-select.decision-delegate { border-color: rgba(55,155,199,.30); }
+.table-decision-select.decision-delete { border-color: rgba(139,125,148,.30); }
+
+.table-score-select {
+  width: 56px;
+  padding: 6px 19px 6px 8px;
+}
+
+.mini-flag {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+}
+
+.mini-flag input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mini-flag span {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(89,64,126,.10);
+  border-radius: 9px;
+  background: rgba(255,255,255,.74);
+  color: #9b90a5;
+  font-size: 9px;
+  font-weight: 950;
+  transition: transform .14s ease, color .14s ease, background .14s ease, border-color .14s ease;
+}
+
+body.dark .mini-flag span {
+  background: rgba(255,255,255,.06);
+}
+
+.mini-flag input:checked + span {
+  color: #fff;
+  border-color: transparent;
+  background: var(--game-purple);
+  box-shadow: 0 2px 0 #6c4ca9;
+}
+
+.mini-flag.urgent input:checked + span {
+  background: var(--game-pink);
+  box-shadow: 0 2px 0 #bd4961;
+}
+
+.mini-flag:hover span {
+  transform: scale(1.06);
+}
+
+.readiness-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 950;
+}
+
+.readiness-pill.ready {
+  color: #26734f;
+  background: #dff7e9;
+}
+
+.readiness-pill.blocked {
+  color: #8c4747;
+  background: #ffe5e5;
+}
+
+.table-decision-delete {
+  opacity: .56;
+}
+
+.table-decision-delete .table-title-input {
+  text-decoration: line-through;
+}
+
+.table-decision-defer {
+  background: rgba(255,216,77,.035);
+}
+
+.table-decision-delegate {
+  background: rgba(66,199,245,.035);
+}
+
+.table-row-blocked .table-title-input {
+  color: var(--muted);
+}
+
+/* Review loop */
+.review-modal {
+  width: min(620px, calc(100vw - 28px));
+}
+
+.review-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.review-stats div {
+  min-width: 0;
+  padding: 12px 10px;
+  border: 2px solid rgba(89,64,126,.08);
+  border-radius: 16px;
+  background: rgba(255,255,255,.62);
+  text-align: center;
+}
+
+body.dark .review-stats div {
+  background: rgba(255,255,255,.045);
+}
+
+.review-stats b {
+  display: block;
+  color: var(--game-purple);
+  font-size: 22px;
+  font-weight: 950;
+}
+
+.review-stats span {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.review-prompts {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 18px;
+}
+
+.review-prompts p {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 13px;
+  background: rgba(155,108,255,.055);
+  color: var(--game-ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+@media (max-width: 680px) {
+  .metric-grid-two,
+  .flag-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .triage-panel .detail-row {
+    grid-template-columns: 1fr;
+  }
+
+  .table-view {
+    padding-top: 108px;
+  }
+
+  .triage-summary {
+    margin-bottom: 8px;
+  }
+
+  .review-stats {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flag-toggle,
+  .mini-flag span {
+    transition: none !important;
+  }
+}

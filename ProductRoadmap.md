@@ -4,11 +4,11 @@
 
 This roadmap defines the next steps for Mandala as a small product experiment.
 
-The priority is not feature volume. The priority is proving that the visual goal-decomposition model changes user behavior.
+The priority is not feature volume. The priority is proving that decomposition + triage + next-action selection changes real user behavior.
 
 The sequence is:
 
-**stabilize → dogfood → validate → add real assistance → add persistence/sync only when demanded**
+**stabilize → decompose → triage → execute → review → dogfood → validate → add real assistance → add persistence/sync only when demanded**
 
 ---
 
@@ -33,8 +33,14 @@ In progress / functional prototype.
 - branch collapse,
 - inline editing,
 - node repositioning,
-- impact / effort / urgency metadata,
-- next-action mode,
+- impact / effort metadata,
+- Important / Urgent flags,
+- 4D triage: Do / Defer / Delegate / Delete,
+- delegatability,
+- dependency-aware Ready / Blocked state,
+- triage table,
+- Next Move restricted to ready DO actions,
+- Review mode and triage summary,
 - localStorage,
 - JSON export,
 - local demo suggestions.
@@ -113,6 +119,18 @@ can be planned and navigated comfortably on desktop and mobile.
 
 ---
 
+## Triage philosophy gate
+
+Before adding more planning features, validate the central behavioral claim:
+
+> A broad decomposition is useful only if the product helps the user decide what **not** to do.
+
+Dogfood must therefore test the full loop:
+
+**Goal → Drivers → Actions → Do / Defer / Delegate / Delete → Next Move → Review**
+
+---
+
 # Phase 2 — Dogfood with real outcomes
 
 ## Goal
@@ -143,7 +161,7 @@ For one week, record:
 - number of sessions,
 - number of nodes created,
 - number of actions completed,
-- number of times Next Action was used,
+- number of times Next Move was used,
 - number of times the map was revised,
 - actions that would likely have been postponed without the map,
 - places where the interface caused friction.
@@ -158,7 +176,7 @@ Fix the execution loop first.
 
 ---
 
-# Phase 3 — Strengthen next-action intelligence
+# Phase 3 — Strengthen triage and next-action intelligence
 
 ## Goal
 
@@ -182,18 +200,17 @@ Detect whether a node is:
 
 Use:
 
+- 4D decision,
+- dependency state,
+- Important / Urgent,
 - impact,
 - effort,
-- urgency,
 - duration,
-- completion state,
-- dependency state.
+- completion state.
 
-Potential simple score:
+Only **DO + Ready** leaves should normally enter the Next Move queue. Deferred, delegated, deleted, blocked, and ancestor-suppressed work should remain visible without competing for immediate attention.
 
-**priority = impact + urgency - effort**
-
-Do not treat a score as objective truth. It is a sorting aid.
+A lightweight score may sort eligible DO actions, but it must not be treated as objective truth.
 
 ### Focus mode
 
@@ -469,7 +486,7 @@ Do not prioritize these now:
 - social features,
 - marketplace,
 - complex analytics,
-- gamification,
+- heavy gamification systems such as points economies, streak pressure, and leaderboards,
 - AI autonomous execution.
 
 ---
