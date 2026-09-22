@@ -3,12 +3,23 @@
 
   var STORAGE_KEY = "mandala-chart-state-v1";
   var THEME_KEY = "mandala-chart-theme-v1";
+
   var state = loadState();
   var focusedId = state.rootId || null;
   var selectedDetailId = null;
   var suggestionBuffer = [];
   var currentNextId = null;
   var toastTimer = null;
+  var promptTimer = null;
+  var promptIndex = 0;
+
+  var PROMPTS = [
+    "What do you want to finish?",
+    "What do you want to achieve?",
+    "What is your goal?",
+    "What needs to get done?",
+    "What would make today count?"
+  ];
 
   var LABELS = {
     0: "GOAL",
@@ -48,16 +59,6 @@
       "Environment",
       "Completion check"
     ],
-    fitness: [
-      "Training plan",
-      "Schedule",
-      "Nutrition",
-      "Sleep",
-      "Recovery",
-      "Tracking",
-      "Environment",
-      "Consistency"
-    ],
     generic: [
       "Define success",
       "Break down scope",
@@ -75,8 +76,8 @@
       "List launch blockers",
       "Test the main user flow",
       "Fix mobile issues",
-      "Test empty and error states",
-      "Verify export / output quality",
+      "Test error states",
+      "Verify output quality",
       "Check performance",
       "Write a short QA checklist",
       "Freeze non-essential features"
@@ -166,15 +167,21 @@
   $(init);
 
   function init() {
-    bindEvents();
     applyStoredTheme();
-    autoResize($("#goalInput"));
+    $("#year").text(new Date().getFullYear());
+    bindGlobalEvents();
+
+    if (!$("#mandalaStage").length) return;
+
+    bindPlannerEvents();
 
     if (state.rootId && state.nodes[state.rootId]) {
       focusedId = focusedId || state.rootId;
-      showMap(false);
+      stopPromptRotation();
+      renderMap(false);
     } else {
-      showStarter();
+      showFreshGoal();
+      startPromptRotation();
     }
 
     if ("serviceWorker" in navigator) {
@@ -182,6 +189,182 @@
         navigator.serviceWorker.register("sw.js").catch(function () {});
       });
     }
+  }
+
+  function bindGlobalEvents() {
+    $("#themeButton").on("click", toggleTheme);
+  }
+
+  function bindPlannerEvents() {
+    $("#centerNode").on("click", function (e) {
+      if ($(e.target).is("textarea, button")) return;
+      openCenterEditor();
+    });
+
+    $("#centerNode").on("keydown", function (e) {
+      if (e.key === "Enter" && !$(e.target).is("textarea")) {
+        e.preventDefault();
+        openCenterEditor();
+      }
+    });
+
+    $("#centerInput").on("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        commitCenter();
+      }
+    });
+
+    $("#centerInput").on("blur", function () {
+      if ($(this).val().trim()) commitCenter();
+    });
+
+    $("#centerInput").on("input", function () {
+      if (!focusedId) return;
+      state.nodes[focusedId].title = $(this).val();
+      saveState();
+      renderBreadcrumbs();
+    });
+
+    $("#centerDetailsButton").on("click", function (e) {
+      e.stopPropagation();
+      if (!focusedId) return;
+      openInspector(focusedId);
+    });
+
+    $("#childLayer").on("input", ".child-input", function () {
+      var id = $(this).closest(".child-node").data("id");
+      var node = state.nodes[id];
+      if (!node) return;
+      node.title = $(this).val();
+      saveState();
+      $(this).closest(".child-node").toggleClass("filled", !!node.title.trim());
+    });
+
+    $("#childLayer").on("keydown", ".child-input", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        $(this).blur();
+      }
+    });
+
+    $("#childLayer").on("click", ".child-node", function (e) {
+      if ($(e.target).is("textarea")) return;
+      var id = $(this).data("id");
+      var node = state.nodes[id];
+
+      if (!node || !node.title.trim()) {
+        $(this).find("textarea").focus();
+        return;
+      }
+
+      focusNode(id);
+    });
+
+    $("#childLayer").on("dblclick", ".child-node", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openInspector($(this).data("id"));
+    });
+
+    $("#breadcrumbs").on("click", ".crumb", function () {
+      var id = $(this).data("id");
+      if (!state.nodes[id]) return;
+      focusedId = id;
+      renderMap(false);
+    });
+
+    $("#suggestButton").on("click", openSuggestionModal);
+    $("#nextButton").on("click", openNextModal);
+    $("#exportButton").on("click", exportState);
+    $("#resetButton").on("click", resetAll);
+    $("#splitButton").on("click", splitFocused);
+
+    $("#closeSuggestionModal").on("click", function () {
+      $("#suggestionModal").attr("hidden", true);
+    });
+
+    $("#shuffleSuggestions").on("click", function () {
+      suggestionBuffer = buildSuggestions(state.nodes[focusedId], true);
+      renderSuggestions();
+    });
+
+    $("#applySuggestions").on("click", applySuggestions);
+
+    $("#closeNextModal").on("click", function () {
+      $("#nextModal").attr("hidden", true);
+    });
+
+    $("#openNextAction").on("click", function () {
+      if (!currentNextId) return;
+      $("#nextModal").attr("hidden", true);
+      focusedId = currentNextId;
+      renderMap(false);
+    });
+
+    $("#completeNextAction").on("click", function () {
+      if (!currentNextId || !state.nodes[currentNextId]) return;
+      state.nodes[currentNextId].status = "done";
+      saveState();
+      showToast("Done. Recalculating the next move.");
+      renderMap(false);
+      openNextModal();
+    });
+
+    $("#suggestionModal, #nextModal").on("click", function (e) {
+      if (e.target === this) $(this).attr("hidden", true);
+    });
+
+    $("#closeInspector").on("click", closeInspector);
+
+    $("#detailTitle").on("input", function () {
+      updateSelectedDetail("title", $(this).val());
+    });
+
+    $("#impactInput, #effortInput, #urgencyInput").on("input", function () {
+      if (!selectedDetailId || !state.nodes[selectedDetailId]) return;
+      var node = state.nodes[selectedDetailId];
+      node.impact = parseInt($("#impactInput").val(), 10);
+      node.effort = parseInt($("#effortInput").val(), 10);
+      node.urgency = parseInt($("#urgencyInput").val(), 10);
+      $("#impactOutput").text(node.impact);
+      $("#effortOutput").text(node.effort);
+      $("#urgencyOutput").text(node.urgency);
+      updatePriorityCard(node);
+      saveState();
+    });
+
+    $("#durationInput").on("input", function () {
+      updateSelectedDetail("duration", $(this).val());
+    });
+
+    $("#statusInput").on("change", function () {
+      updateSelectedDetail("status", $(this).val());
+      renderMap(false);
+    });
+
+    $("#notesInput").on("input", function () {
+      updateSelectedDetail("notes", $(this).val());
+    });
+
+    $("#deleteNodeButton").on("click", deleteSelectedNode);
+
+    $(window).on("resize", debounce(function () {
+      if (focusedId) renderChildren(state.nodes[focusedId], false);
+      drawLines();
+    }, 100));
+
+    $(document).on("keydown", function (e) {
+      if (e.key === "Escape") {
+        closeInspector();
+        $("#suggestionModal, #nextModal").attr("hidden", true);
+      }
+
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && state.rootId) {
+        e.preventDefault();
+        openNextModal();
+      }
+    });
   }
 
   function defaultState() {
@@ -228,13 +411,15 @@
       notes: "",
       createdAt: Date.now()
     };
+
     if (parentId && state.nodes[parentId]) {
       state.nodes[parentId].children.push(id);
     }
+
     return state.nodes[id];
   }
 
-  function createSlots(parentId) {
+  function createEightSlots(parentId) {
     var parent = state.nodes[parentId];
     if (!parent || parent.children.length) return;
 
@@ -245,392 +430,287 @@
     saveState();
   }
 
-  function bindEvents() {
-    $("#goalForm").on("submit", function (e) {
-      e.preventDefault();
-      var value = $("#goalInput").val().trim();
-      if (!value) {
-        shake($("#goalInput"));
-        return;
-      }
-      startGoal(value);
-    });
-
-    $(".example-chip").on("click", function () {
-      $("#goalInput").val($(this).data("example")).trigger("input").focus();
-    });
-
-    $("#goalInput").on("input", function () {
-      autoResize($(this));
-    });
-
-    $("#brandButton").on("click", function () {
-      if (!state.rootId) return;
-      focusedId = state.rootId;
-      renderMap(false);
-    });
-
-    $("#focusTitle").on("input", function () {
-      var node = state.nodes[focusedId];
-      if (!node) return;
-      node.title = $(this).val();
-      saveState();
-      renderBreadcrumbs();
-    });
-
-    $("#focusTitle").on("blur", function () {
-      renderMap(false);
-    });
-
-    $("#focusEditButton").on("click", function () {
-      openInspector(focusedId);
-    });
-
-    $("#focusDoneButton").on("click", function () {
-      toggleDone(focusedId);
-    });
-
-    $("#childrenLayer").on("click", ".child-node", function (e) {
-      if ($(e.target).is("textarea")) return;
-      var id = $(this).data("id");
-      var node = state.nodes[id];
-      if (!node || !node.title.trim()) {
-        $(this).find("textarea").focus();
-        return;
-      }
-      openChild(id);
-    });
-
-    $("#childrenLayer").on("input", ".child-input", function () {
-      var id = $(this).closest(".child-node").data("id");
-      var node = state.nodes[id];
-      if (!node) return;
-      node.title = $(this).val();
-      saveState();
-      $(this).closest(".child-node").toggleClass("filled", !!node.title.trim());
-      autoResize($(this));
-    });
-
-    $("#childrenLayer").on("keydown", ".child-input", function (e) {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        $(this).blur();
-      }
-    });
-
-    $("#childrenLayer").on("blur", ".child-input", function () {
-      var id = $(this).closest(".child-node").data("id");
-      var node = state.nodes[id];
-      if (!node) return;
-      node.title = $(this).val().trim();
-      saveState();
-      renderMap(false);
-    });
-
-    $("#childrenLayer").on("dblclick", ".child-node", function () {
-      openInspector($(this).data("id"));
-    });
-
-    $("#backButton").on("click", goBack);
-    $("#splitButton, #decomposeButton").on("click", function () {
-      splitFocused();
-    });
-
-    $("#assistButton").on("click", openSuggestionModal);
-    $("#closeSuggestionModal").on("click", function () {
-      $("#suggestionModal").attr("hidden", true);
-    });
-
-    $("#shuffleSuggestions").on("click", function () {
-      suggestionBuffer = buildSuggestions(state.nodes[focusedId], true);
-      renderSuggestions();
-    });
-
-    $("#applySuggestions").on("click", applySuggestions);
-
-    $("#suggestionModal, #focusModal").on("click", function (e) {
-      if (e.target === this) $(this).attr("hidden", true);
-    });
-
-    $("#focusModeButton").on("click", openFocusMode);
-    $("#closeFocusModal").on("click", function () {
-      $("#focusModal").attr("hidden", true);
-    });
-
-    $("#openNextAction").on("click", function () {
-      if (!currentNextId) return;
-      $("#focusModal").attr("hidden", true);
-      focusedId = currentNextId;
-      renderMap(false);
-    });
-
-    $("#completeNextAction").on("click", function () {
-      if (!currentNextId) return;
-      state.nodes[currentNextId].status = "done";
-      saveState();
-      showToast("Done. Next action recalculated.");
-      openFocusMode();
-      renderMap(false);
-    });
-
-    $("#resetButton").on("click", resetAll);
-    $("#exportButton").on("click", exportState);
-    $("#themeButton").on("click", toggleTheme);
-
-    $("#closeInspector").on("click", closeInspector);
-
-    $("#detailTitle").on("input", function () {
-      updateSelectedDetail("title", $(this).val());
-    });
-
-    $("#impactInput, #effortInput, #urgencyInput").on("input", function () {
-      if (!selectedDetailId) return;
-      var node = state.nodes[selectedDetailId];
-      node.impact = parseInt($("#impactInput").val(), 10);
-      node.effort = parseInt($("#effortInput").val(), 10);
-      node.urgency = parseInt($("#urgencyInput").val(), 10);
-      $("#impactOutput").text(node.impact);
-      $("#effortOutput").text(node.effort);
-      $("#urgencyOutput").text(node.urgency);
-      updatePriorityCard(node);
-      saveState();
-    });
-
-    $("#durationInput").on("input", function () {
-      updateSelectedDetail("duration", $(this).val());
-    });
-
-    $("#statusInput").on("change", function () {
-      updateSelectedDetail("status", $(this).val());
-      renderMap(false);
-    });
-
-    $("#notesInput").on("input", function () {
-      updateSelectedDetail("notes", $(this).val());
-    });
-
-    $("#deleteNodeButton").on("click", deleteSelectedNode);
-
-    $(window).on("resize", debounce(function () {
-      drawConnectors();
-    }, 100));
-
-    $(document).on("keydown", function (e) {
-      if (e.key === "Escape") {
-        closeInspector();
-        $("#suggestionModal, #focusModal").attr("hidden", true);
-      }
-
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        if (state.rootId) openFocusMode();
-      }
-    });
-  }
-
-  function startGoal(title) {
-    state = defaultState();
-    var root = createNode(title, null, 0);
-    state.rootId = root.id;
-    focusedId = root.id;
-    createSlots(root.id);
-    saveState();
-
-    $("#emptyState").fadeOut(180, function () {
-      showMap(true);
-    });
-  }
-
-  function showStarter() {
-    $("#mapStage, #floatingToolbar").attr("hidden", true);
-    $("#emptyState").removeAttr("hidden").show();
+  function showFreshGoal() {
+    focusedId = null;
+    $("#plannerActions, #plannerLegend, #stageEmptyNote").attr("hidden", true);
     $("#breadcrumbs").empty();
+    $("#childLayer, #nodeLines").empty();
+    $("#plannerHint").text("Start with one thing. We will break it down only as far as needed.");
+    $("#centerNode").addClass("idle").attr("aria-label", "Enter your goal");
+    $("#centerPrompt").removeAttr("hidden");
+    $("#centerEditor").attr("hidden", true);
+    $("#centerInput").val("");
   }
 
-  function showMap(animateChildren) {
-    $("#emptyState").hide();
-    $("#mapStage, #floatingToolbar").removeAttr("hidden");
-    renderMap(animateChildren);
-  }
+  function openCenterEditor() {
+    stopPromptRotation();
+    $("#centerNode").removeClass("idle");
+    $("#centerPrompt").attr("hidden", true);
+    $("#centerEditor").removeAttr("hidden");
 
-  function openChild(id) {
-    var node = state.nodes[id];
-    if (!node) return;
-
-    focusedId = id;
-
-    if (node.depth <= 1 && !node.children.length) {
-      createSlots(id);
-      renderMap(true);
+    if (focusedId && state.nodes[focusedId]) {
+      $("#centerEyebrow").text(typeLabel(state.nodes[focusedId]));
+      $("#centerInput").val(state.nodes[focusedId].title);
     } else {
-      renderMap(false);
+      $("#centerEyebrow").text("GOAL");
+      $("#centerInput").val("");
     }
+
+    setTimeout(function () {
+      $("#centerInput").focus();
+      var input = $("#centerInput")[0];
+      if (input) input.setSelectionRange(input.value.length, input.value.length);
+    }, 30);
   }
 
-  function splitFocused() {
-    var node = state.nodes[focusedId];
-    if (!node) return;
-
-    if (node.children.length) {
-      showToast("This branch is already split.");
+  function commitCenter() {
+    var value = $("#centerInput").val().trim();
+    if (!value) {
+      if (!state.rootId) {
+        showFreshGoal();
+        startPromptRotation();
+      }
       return;
     }
 
-    createSlots(focusedId);
-    renderMap(true);
-  }
-
-  function renderMap(animateChildren) {
-    var node = state.nodes[focusedId];
-    if (!node) {
-      focusedId = state.rootId;
-      node = state.nodes[focusedId];
-      if (!node) return showStarter();
+    if (!state.rootId) {
+      var root = createNode(value, null, 0);
+      state.rootId = root.id;
+      focusedId = root.id;
+      createEightSlots(root.id);
+      saveState();
+      renderMap(true);
+      showToast("Now define the eight drivers.");
+      return;
     }
 
-    $("#focusNode").toggleClass("done", node.status === "done");
-    $("#focusTitle").val(node.title);
-    $("#focusType").text(typeLabel(node));
-    $("#focusStatus").text(statusLabel(node.status));
-    $("#stageKicker").text(typeLabel(node));
-    $("#stageHelp").text(stageHelp(node));
+    if (focusedId && state.nodes[focusedId]) {
+      state.nodes[focusedId].title = value;
+      saveState();
+      renderMap(false);
+    }
+  }
+
+  function renderMap(animate) {
+    if (!focusedId || !state.nodes[focusedId]) {
+      focusedId = state.rootId;
+    }
+
+    var node = state.nodes[focusedId];
+    if (!node) {
+      showFreshGoal();
+      return;
+    }
+
+    stopPromptRotation();
+    $("#plannerActions, #plannerLegend").removeAttr("hidden");
+    $("#centerNode").removeClass("idle");
+    $("#centerPrompt").attr("hidden", true);
+    $("#centerEditor").removeAttr("hidden");
+    $("#centerEyebrow").text(typeLabel(node));
+    $("#centerInput").val(node.title);
+    $("#plannerHint").text(stageHint(node));
+    $("#stageEmptyNote").attr("hidden", !!node.children.length);
 
     renderBreadcrumbs();
-    renderChildren(node, animateChildren);
-
-    var hasChildren = node.children && node.children.length;
-    $("#emptyBranch").attr("hidden", hasChildren);
-    $("#backButton").css("opacity", node.parentId ? 1 : .45);
-
-    window.requestAnimationFrame(drawConnectors);
-  }
-
-  function typeLabel(node) {
-    return LABELS[Math.min(node.depth, 3)] || "STEP";
-  }
-
-  function statusLabel(status) {
-    if (status === "done") return "COMPLETED";
-    if (status === "doing") return "IN PROGRESS";
-    return "";
-  }
-
-  function stageHelp(node) {
-    if (node.depth === 0) return "Define the eight drivers that make this outcome possible.";
-    if (node.depth === 1) return "Turn this driver into concrete, controllable actions.";
-    if (!node.children.length) return "If this is still too broad, split it again. If it is executable, do it.";
-    return "Keep breaking down only while it reduces friction.";
+    renderChildren(node, animate);
+    window.requestAnimationFrame(drawLines);
   }
 
   function renderBreadcrumbs() {
+    if (!focusedId) {
+      $("#breadcrumbs").empty();
+      return;
+    }
+
     var path = ancestry(focusedId);
     var html = "";
 
     path.forEach(function (id, index) {
       var node = state.nodes[id];
       if (!node) return;
-      if (index > 0) html += '<span class="crumb-sep">›</span>';
+      if (index) html += '<span class="crumb-sep">›</span>';
       html += '<button class="crumb ' + (id === focusedId ? "current" : "") + '" data-id="' + id + '">' +
         escapeHtml(node.title || typeLabel(node)) +
         "</button>";
     });
 
     $("#breadcrumbs").html(html);
-    $("#breadcrumbs .crumb").on("click", function () {
-      focusedId = $(this).data("id");
-      renderMap(false);
-    });
   }
 
-  function renderChildren(parent, animateChildren) {
-    var $layer = $("#childrenLayer");
+  function renderChildren(parent, animate) {
+    var $layer = $("#childLayer");
     $layer.empty();
 
-    if (!parent.children || !parent.children.length) {
-      drawConnectors();
+    if (!parent || !parent.children || !parent.children.length) {
+      drawLines();
       return;
     }
 
-    var radius = getRadius();
-    var count = parent.children.length;
+    var positions = getGridPositions();
 
-    parent.children.forEach(function (id, index) {
+    parent.children.slice(0, 8).forEach(function (id, index) {
       var node = state.nodes[id];
       if (!node) return;
 
-      var angle = (-90 + index * (360 / count)) * Math.PI / 180;
-      var x = Math.cos(angle) * radius;
-      var y = Math.sin(angle) * radius;
+      var pos = positions[index];
       var filled = !!node.title.trim();
       var meta = [];
 
-      if (node.duration) meta.push('<span class="pill">' + escapeHtml(node.duration) + 'm</span>');
-      if (node.status === "done") meta.push('<span class="pill">done</span>');
-      else if (filled && !node.children.length) meta.push('<span class="child-open-hint">open ↗</span>');
-      else if (node.children.length) meta.push('<span class="pill">' + node.children.length + ' nodes</span>');
+      if (node.duration) meta.push('<span class="meta-pill">' + escapeHtml(node.duration) + 'm</span>');
+      if (node.status === "done") meta.push('<span class="meta-pill">done</span>');
+      else if (node.children && node.children.some(function (childId) {
+        return state.nodes[childId] && state.nodes[childId].title.trim();
+      })) {
+        meta.push('<span class="meta-pill">open branch</span>');
+      } else if (filled) {
+        meta.push('<span>click to open ↗</span>');
+      }
 
-      var $card = $('<div class="child-node' +
+      var $node = $('<div class="child-node' +
         (filled ? " filled" : "") +
         (node.status === "done" ? " done" : "") +
-        (animateChildren ? " entering" : "") +
+        (animate ? " entering" : "") +
         '" data-id="' + id + '"></div>');
 
-      $card.css({
-        "--x": x + "px",
-        "--y": y + "px",
-        "--delay": (index * 52) + "ms"
+      $node.css({
+        "--x": pos.x + "px",
+        "--y": pos.y + "px",
+        "--delay": (index * 55) + "ms"
       });
 
-      $card.append('<div class="slot-index">' + pad(index + 1) + " · " + typeLabel(node) + "</div>");
-      var $input = $('<textarea class="child-input" rows="2" maxlength="180"></textarea>');
-      $input.val(node.title);
-      $input.attr("placeholder", node.depth === 1 ? "Add a driver…" : "Add an action…");
-      $card.append($input);
-      $card.append('<div class="child-meta">' + meta.join("") + "</div>");
-      $layer.append($card);
+      $node.append('<span class="child-index">' + pad(index + 1) + " · " + typeLabel(node) + "</span>");
 
-      autoResize($input);
+      var $input = $('<textarea class="child-input" rows="3" maxlength="180"></textarea>');
+      $input.val(node.title);
+      $input.attr("placeholder", placeholderFor(node));
+      $node.append($input);
+      $node.append('<div class="child-meta">' + meta.join("") + "</div>");
+      $layer.append($node);
     });
   }
 
-  function getRadius() {
-    var map = document.getElementById("radialMap");
-    if (!map) return 260;
-    var css = getComputedStyle(map).getPropertyValue("--map-radius").trim();
-    var temp = document.createElement("div");
-    temp.style.position = "absolute";
-    temp.style.visibility = "hidden";
-    temp.style.width = css;
-    document.body.appendChild(temp);
-    var px = temp.getBoundingClientRect().width;
-    temp.remove();
-    return px || 260;
+  function getGridPositions() {
+    var width = window.innerWidth;
+
+    if (width <= 680) {
+      return [
+        { x: -94, y: -120 },
+        { x: 0, y: -168 },
+        { x: 94, y: -120 },
+        { x: 132, y: 0 },
+        { x: 94, y: 120 },
+        { x: 0, y: 168 },
+        { x: -94, y: 120 },
+        { x: -132, y: 0 }
+      ];
+    }
+
+    if (width <= 900) {
+      return [
+        { x: -210, y: -170 },
+        { x: 0, y: -245 },
+        { x: 210, y: -170 },
+        { x: 295, y: 0 },
+        { x: 210, y: 170 },
+        { x: 0, y: 245 },
+        { x: -210, y: 170 },
+        { x: -295, y: 0 }
+      ];
+    }
+
+    return [
+      { x: -260, y: -205 },
+      { x: 0, y: -268 },
+      { x: 260, y: -205 },
+      { x: 350, y: 0 },
+      { x: 260, y: 205 },
+      { x: 0, y: 268 },
+      { x: -260, y: 205 },
+      { x: -350, y: 0 }
+    ];
   }
 
-  function drawConnectors() {
-    var svg = $("#connectors");
-    var canvas = document.getElementById("canvas");
-    var focus = document.getElementById("focusNode");
-    if (!canvas || !focus || $("#mapStage").is("[hidden]")) {
+  function drawLines() {
+    var stage = document.getElementById("mandalaStage");
+    var center = document.getElementById("centerNode");
+    var svg = $("#nodeLines");
+
+    if (!stage || !center || !focusedId || !$(".child-node").length) {
       svg.empty();
       return;
     }
 
-    var canvasRect = canvas.getBoundingClientRect();
-    var focusRect = focus.getBoundingClientRect();
-    var x1 = focusRect.left + focusRect.width / 2 - canvasRect.left;
-    var y1 = focusRect.top + focusRect.height / 2 - canvasRect.top;
-    var lines = "";
+    var stageRect = stage.getBoundingClientRect();
+    var centerRect = center.getBoundingClientRect();
+    var x1 = centerRect.left + centerRect.width / 2 - stageRect.left;
+    var y1 = centerRect.top + centerRect.height / 2 - stageRect.top;
+    var html = "";
 
     $(".child-node").each(function () {
       var rect = this.getBoundingClientRect();
-      var x2 = rect.left + rect.width / 2 - canvasRect.left;
-      var y2 = rect.top + rect.height / 2 - canvasRect.top;
-      lines += '<line class="connector-line" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"></line>';
+      var x2 = rect.left + rect.width / 2 - stageRect.left;
+      var y2 = rect.top + rect.height / 2 - stageRect.top;
+      html += '<line class="node-line" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"></line>';
     });
 
-    svg.attr("viewBox", "0 0 " + canvasRect.width + " " + canvasRect.height);
-    svg.html(lines);
+    svg.attr("viewBox", "0 0 " + stageRect.width + " " + stageRect.height);
+    svg.html(html);
+  }
+
+  function focusNode(id) {
+    var node = state.nodes[id];
+    if (!node) return;
+
+    focusedId = id;
+
+    if (node.depth === 1 && !node.children.length) {
+      createEightSlots(id);
+      renderMap(true);
+      showToast("Turn this driver into eight concrete actions.");
+      return;
+    }
+
+    renderMap(false);
+  }
+
+  function splitFocused() {
+    if (!focusedId || !state.nodes[focusedId]) return;
+    var node = state.nodes[focusedId];
+
+    if (node.children.length) {
+      showToast("This node is already split.");
+      return;
+    }
+
+    createEightSlots(focusedId);
+    renderMap(true);
+  }
+
+  function placeholderFor(node) {
+    if (node.depth === 1) return "Add a driver…";
+    if (node.depth === 2) return "Add an action…";
+    return "Add a smaller step…";
+  }
+
+  function typeLabel(node) {
+    return LABELS[Math.min(node.depth || 0, 3)] || "STEP";
+  }
+
+  function stageHint(node) {
+    if (node.depth === 0) {
+      return "What must be true for this goal to happen? Define the eight strongest drivers.";
+    }
+
+    if (node.depth === 1) {
+      return "What can you actually do to move this driver? Make each action concrete and controllable.";
+    }
+
+    if (!node.children.length) {
+      return "If this still feels too big to start, split it. If it is obvious and executable, do it.";
+    }
+
+    return "Keep decomposing only while it reduces friction. Stop when the next move is obvious.";
   }
 
   function ancestry(id) {
@@ -645,19 +725,156 @@
     return list;
   }
 
-  function goBack() {
-    var node = state.nodes[focusedId];
-    if (!node || !node.parentId) return;
-    focusedId = node.parentId;
-    renderMap(false);
+  function startPromptRotation() {
+    stopPromptRotation();
+
+    promptTimer = setInterval(function () {
+      if (state.rootId || $("#centerEditor").is(":visible")) return;
+      promptIndex = (promptIndex + 1) % PROMPTS.length;
+      var $prompt = $("#rotatingPrompt");
+
+      $prompt.addClass("swap-out");
+      setTimeout(function () {
+        $prompt.text(PROMPTS[promptIndex]).removeClass("swap-out");
+      }, 190);
+    }, 2800);
   }
 
-  function toggleDone(id) {
-    var node = state.nodes[id];
-    if (!node) return;
-    node.status = node.status === "done" ? "open" : "done";
+  function stopPromptRotation() {
+    if (promptTimer) {
+      clearInterval(promptTimer);
+      promptTimer = null;
+    }
+  }
+
+  function openSuggestionModal() {
+    if (!focusedId || !state.nodes[focusedId]) return;
+
+    var node = state.nodes[focusedId];
+    if (!node.children.length) createEightSlots(node.id);
+
+    suggestionBuffer = buildSuggestions(node, false);
+    $("#suggestionTitle").text(node.depth === 0 ? "Suggested drivers" : "Suggested actions");
+    renderSuggestions();
+    $("#suggestionModal").removeAttr("hidden");
+  }
+
+  function buildSuggestions(node, shuffle) {
+    var title = ((node && node.title) || "").toLowerCase();
+    var pool;
+
+    if (node.depth === 0) {
+      if (matchesAny(title, ["launch", "ship", "customer", "sale", "revenue", "mrr", "product", "beta"])) {
+        pool = DRIVER_SUGGESTIONS.launch.slice();
+      } else if (matchesAny(title, ["learn", "practice", "study", "ukulele", "guitar", "language"])) {
+        pool = DRIVER_SUGGESTIONS.learn.slice();
+      } else if (matchesAny(title, ["read", "book", "earthsea", "novel"])) {
+        pool = DRIVER_SUGGESTIONS.read.slice();
+      } else {
+        pool = DRIVER_SUGGESTIONS.generic.slice();
+      }
+    } else {
+      pool = ACTION_SUGGESTIONS[detectActionPool(title)].slice();
+    }
+
+    if (shuffle) pool = rotate(pool, 1 + Math.floor(Math.random() * 3));
+    return pool;
+  }
+
+  function detectActionPool(title) {
+    if (matchesAny(title, ["product", "quality", "ready", "qa", "test"])) return "product";
+    if (matchesAny(title, ["price", "payment", "offer"])) return "pricing";
+    if (matchesAny(title, ["customer", "icp", "audience"])) return "customer";
+    if (matchesAny(title, ["prospect", "lead", "find"])) return "prospect";
+    if (matchesAny(title, ["outreach", "email", "linkedin", "message", "sales"])) return "outreach";
+    if (matchesAny(title, ["marketing", "distribution", "content", "launch"])) return "marketing";
+    if (matchesAny(title, ["read", "book", "pages"])) return "read";
+    if (matchesAny(title, ["learn", "study", "practice", "skill"])) return "learn";
+    return "generic";
+  }
+
+  function renderSuggestions() {
+    var html = suggestionBuffer.map(function (item, index) {
+      return '<div class="suggestion-item">' +
+        '<input type="checkbox" id="suggestion_' + index + '" data-index="' + index + '" checked>' +
+        '<label for="suggestion_' + index + '">' +
+        '<strong>' + escapeHtml(item) + '</strong>' +
+        '<small>Fill one empty node with this suggestion.</small>' +
+        "</label></div>";
+    }).join("");
+
+    $("#suggestionList").html(html);
+  }
+
+  function applySuggestions() {
+    var parent = state.nodes[focusedId];
+    if (!parent) return;
+
+    if (!parent.children.length) createEightSlots(parent.id);
+
+    var selected = [];
+    $("#suggestionList input:checked").each(function () {
+      selected.push(suggestionBuffer[parseInt($(this).data("index"), 10)]);
+    });
+
+    var cursor = 0;
+
+    parent.children.forEach(function (id) {
+      var child = state.nodes[id];
+      if (!child || child.title.trim() || cursor >= selected.length) return;
+      child.title = selected[cursor++];
+    });
+
     saveState();
-    renderMap(false);
+    $("#suggestionModal").attr("hidden", true);
+    renderMap(true);
+    showToast("Suggestions added.");
+  }
+
+  function openNextModal() {
+    var candidates = Object.keys(state.nodes)
+      .map(function (id) { return state.nodes[id]; })
+      .filter(function (node) {
+        var hasFilledChildren = (node.children || []).some(function (childId) {
+          return state.nodes[childId] && state.nodes[childId].title.trim();
+        });
+
+        return node.title.trim() &&
+          node.status !== "done" &&
+          !hasFilledChildren &&
+          node.depth >= 2;
+      });
+
+    candidates.sort(function (a, b) {
+      return scoreNode(b) - scoreNode(a);
+    });
+
+    currentNextId = candidates.length ? candidates[0].id : null;
+
+    if (!currentNextId) {
+      $("#nextActionTitle").text("Nothing actionable yet.");
+      $("#nextActionMeta").text("Add actions under a driver, or split a broad action into smaller steps.");
+      $("#openNextAction, #completeNextAction").prop("disabled", true).css("opacity", .45);
+    } else {
+      var node = state.nodes[currentNextId];
+      var meta = [];
+      if (node.duration) meta.push(node.duration + " min");
+      meta.push("impact " + (node.impact || 3) + "/5");
+      meta.push("effort " + (node.effort || 3) + "/5");
+
+      $("#nextActionTitle").text(node.title);
+      $("#nextActionMeta").text(meta.join(" · "));
+      $("#openNextAction, #completeNextAction").prop("disabled", false).css("opacity", 1);
+    }
+
+    $("#nextModal").removeAttr("hidden");
+  }
+
+  function scoreNode(node) {
+    var impact = parseInt(node.impact || 3, 10);
+    var effort = parseInt(node.effort || 3, 10);
+    var urgency = parseInt(node.urgency || 3, 10);
+    return impact * 2 + urgency - effort;
   }
 
   function openInspector(id) {
@@ -665,7 +882,7 @@
     if (!node) return;
 
     selectedDetailId = id;
-    $("#inspectorHeading").text(typeLabel(node).toLowerCase());
+    $("#inspectorTitle").text(typeLabel(node).toLowerCase());
     $("#detailTitle").val(node.title);
     $("#impactInput").val(node.impact || 3);
     $("#effortInput").val(node.effort || 3);
@@ -684,19 +901,18 @@
 
   function closeInspector() {
     $("#inspector").removeClass("open").attr("aria-hidden", "true");
-    if (selectedDetailId) {
-      renderMap(false);
-    }
+    if (selectedDetailId) renderMap(false);
     selectedDetailId = null;
   }
 
   function updateSelectedDetail(key, value) {
     if (!selectedDetailId || !state.nodes[selectedDetailId]) return;
+
     state.nodes[selectedDetailId][key] = value;
     saveState();
 
-    if (key === "title" && selectedDetailId === focusedId) {
-      $("#focusTitle").val(value);
+    if (selectedDetailId === focusedId && key === "title") {
+      $("#centerInput").val(value);
       renderBreadcrumbs();
     }
   }
@@ -758,141 +974,8 @@
     delete state.nodes[id];
   }
 
-  function openSuggestionModal() {
-    var node = state.nodes[focusedId];
-    if (!node) return;
-
-    if (!node.children.length) createSlots(focusedId);
-
-    suggestionBuffer = buildSuggestions(node, false);
-    $("#suggestionTitle").text(node.depth === 0 ? "Suggested drivers" : "Suggested actions");
-    $("#suggestionSubtitle").text("Front-end demo suggestions. The AI API hook comes next.");
-    renderSuggestions();
-    $("#suggestionModal").removeAttr("hidden");
-  }
-
-  function buildSuggestions(node, shuffle) {
-    var title = ((node && node.title) || "").toLowerCase();
-    var pool;
-
-    if (node.depth === 0) {
-      if (matchesAny(title, ["launch", "ship", "customer", "sale", "revenue", "mrr", "product", "beta"])) {
-        pool = DRIVER_SUGGESTIONS.launch.slice();
-      } else if (matchesAny(title, ["learn", "practice", "study", "ukulele", "guitar", "language"])) {
-        pool = DRIVER_SUGGESTIONS.learn.slice();
-      } else if (matchesAny(title, ["read", "book", "earthsea", "finish novel"])) {
-        pool = DRIVER_SUGGESTIONS.read.slice();
-      } else if (matchesAny(title, ["fitness", "run", "gym", "marathon", "weight"])) {
-        pool = DRIVER_SUGGESTIONS.fitness.slice();
-      } else {
-        pool = DRIVER_SUGGESTIONS.generic.slice();
-      }
-    } else {
-      var key = detectActionPool(title);
-      pool = ACTION_SUGGESTIONS[key].slice();
-    }
-
-    if (shuffle) pool = rotate(pool, 1 + Math.floor(Math.random() * 3));
-    return pool;
-  }
-
-  function detectActionPool(title) {
-    if (matchesAny(title, ["product", "quality", "ready", "qa", "test"])) return "product";
-    if (matchesAny(title, ["price", "payment", "offer"])) return "pricing";
-    if (matchesAny(title, ["customer", "icp", "audience"])) return "customer";
-    if (matchesAny(title, ["prospect", "lead", "find"])) return "prospect";
-    if (matchesAny(title, ["outreach", "email", "linkedin", "message", "sales"])) return "outreach";
-    if (matchesAny(title, ["marketing", "distribution", "content", "launch"])) return "marketing";
-    if (matchesAny(title, ["read", "book", "pages"])) return "read";
-    if (matchesAny(title, ["learn", "study", "practice", "skill"])) return "learn";
-    return "generic";
-  }
-
-  function renderSuggestions() {
-    var html = suggestionBuffer.map(function (item, index) {
-      return '<div class="suggestion-item">' +
-        '<input type="checkbox" id="suggestion_' + index + '" data-index="' + index + '" checked>' +
-        '<label for="suggestion_' + index + '">' +
-        '<strong>' + escapeHtml(item) + '</strong>' +
-        '<small>Use this to fill an empty node.</small>' +
-        '</label></div>';
-    }).join("");
-
-    $("#suggestionList").html(html);
-  }
-
-  function applySuggestions() {
-    var parent = state.nodes[focusedId];
-    if (!parent) return;
-
-    if (!parent.children.length) createSlots(parent.id);
-
-    var selected = [];
-    $("#suggestionList input:checked").each(function () {
-      selected.push(suggestionBuffer[parseInt($(this).data("index"), 10)]);
-    });
-
-    var cursor = 0;
-    parent.children.forEach(function (id) {
-      var child = state.nodes[id];
-      if (!child || child.title.trim() || cursor >= selected.length) return;
-      child.title = selected[cursor++];
-    });
-
-    saveState();
-    $("#suggestionModal").attr("hidden", true);
-    renderMap(true);
-    showToast("Suggestions added to empty nodes.");
-  }
-
-  function openFocusMode() {
-    var candidates = Object.keys(state.nodes)
-      .map(function (id) { return state.nodes[id]; })
-      .filter(function (node) {
-        return node.title.trim() &&
-          node.status !== "done" &&
-          (!node.children || !node.children.some(function (childId) {
-            var c = state.nodes[childId];
-            return c && c.title.trim();
-          })) &&
-          node.depth >= 2;
-      });
-
-    candidates.sort(function (a, b) {
-      return scoreNode(b) - scoreNode(a);
-    });
-
-    currentNextId = candidates.length ? candidates[0].id : null;
-
-    if (!currentNextId) {
-      $("#nextActionTitle").text("Nothing actionable yet.");
-      $("#nextActionMeta").text("Fill or split a branch until you have one concrete action.");
-      $("#openNextAction, #completeNextAction").prop("disabled", true).css("opacity", .45);
-    } else {
-      var node = state.nodes[currentNextId];
-      var meta = [];
-      if (node.duration) meta.push(node.duration + " min");
-      meta.push("impact " + (node.impact || 3) + "/5");
-      meta.push("effort " + (node.effort || 3) + "/5");
-
-      $("#nextActionTitle").text(node.title);
-      $("#nextActionMeta").text(meta.join(" · "));
-      $("#openNextAction, #completeNextAction").prop("disabled", false).css("opacity", 1);
-    }
-
-    $("#focusModal").removeAttr("hidden");
-  }
-
-  function scoreNode(node) {
-    var impact = parseInt(node.impact || 3, 10);
-    var effort = parseInt(node.effort || 3, 10);
-    var urgency = parseInt(node.urgency || 3, 10);
-    return impact * 2 + urgency - effort;
-  }
-
   function resetAll() {
-    var hasData = !!state.rootId;
-    if (hasData && !window.confirm("Start a new map? Your current local map will be cleared.")) return;
+    if (state.rootId && !window.confirm("Start a new map? Your current local map will be cleared.")) return;
 
     state = defaultState();
     focusedId = null;
@@ -900,8 +983,8 @@
     currentNextId = null;
     localStorage.removeItem(STORAGE_KEY);
     closeInspector();
-    $("#goalInput").val("");
-    showStarter();
+    showFreshGoal();
+    startPromptRotation();
   }
 
   function exportState() {
@@ -920,20 +1003,13 @@
   }
 
   function toggleTheme() {
-    var isLight = !$("body").hasClass("light");
-    $("body").toggleClass("light", isLight);
-    localStorage.setItem(THEME_KEY, isLight ? "light" : "dark");
+    var light = !$("body").hasClass("light");
+    $("body").toggleClass("light", light);
+    localStorage.setItem(THEME_KEY, light ? "light" : "dark");
   }
 
   function applyStoredTheme() {
-    var theme = localStorage.getItem(THEME_KEY);
-    $("body").toggleClass("light", theme === "light");
-  }
-
-  function autoResize($el) {
-    if (!$el || !$el.length) return;
-    $el.css("height", "auto");
-    $el.css("height", Math.min($el[0].scrollHeight, 160) + "px");
+    $("body").toggleClass("light", localStorage.getItem(THEME_KEY) === "light");
   }
 
   function showToast(message) {
@@ -941,13 +1017,7 @@
     $("#toast").text(message).addClass("show");
     toastTimer = setTimeout(function () {
       $("#toast").removeClass("show");
-    }, 2200);
-  }
-
-  function shake($el) {
-    $el.css("transform", "translateX(-6px)");
-    setTimeout(function () { $el.css("transform", "translateX(5px)"); }, 70);
-    setTimeout(function () { $el.css("transform", "translateX(0)"); }, 140);
+    }, 2100);
   }
 
   function matchesAny(text, words) {
@@ -974,11 +1044,11 @@
   }
 
   function debounce(fn, wait) {
-    var t;
+    var timer;
     return function () {
       var args = arguments;
-      clearTimeout(t);
-      t = setTimeout(function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
         fn.apply(null, args);
       }, wait);
     };

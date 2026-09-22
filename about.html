@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0b0f">
+  <meta name="description" content="About Mandala: a visual system for turning goals into executable actions.">
+  <title>About — Mandala</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="site-shell">
+    <header class="site-header">
+      <div class="nav-wrap">
+        <a class="brand" href="index.html" aria-label="Mandala home">
+          <span class="brand-grid" aria-hidden="true">
+            <span></span><span></span><span></span><span></span>
+          </span>
+          <span class="brand-name">mandala</span>
+        </a>
+
+        <nav class="main-nav" aria-label="Primary">
+          <a href="index.html">Planner</a>
+          <a class="active" href="about.html">About</a>
+          <a href="https://github.com/ylnyorulmaz/mandala-chart" target="_blank" rel="noreferrer">GitHub</a>
+        </nav>
+
+        <div class="nav-actions">
+          <button class="icon-button" id="themeButton" type="button" aria-label="Toggle theme" title="Toggle theme">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 15.2A8 8 0 1 1 8.8 4a6.5 6.5 0 0 0 11.2 11.2Z"/></svg>
+          </button>
+          <a class="support-button" href="https://buymeacoffee.com/ylnyorulmaz" target="_blank" rel="noreferrer">Support</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="about-page">
+      <section class="about-hero">
+        <span class="kicker">ABOUT MANDALA</span>
+        <h1>Turn “I should do this” into “this is what I do next.”</h1>
+        <p>
+          Mandala is a visual planning experiment built around one simple idea: a goal is usually too vague to act on directly.
+          Put the goal in the center, identify the drivers that make it possible, break those drivers into concrete actions, and
+          keep decomposing only when a task is still too large or unclear to start.
+        </p>
+      </section>
+
+      <section class="about-grid">
+        <article class="about-card">
+          <span class="node-eyebrow">01 · THE CORE</span>
+          <h2>One goal in the center</h2>
+          <p>
+            Start with a real outcome: ship a product, finish a book, learn a skill, prepare for an exam, organize a move,
+            or complete a project. The center node is deliberately singular so the map starts with one clear intention.
+          </p>
+        </article>
+
+        <article class="about-card">
+          <span class="node-eyebrow">02 · THE DRIVERS</span>
+          <h2>Ask what must be true</h2>
+          <p>
+            Around the goal, define up to eight distinct drivers. These are not random tasks. They are the major conditions,
+            capabilities, systems, or areas that materially move the central goal forward.
+          </p>
+        </article>
+
+        <article class="about-card">
+          <span class="node-eyebrow">03 · THE ACTIONS</span>
+          <h2>Convert drivers into things you can do</h2>
+          <p>
+            Open a driver and break it into concrete actions. Good actions are controllable, specific, observable, and small
+            enough that you can tell whether they are done without holding another planning meeting with yourself.
+          </p>
+        </article>
+
+        <article class="about-card">
+          <span class="node-eyebrow">04 · DIVIDE & CONQUER</span>
+          <h2>Split only when splitting helps</h2>
+          <p>
+            “Launch the product” is not a useful task. “Test the payment flow” is. If an action still feels vague, intimidating,
+            or too large to start, open it and split it again. Stop when the next move is obvious.
+          </p>
+        </article>
+
+        <article class="about-card about-wide">
+          <span class="node-eyebrow">THE EXECUTION LOOP</span>
+          <h2>The map is not the work. It exists to produce the work.</h2>
+          <div class="about-flow">
+            <div class="flow-step">
+              <span>01</span>
+              <strong>Goal</strong>
+              <p>State one outcome clearly enough to know what success means.</p>
+            </div>
+            <div class="flow-step">
+              <span>02</span>
+              <strong>Drivers</strong>
+              <p>Identify the distinct forces that need to move for the goal to happen.</p>
+            </div>
+            <div class="flow-step">
+              <span>03</span>
+              <strong>Actions</strong>
+              <p>Translate each driver into concrete, controllable behavior.</p>
+            </div>
+            <div class="flow-step">
+              <span>04</span>
+              <strong>Prioritize</strong>
+              <p>Use impact, effort, and urgency to decide what deserves attention first.</p>
+            </div>
+            <div class="flow-step">
+              <span>05</span>
+              <strong>Execute</strong>
+              <p>Pick the next useful leaf action, do it, learn, and revise the map.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="about-card">
+          <span class="node-eyebrow">WHY EIGHT?</span>
+          <h2>A constraint, not a law</h2>
+          <p>
+            The interface borrows the eight-around-one structure associated with Mandala-style planning because it forces broad
+            coverage without becoming an endless blank canvas. Eight is useful as a thinking constraint. It is not a claim that
+            every real-world problem naturally contains exactly eight parts.
+          </p>
+        </article>
+
+        <article class="about-card">
+          <span class="node-eyebrow">PRIORITY</span>
+          <h2>Not every task deserves equal weight</h2>
+          <p>
+            Nodes can carry impact, effort, urgency, duration, and status. The purpose is not to create sixty-four equally
+            important chores. It is to expose quick wins, major moves, weak tasks, and a sensible next action.
+          </p>
+        </article>
+
+        <article class="about-card">
+          <span class="node-eyebrow">AI ASSISTANCE</span>
+          <h2>AI should challenge the plan, not replace thinking</h2>
+          <p>
+            The current prototype uses local suggestions only. The intended AI layer can propose missing drivers, rewrite vague
+            outcomes, detect overlaps, flag uncontrollable goals, and break oversized actions into smaller ones while leaving the
+            final plan under the user’s control.
+          </p>
+        </article>
+
+        <article class="about-card">
+          <span class="node-eyebrow">LOCAL FIRST</span>
+          <h2>Your map works without an account</h2>
+          <p>
+            The first version stores its state locally in the browser and can run as a lightweight PWA. Accounts, cloud sync,
+            collaboration, and model integrations can come later without making them prerequisites for the basic planning flow.
+          </p>
+        </article>
+
+        <article class="about-card about-wide">
+          <span class="node-eyebrow">THE PRINCIPLES BEHIND IT</span>
+          <h2>Several useful planning ideas, one interface</h2>
+          <p>
+            Mandala combines ideas from Mandala-style goal decomposition, divide-and-conquer, next-action thinking, impact-versus-effort
+            prioritization, and urgency/importance triage. The user does not need to select a methodology or learn a productivity
+            vocabulary. The interface should simply help answer three questions: <strong>What am I trying to achieve? What has to
+            happen for that to become possible? What should I actually do next?</strong>
+          </p>
+          <ul>
+            <li>Prefer controllable actions over outcomes you cannot directly command.</li>
+            <li>Prefer specific definitions of done over vague intentions.</li>
+            <li>Break work down when size or ambiguity creates friction.</li>
+            <li>Do not decompose so far that the map becomes bureaucracy.</li>
+            <li>Revise the map when reality disproves the original plan.</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-grid">
+        <div>
+          <a class="brand footer-brand" href="index.html">
+            <span class="brand-grid" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </span>
+            <span class="brand-name">mandala</span>
+          </a>
+          <p>Turn a vague intention into a map of concrete, controllable actions.</p>
+        </div>
+
+        <div class="footer-column">
+          <span>PROJECT</span>
+          <a href="index.html">Open the planner</a>
+          <a href="https://github.com/ylnyorulmaz/mandala-chart" target="_blank" rel="noreferrer">Source on GitHub</a>
+        </div>
+
+        <div class="footer-column">
+          <span>CONTACT</span>
+          <a href="mailto:yorulmazyln@gmail.com">yorulmazyln@gmail.com</a>
+          <a href="https://ylnyorulmaz.com" target="_blank" rel="noreferrer">ylnyorulmaz.com</a>
+        </div>
+
+        <div class="footer-support">
+          <span>LIKE THE PROJECT?</span>
+          <p>If this helps you finish something, you can support the project.</p>
+          <a class="coffee-button" href="https://buymeacoffee.com/ylnyorulmaz" target="_blank" rel="noreferrer">Buy me a coffee ↗</a>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>Built as a local-first experiment in getting things done.</span>
+        <span>© <span id="year"></span> Yalın Yorulmaz</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0d6pqd8W+9tKUpZcVA=" crossorigin="anonymous"></script>
+  <script src="app.js"></script>
+</body>
+</html>
