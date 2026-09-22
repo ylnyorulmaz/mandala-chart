@@ -412,3 +412,13 @@ Design rules:
 - Keep the current calm/playful visual language; the reference image is structural inspiration only.
 
 - Grid view must be hidden below 1024px viewport width; if the viewport shrinks while Grid is active, fall back to Map.
+
+
+## Palette invariants
+
+- Keep the initial palette set curated: Light, Dark, Sage, Dawn.
+- Palette choice is persisted in the existing theme storage key for backward compatibility with prior light/dark users.
+- Dark must continue using the existing `body.dark` class because legacy CSS depends on it.
+- New palettes should primarily change background/surface variables and mood, not break node/status semantics.
+- Any new palette must maintain readable contrast in Map, Table, Grid, Inspector, modals, and mobile controls.
+- Do not turn this into an arbitrary color picker until user demand justifies it.
