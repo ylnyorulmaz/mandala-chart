@@ -262,6 +262,7 @@ Show proposed changes before applying them.
 Read:
 
 - `Product.md`
+- `ExecutionFramework.md`
 - `ProductRoadmap.md`
 - `Agents.md`
 - current implementation files
