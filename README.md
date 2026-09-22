@@ -19,6 +19,7 @@ It supports:
 - one central goal,
 - eight driver nodes,
 - recursive actions and smaller steps,
+- switchable map and table views,
 - persistent mind-map canvas,
 - pan and zoom,
 - fit-to-map,
@@ -42,14 +43,15 @@ It supports:
 
 1. Enter one central goal.
 2. Eight driver nodes animate outward.
-3. Pan and zoom while keeping the whole map available.
-4. Click a node to focus the camera on that branch.
-5. Expand a driver into executable actions.
-6. Split an action again only if it is still too broad.
-7. Collapse branches when the map becomes noisy.
-8. Add priority metadata where useful.
-9. Use **Next action** to surface an unfinished executable leaf.
-10. Revise the map as reality changes.
+3. Switch between the spatial Map view and a structured Table view at any time.
+4. Pan and zoom while keeping the whole map available.
+5. Click a node to focus the camera on that branch.
+6. Expand a driver into executable actions.
+7. Split an action again only if it is still too broad.
+8. Collapse branches when the map becomes noisy.
+9. Add priority metadata where useful.
+10. Use **Next action** to surface an unfinished executable leaf.
+11. Revise the map as reality changes.
 
 The design principle is:
 
