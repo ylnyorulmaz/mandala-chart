@@ -285,14 +285,15 @@ After editing:
 
 1. verify there are no CDN references,
 2. verify PWA cache entries if assets changed,
-3. test fresh localStorage,
-4. test existing saved state,
-5. test desktop,
-6. test narrow mobile viewport,
-7. test pan/zoom/focus,
-8. test editing,
-9. test export,
-10. test basic offline reload when relevant.
+3. test fresh IndexedDB,
+4. test migration from existing localStorage state,
+5. test multiple maps and snapshot restore,
+6. test desktop,
+7. test narrow mobile viewport,
+8. test pan/zoom/focus,
+9. test editing,
+10. test export,
+11. test basic offline reload when relevant.
 
 ---
 
@@ -422,3 +423,19 @@ Design rules:
 - New palettes should primarily change background/surface variables and mood, not break node/status semantics.
 - Any new palette must maintain readable contrast in Map, Table, Grid, Inspector, modals, and mobile controls.
 - Do not turn this into an arbitrary color picker until user demand justifies it.
+
+
+## Local storage invariants
+
+- Planner maps live in IndexedDB, not localStorage.
+- Use the locally vendored `idb` wrapper; never add a runtime CDN for it.
+- Keep the storage layer in `storage.js`; UI code should call `MandalaStorage` rather than raw IndexedDB.
+- The app must migrate the previous single-map localStorage state on first successful IndexedDB initialization.
+- Multiple maps must never overwrite one another.
+- Starting a new map is non-destructive; the previous map remains in the Maps library.
+- Current map writes are debounced.
+- Autosave snapshots are deduplicated, bounded, and rate-limited; do not snapshot every keystroke.
+- Keep at most 30 snapshots per map unless product requirements change.
+- Restoring a version must preserve the current version first.
+- Theme/palette preferences may remain in localStorage.
+- IndexedDB failure may fall back to legacy single-map localStorage, but the app must say that multi-map storage is unavailable.
