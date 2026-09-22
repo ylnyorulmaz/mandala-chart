@@ -20,6 +20,8 @@ It supports:
 - eight driver nodes,
 - recursive actions and smaller steps,
 - switchable map and table views,
+- responsive mobile touch layout with safe-area support,
+- phone-friendly table cards instead of forced desktop-width scrolling,
 - simple decisions: Do / Later / Hand off / Drop,
 - dependency-aware Ready / Blocked state,
 - Impact / Effort guidance,
@@ -230,3 +232,20 @@ The current product philosophy is documented in [ExecutionFramework.md](Executio
 **Break it down → Decide → Do next → Review**
 
 The central rule is: **keep the intelligence; remove the methodology tax from the UX.**
+
+
+## Mobile behavior
+
+The planner is designed to remain usable on phones rather than merely shrink the desktop layout:
+
+- primary touch targets are at least about 44px,
+- the action toolbar becomes a horizontal thumb dock,
+- Map/Table controls and zoom controls avoid overlapping,
+- the Inspector and modals become bottom sheets,
+- Table rows become readable cards on narrow screens,
+- iPhone safe areas / home indicator spacing are respected,
+- the goal starter scales by both viewport width and height,
+- the map can zoom farther out on narrow screens so larger trees can fit,
+- orientation changes re-center the active node.
+
+Actual device QA is still required before claiming full cross-device coverage.
