@@ -266,7 +266,7 @@
         createEightSlots(id);
         renderAll(true);
         focusCameraOnNode(id, .78);
-        showToast("Driver opened. Add eight actions around it.");
+        showToast("Branch unlocked — add your next moves.");
       }
     });
 
@@ -982,14 +982,14 @@
       saveState();
       renderAll(true);
       focusCameraOnNode(selectedId, nodeFocusScale(node));
-      showToast("Branch expanded.");
+      showToast("Branch is back.");
       return;
     }
 
     createEightSlots(selectedId);
     renderAll(true);
     focusCameraOnNode(selectedId, nodeFocusScale(node));
-    showToast("Eight child nodes added.");
+    showToast("New branch unlocked.");
   }
 
   function toggleCollapseSelected() {
@@ -1018,8 +1018,8 @@
     $("#selectionBar").removeAttr("hidden");
     $("#selectionType").text(typeLabel(node));
     $("#selectionTitle").text(node.title.trim() || placeholderText(node));
-    $("#markDoneButton").text(node.status === "done" ? "Mark open" : "Mark done");
-    $("#collapseButton").text(node.collapsed ? "Expand" : "Collapse");
+    $("#markDoneButton").text(node.status === "done" ? "Undo" : "Clear it ✓");
+    $("#collapseButton").text(node.collapsed ? "Show branch" : "Hide branch");
     $("#collapseButton").prop("disabled", !node.children.length).css("opacity", node.children.length ? 1 : .45);
   }
 
