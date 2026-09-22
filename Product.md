@@ -76,15 +76,14 @@ The Mandala structure generates a possibility space. It does **not** create a co
 
 The product should encourage this sequence:
 
-**Explore → Decide → Play → Learn → Rebuild**
+**Break it down → Decide → Do next → Review**
 
-- **Explore:** decompose the goal broadly.
-- **Decide:** triage work with Impact/Effort, Important/Urgent, dependencies, delegatability, and the 4Ds.
-- **Play:** execute only the strongest ready actions.
-- **Learn:** observe what happened.
-- **Rebuild:** revise the map when reality changes.
+- **Break it down:** turn the goal into drivers and concrete actions.
+- **Decide:** choose Do / Later / Hand off / Drop. Add Impact / Effort or a blocker only when useful.
+- **Do next:** execute one strong ready action instead of staring at the whole map.
+- **Review:** change the plan when reality changes.
 
-A 64-action Mandala is useful partly because it exposes work that should be deferred, delegated, or deleted.
+A large Mandala is useful partly because it exposes work that should not compete for attention.
 
 ### 3. Execution over organization
 
@@ -165,7 +164,7 @@ Do not turn a small execution tool into a large project-management platform unle
 
 The default structure is:
 
-**Goal → Drivers → Actions → Triage → Next Moves → Execute → Review → Revise**
+**Goal → Drivers → Actions → Decide → Next Move → Review**
 
 ### Goal
 
@@ -209,19 +208,26 @@ Examples:
 
 A further decomposition used only when an action is still too broad.
 
-### Triage
+### Decide
 
 The decomposed plan is an option space, not a checklist.
 
-Every meaningful action can be evaluated using:
+The user-facing decision is intentionally small:
+
+- **Do** — keep it in the active execution plan.
+- **Later** — keep it, but remove it from today's queue.
+- **Hand off** — it should happen, but not necessarily by the user.
+- **Drop** — decide not to execute it.
+
+Optional execution metadata stays minimal:
 
 - **Impact / Effort**
-- **Important / Urgent**
-- **Dependency state:** Ready or Blocked
-- **Delegatability:** No / Partly / Yes
-- **4D decision:** Do / Defer / Delegate / Delete
+- **Blocked by** another node
+- **Estimate**
+- **Status**
+- **Notes**
 
-The 4D decision does not destroy information. In particular, **Delete means "decide not to execute this"**, not "erase the node." The node remains visible as a record of the decision.
+The product may borrow reasoning from Eisenhower, the 4Ds, WBS, Definition of Done, and similar methods, but those should not become extra permanent columns or terminology the user must maintain.
 
 ### Next action
 
@@ -237,7 +243,6 @@ Among eligible actions, Mandala uses practical signals such as:
 
 - impact,
 - effort,
-- Important / Urgent flags,
 - estimated duration,
 - current status.
 
@@ -374,14 +379,12 @@ Actions can be decomposed further when necessary.
 
 Nodes may carry:
 
+- decision: Do / Later / Hand off / Drop,
 - impact,
 - effort,
-- Important / Urgent flags,
-- 4D decision,
-- delegatability,
 - dependency,
-- optional delegate target,
-- optional defer date,
+- optional hand-off target,
+- optional later date,
 - duration,
 - status,
 - notes.
@@ -412,15 +415,14 @@ The current front-end prototype supports:
 - manual node repositioning,
 - minimap navigation,
 - node details inspector,
+- simple Do / Later / Hand off / Drop decisions,
 - impact / effort metadata,
-- Eisenhower-style Important / Urgent flags,
-- 4D triage: Do / Defer / Delegate / Delete,
-- delegatability and optional delegate target,
 - dependency-aware Ready / Blocked state,
-- optional defer date,
+- optional hand-off target,
+- optional later date,
 - duration and status,
 - notes,
-- dependency-aware Next Move selection from ready DO actions,
+- dependency-aware Next Move selection from ready Do actions,
 - plan Review mode with execution-state summary,
 - local demo suggestions,
 - localStorage persistence,
