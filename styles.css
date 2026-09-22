@@ -5381,7 +5381,7 @@ body.dark .map-node.depth-4 {
 .map-mantra {
   z-index: 12;
   left: 50%;
-  bottom: 18px;
+  bottom: 54px;
   max-width: min(560px, 56vw);
   transform: translateX(-50%);
   padding: 7px 12px;
@@ -5399,9 +5399,8 @@ body.dark .map-mantra {
   color: rgba(225,239,233,.47);
 }
 
-body.empty-start .map-mantra,
-body:has(.selection-bar:not([hidden])) .map-mantra {
-  opacity: .52;
+body.empty-start .map-mantra {
+  display: none;
 }
 
 /* Controls feel less dashboard-like. */
