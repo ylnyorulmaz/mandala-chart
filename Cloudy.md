@@ -35,10 +35,12 @@ Main files:
 - `index.html` — planner shell and canvas UI
 - `about.html` — public explanation of the concept
 - `styles.css` — visual system and responsive behavior
-- `app.js` — state, layout, camera, editing, suggestions, next-action logic
+- `app.js` — UI state, layout, camera, editing, views, map library, relationships, suggestions, next-action logic
+- `storage.js` — IndexedDB abstraction for maps, snapshots, metadata, Groups, and cross-map links
 - `manifest.webmanifest` — PWA metadata
 - `sw.js` — offline caching
-- `vendor/` — locally vendored browser dependencies
+- `vendor/jquery-3.7.1.min.js` — local jQuery
+- `vendor/idb-6.1.5.min.js` — local idb wrapper
 
 No framework.
 
@@ -84,6 +86,10 @@ Any action can become the parent of smaller steps if it is still too broad.
 ### Planning is not the final output
 
 The product should surface executable leaf actions.
+
+### Maps are independent unless the user connects them
+
+Do not force every goal into one tree. The outer map graph is optional and separate from node hierarchy. Groups are loose labels; Related, Before/After, and Parent/Child express different meanings and must not be collapsed into one generic "project" field.
 
 ---
 
@@ -291,6 +297,12 @@ At minimum verify:
 - multiple map switching,
 - autosave snapshot restore,
 - legacy localStorage migration,
+- map Groups and cross-map link CRUD,
+- parent/sequence cycle protection,
+- relationship cleanup when a map is deleted,
+- Map/Table/Grid synchronization,
+- Grid hidden below 1024px,
+- all four palettes,
 - mobile viewport,
 - no CDN requests.
 
@@ -386,7 +398,10 @@ Stores:
 
 - `maps`,
 - `snapshots`,
-- `meta`.
+- `meta`,
+- `mapLinks`.
+
+Current database schema version: **2**.
 
 The UI must use the `MandalaStorage` abstraction rather than direct IndexedDB calls where practical. Preserve migration from the old localStorage state. Map saves are debounced; snapshots are deduplicated, rate-limited, and capped at 30 per map. Starting a new map must not destroy the previous map. Restore must save the current version first.
 
@@ -403,3 +418,5 @@ Use:
 - `mapLinks.type=parent` for hierarchy.
 
 Reverse UI labels such as After and Child of normalize into the same directed edge. Do not allow cycles in `before` or `parent`. Keep one direct parent per map for now. Map state snapshots do not contain these links; restoring a snapshot must leave outer-graph metadata intact.
+
+The Maps library currently visualizes this structure through grouped sections and relationship chips. There is no separate meta-canvas yet; if one is added later it should be a projection of the same `mapLinks` records.
