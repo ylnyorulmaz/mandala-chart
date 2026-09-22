@@ -41,6 +41,8 @@ In progress / functional prototype.
 - impact / effort metadata,
 - dependency-aware Ready / Blocked state,
 - decision table,
+- classic 9×9 Mandala Grid view,
+- synchronized Grid selection and action creation,
 - Next Move restricted to ready Do actions,
 - Review mode and triage summary,
 - localStorage,
