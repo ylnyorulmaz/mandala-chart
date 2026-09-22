@@ -3076,18 +3076,114 @@
     }
 
     await persistCurrentMapNow();
-    snapshotHistoryMapId = null;
-    $("#snapshotHistoryView").attr("hidden", true);
-    $("#mapsLibraryView").removeAttr("hidden");
+    showMapsLibraryPane();
     await renderMapsLibrary();
     $("#mapsModal").removeAttr("hidden");
   }
 
+  function showMapsLibraryPane() {
+    snapshotHistoryMapId = null;
+    relationshipMapId = null;
+    $("#snapshotHistoryView, #mapRelationshipsView").attr("hidden", true);
+    $("#mapsLibraryView").removeAttr("hidden");
+  }
+
   function closeMapsModal() {
     $("#mapsModal").attr("hidden", true);
-    snapshotHistoryMapId = null;
-    $("#snapshotHistoryView").attr("hidden", true);
-    $("#mapsLibraryView").removeAttr("hidden");
+    showMapsLibraryPane();
+  }
+
+  function mapRecordTitle(map) {
+    return map && map.title && map.title.trim() ? map.title.trim() : "Untitled map";
+  }
+
+  function mapLookup(maps) {
+    var lookup = {};
+    maps.forEach(function (map) {
+      lookup[map.id] = map;
+    });
+    return lookup;
+  }
+
+  function describeMapLinkFor(mapId, link, mapsById) {
+    var otherId;
+    var label;
+
+    if (link.type === "related") {
+      otherId = link.fromMapId === mapId ? link.toMapId : link.fromMapId;
+      label = "Related";
+    } else if (link.type === "before") {
+      if (link.fromMapId === mapId) {
+        otherId = link.toMapId;
+        label = "Before";
+      } else {
+        otherId = link.fromMapId;
+        label = "After";
+      }
+    } else if (link.type === "parent") {
+      if (link.fromMapId === mapId) {
+        otherId = link.toMapId;
+        label = "Parent of";
+      } else {
+        otherId = link.fromMapId;
+        label = "Child of";
+      }
+    }
+
+    var other = mapsById[otherId];
+    return {
+      otherId: otherId,
+      label: label || "Linked",
+      title: mapRecordTitle(other)
+    };
+  }
+
+  function renderMapLinkChips(mapId, links, mapsById) {
+    var relevant = links.filter(function (link) {
+      return link.fromMapId === mapId || link.toMapId === mapId;
+    });
+
+    if (!relevant.length) return "";
+
+    var visible = relevant.slice(0, 3).map(function (link) {
+      var description = describeMapLinkFor(mapId, link, mapsById);
+      return '<span class="map-link-chip">' +
+        '<b>' + escapeHtml(description.label) + '</b> ' +
+        escapeHtml(description.title) +
+      '</span>';
+    }).join("");
+
+    if (relevant.length > 3) {
+      visible += '<span class="map-link-chip map-link-more">+' + (relevant.length - 3) + '</span>';
+    }
+
+    return '<div class="map-link-chips">' + visible + '</div>';
+  }
+
+  function renderMapCard(entry, links, mapsById) {
+    var map = entry.map;
+    var current = map.id === currentMapId;
+    var group = String(map.group || "").trim();
+
+    return '<article class="map-card' + (current ? ' current' : '') + '" data-map-id="' + map.id + '">' +
+      '<div class="map-card-copy">' +
+        '<div class="map-card-title-row">' +
+          '<strong>' + escapeHtml(mapRecordTitle(map)) + '</strong>' +
+          (current ? '<span class="current-map-pill">Open</span>' : '') +
+        '</div>' +
+        '<span>Updated ' + escapeHtml(formatStoredTime(map.updatedAt)) +
+          ' · ' + entry.snapshotCount + ' version' + (entry.snapshotCount === 1 ? '' : 's') +
+          (group ? ' · ' + escapeHtml(group) : '') +
+        '</span>' +
+        renderMapLinkChips(map.id, links, mapsById) +
+      '</div>' +
+      '<div class="map-card-actions">' +
+        '<button class="soft-button map-open-button" type="button">' + (current ? 'Return' : 'Open') + '</button>' +
+        '<button class="soft-button map-connect-button" type="button">Connect</button>' +
+        '<button class="soft-button map-history-button" type="button">History</button>' +
+        '<button class="map-delete-button" type="button" aria-label="Delete map" title="Delete map">×</button>' +
+      '</div>' +
+    '</article>';
   }
 
   async function renderMapsLibrary() {
@@ -3105,6 +3201,8 @@
       return;
     }
 
+    var links = await window.MandalaStorage.listMapLinks();
+    var mapsById = mapLookup(maps);
     var rows = await Promise.all(maps.map(async function (map) {
       return {
         map: map,
@@ -3112,27 +3210,215 @@
       };
     }));
 
-    var html = rows.map(function (entry) {
-      var map = entry.map;
-      var current = map.id === currentMapId;
-      return '<article class="map-card' + (current ? ' current' : '') + '" data-map-id="' + map.id + '">' +
-        '<div class="map-card-copy">' +
-          '<div class="map-card-title-row">' +
-            '<strong>' + escapeHtml(map.title || "Untitled map") + '</strong>' +
-            (current ? '<span class="current-map-pill">Open</span>' : '') +
-          '</div>' +
-          '<span>Updated ' + escapeHtml(formatStoredTime(map.updatedAt)) +
-            ' · ' + entry.snapshotCount + ' version' + (entry.snapshotCount === 1 ? '' : 's') + '</span>' +
+    var groups = {};
+    rows.forEach(function (entry) {
+      var group = String(entry.map.group || "").trim();
+      var key = group || "__ungrouped__";
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(entry);
+    });
+
+    var groupKeys = Object.keys(groups).sort(function (a, b) {
+      if (a === "__ungrouped__") return 1;
+      if (b === "__ungrouped__") return -1;
+      return a.localeCompare(b);
+    });
+
+    var html = groupKeys.map(function (key) {
+      var title = key === "__ungrouped__" ? "Ungrouped" : key;
+      var entries = groups[key];
+
+      return '<section class="map-group-section">' +
+        '<div class="map-group-heading">' +
+          '<strong>' + escapeHtml(title) + '</strong>' +
+          '<span>' + entries.length + ' map' + (entries.length === 1 ? '' : 's') + '</span>' +
         '</div>' +
-        '<div class="map-card-actions">' +
-          '<button class="soft-button map-open-button" type="button">' + (current ? 'Return' : 'Open') + '</button>' +
-          '<button class="soft-button map-history-button" type="button">History</button>' +
-          '<button class="map-delete-button" type="button" aria-label="Delete map" title="Delete map">×</button>' +
+        '<div class="map-group-cards">' +
+          entries.map(function (entry) {
+            return renderMapCard(entry, links, mapsById);
+          }).join("") +
         '</div>' +
-      '</article>';
+      '</section>';
     }).join("");
 
     $("#mapsList").html(html);
+  }
+
+  async function openMapRelationships(mapId) {
+    if (!storageReady || !mapId) return;
+
+    await persistCurrentMapNow();
+
+    var maps = await window.MandalaStorage.listMaps();
+    var record = maps.find(function (map) { return map.id === mapId; });
+    if (!record) return;
+
+    relationshipMapId = mapId;
+    snapshotHistoryMapId = null;
+
+    $("#mapsLibraryView, #snapshotHistoryView").attr("hidden", true);
+    $("#mapRelationshipsView").removeAttr("hidden");
+    $("#relationshipMapTitle").text(mapRecordTitle(record));
+    $("#mapGroupInput").val(record.group || "");
+
+    var targets = maps.filter(function (map) {
+      return map.id !== mapId;
+    });
+
+    $("#mapRelationTarget").html(
+      targets.length
+        ? targets.map(function (map) {
+            return '<option value="' + map.id + '">' + escapeHtml(mapRecordTitle(map)) + '</option>';
+          }).join("")
+        : '<option value="">Create another map first</option>'
+    );
+
+    $("#mapRelationTarget, #mapRelationType, #addMapRelationButton")
+      .prop("disabled", !targets.length);
+
+    await renderMapRelationships();
+  }
+
+  async function renderMapRelationships() {
+    if (!storageReady || !relationshipMapId) return;
+
+    var maps = await window.MandalaStorage.listMaps();
+    var mapsById = mapLookup(maps);
+    var links = await window.MandalaStorage.listMapLinks(relationshipMapId);
+
+    if (!links.length) {
+      $("#mapRelationsList").html(
+        '<div class="maps-empty relation-empty">' +
+          '<strong>No connections yet.</strong>' +
+          '<p>This map is independent. Connect it only when the relationship is useful.</p>' +
+        '</div>'
+      );
+      return;
+    }
+
+    var html = links.map(function (link) {
+      var description = describeMapLinkFor(relationshipMapId, link, mapsById);
+      return '<article class="map-relation-row" data-link-id="' + link.id + '">' +
+        '<div class="map-relation-copy">' +
+          '<span class="relation-kind">' + escapeHtml(description.label) + '</span>' +
+          '<strong>' + escapeHtml(description.title) + '</strong>' +
+        '</div>' +
+        '<button class="remove-map-link" type="button" aria-label="Remove relationship" title="Remove relationship">×</button>' +
+      '</article>';
+    }).join("");
+
+    $("#mapRelationsList").html(html);
+  }
+
+  async function saveRelationshipMapGroup() {
+    if (!storageReady || !relationshipMapId) return;
+
+    var groupName = $("#mapGroupInput").val().trim();
+    await window.MandalaStorage.updateMapGroup(relationshipMapId, groupName);
+
+    if (relationshipMapId === currentMapId) {
+      await persistCurrentMapNow();
+    }
+
+    showToast(groupName ? "Map grouped." : "Map left ungrouped.");
+  }
+
+  function normalizedMapRelation(relationType, currentId, targetId) {
+    if (relationType === "after") {
+      return { type: "before", fromMapId: targetId, toMapId: currentId };
+    }
+
+    if (relationType === "child") {
+      return { type: "parent", fromMapId: targetId, toMapId: currentId };
+    }
+
+    return {
+      type: relationType,
+      fromMapId: currentId,
+      toMapId: targetId
+    };
+  }
+
+  function wouldCreateMapCycle(type, fromMapId, toMapId, links) {
+    if (type !== "before" && type !== "parent") return false;
+
+    var adjacency = {};
+    links.filter(function (link) {
+      return link.type === type;
+    }).forEach(function (link) {
+      if (!adjacency[link.fromMapId]) adjacency[link.fromMapId] = [];
+      adjacency[link.fromMapId].push(link.toMapId);
+    });
+
+    if (!adjacency[fromMapId]) adjacency[fromMapId] = [];
+    adjacency[fromMapId].push(toMapId);
+
+    var seen = {};
+    var stack = [toMapId];
+
+    while (stack.length) {
+      var current = stack.pop();
+      if (current === fromMapId) return true;
+      if (seen[current]) continue;
+      seen[current] = true;
+      (adjacency[current] || []).forEach(function (next) {
+        stack.push(next);
+      });
+    }
+
+    return false;
+  }
+
+  async function addRelationshipFromEditor() {
+    if (!storageReady || !relationshipMapId) return;
+
+    var relationType = $("#mapRelationType").val();
+    var targetId = $("#mapRelationTarget").val();
+    if (!targetId || targetId === relationshipMapId) return;
+
+    var normalized = normalizedMapRelation(relationType, relationshipMapId, targetId);
+    var links = await window.MandalaStorage.listMapLinks();
+
+    if (wouldCreateMapCycle(
+      normalized.type,
+      normalized.fromMapId,
+      normalized.toMapId,
+      links
+    )) {
+      showToast(normalized.type === "parent"
+        ? "That would create a circular hierarchy."
+        : "That would create a circular sequence.");
+      return;
+    }
+
+    if (normalized.type === "parent") {
+      var existingParent = links.find(function (link) {
+        return link.type === "parent" &&
+          link.toMapId === normalized.toMapId &&
+          link.fromMapId !== normalized.fromMapId;
+      });
+
+      if (existingParent) {
+        showToast("That map already has a parent.");
+        return;
+      }
+    }
+
+    await window.MandalaStorage.addMapLink(
+      normalized.type,
+      normalized.fromMapId,
+      normalized.toMapId
+    );
+
+    await renderMapRelationships();
+    showToast("Maps connected.");
+  }
+
+  async function removeMapRelationship(linkId) {
+    if (!storageReady || !linkId) return;
+    await window.MandalaStorage.deleteMapLink(linkId);
+    await renderMapRelationships();
+    showToast("Connection removed.");
   }
 
   async function openStoredMap(mapId) {
