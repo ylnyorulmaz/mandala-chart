@@ -2339,3 +2339,233 @@ body.dark .about-card h2 {
     border-radius: 22px;
   }
 }
+
+
+/* --------------------------------------------------------------------------
+   Ultra-minimal planner shell
+   First screen: top navigation + one large circle. Nothing else.
+   -------------------------------------------------------------------------- */
+
+.app-page {
+  min-height: 100dvh;
+}
+
+.minimal-main {
+  min-height: calc(100dvh - 68px);
+}
+
+.minimal-planner {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  min-height: calc(100dvh - 68px);
+}
+
+.minimal-map-frame {
+  width: 100%;
+  min-height: calc(100dvh - 68px);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  overflow: hidden;
+}
+
+.minimal-map-frame .map-viewport {
+  height: calc(100dvh - 68px);
+  min-height: 0;
+  border-radius: 0;
+}
+
+.minimal-planner > .planner-actions {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  z-index: 45;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-strong) 84%, transparent);
+  box-shadow: 0 8px 24px rgba(104, 78, 54, .08);
+  backdrop-filter: blur(16px);
+}
+
+/* The first impression is deliberately almost empty. */
+body.empty-start {
+  overflow: hidden;
+}
+
+body.empty-start .minimal-main,
+body.empty-start .minimal-planner,
+body.empty-start .minimal-map-frame {
+  height: calc(100dvh - 68px);
+  min-height: calc(100dvh - 68px);
+}
+
+body.empty-start .minimal-map-frame .map-viewport {
+  height: calc(100dvh - 68px);
+  min-height: calc(100dvh - 68px);
+  cursor: default;
+  background: var(--bg);
+}
+
+body.empty-start .map-toolbar,
+body.empty-start .map-hint,
+body.empty-start .canvas-status,
+body.empty-start .planner-actions,
+body.empty-start .selection-bar,
+body.empty-start .minimap {
+  display: none !important;
+}
+
+body.empty-start .empty-map {
+  background: transparent;
+}
+
+body.empty-start .root-starter {
+  width: min(430px, 58vw);
+  height: min(430px, 58vw);
+  min-width: 320px;
+  min-height: 320px;
+  padding: 54px;
+  border-radius: 50%;
+  color: #fffaf4;
+  background:
+    radial-gradient(circle at 31% 24%, rgba(255,255,255,.17), transparent 31%),
+    linear-gradient(145deg, #f08a72, #d95f4b);
+  border: 0;
+  box-shadow:
+    0 34px 80px rgba(193, 91, 69, .20),
+    0 0 0 1px rgba(255,255,255,.20) inset;
+  animation: minimalCircleBreathe 4.2s ease-in-out infinite;
+}
+
+body.dark.empty-start .minimal-map-frame .map-viewport {
+  background: var(--bg);
+}
+
+body.empty-start .starter-glow {
+  inset: -72px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(239, 130, 107, .20), transparent 68%);
+  opacity: .8;
+  animation: minimalGlow 4.2s ease-in-out infinite;
+}
+
+body.empty-start .starter-copy {
+  display: grid;
+  place-items: center;
+  gap: 0;
+}
+
+body.empty-start .starter-copy strong {
+  max-width: 310px;
+  margin: 0;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: clamp(29px, 3.25vw, 42px);
+  line-height: 1.08;
+  font-weight: 610;
+  letter-spacing: -.045em;
+  text-wrap: balance;
+}
+
+body.empty-start #rootInput {
+  width: 78%;
+  min-height: 150px;
+  max-height: 210px;
+  resize: none;
+  border: 0;
+  outline: 0;
+  padding: 12px 4px;
+  background: transparent;
+  color: #fffaf4;
+  text-align: center;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: clamp(25px, 3vw, 38px);
+  line-height: 1.12;
+  font-weight: 610;
+  letter-spacing: -.035em;
+  caret-color: #fffaf4;
+}
+
+body.empty-start #rootInput::placeholder {
+  color: rgba(255,250,244,.52);
+}
+
+@keyframes minimalCircleBreathe {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow:
+      0 34px 80px rgba(193, 91, 69, .20),
+      0 0 0 1px rgba(255,255,255,.20) inset;
+  }
+  50% {
+    transform: scale(1.018);
+    box-shadow:
+      0 38px 92px rgba(193, 91, 69, .24),
+      0 0 0 1px rgba(255,255,255,.22) inset;
+  }
+}
+
+@keyframes minimalGlow {
+  0%, 100% { opacity: .58; transform: scale(.98); }
+  50% { opacity: .9; transform: scale(1.04); }
+}
+
+/* Once a goal exists, the page is still primarily the map. */
+body:not(.empty-start) .minimal-map-frame .map-viewport {
+  background:
+    radial-gradient(circle, rgba(117, 91, 67, .13) 1.1px, transparent 1.2px),
+    #fffaf4;
+  background-size: 25px 25px;
+}
+
+body.dark:not(.empty-start) .minimal-map-frame .map-viewport {
+  background:
+    radial-gradient(circle, rgba(250, 232, 214, .09) 1px, transparent 1.1px),
+    #29241f;
+  background-size: 25px 25px;
+}
+
+@media (max-width: 680px) {
+  .minimal-main,
+  .minimal-planner,
+  .minimal-map-frame,
+  .minimal-map-frame .map-viewport,
+  body.empty-start .minimal-main,
+  body.empty-start .minimal-planner,
+  body.empty-start .minimal-map-frame,
+  body.empty-start .minimal-map-frame .map-viewport {
+    min-height: calc(100dvh - 62px);
+    height: calc(100dvh - 62px);
+  }
+
+  body.empty-start .root-starter {
+    width: min(320px, 82vw);
+    height: min(320px, 82vw);
+    min-width: 260px;
+    min-height: 260px;
+    padding: 38px;
+  }
+
+  body.empty-start .starter-copy strong {
+    max-width: 235px;
+    font-size: clamp(26px, 8vw, 34px);
+  }
+
+  body.empty-start #rootInput {
+    width: 84%;
+    min-height: 116px;
+    font-size: clamp(23px, 7vw, 31px);
+  }
+
+  .minimal-planner > .planner-actions {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    justify-content: center;
+    border-radius: 18px;
+  }
+}
