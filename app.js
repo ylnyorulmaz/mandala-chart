@@ -1039,7 +1039,7 @@
         '<td class="done-col"><label class="table-check" aria-label="' +
           escapeHtml(done ? "Mark open" : "Mark done") + '">' +
           '<input class="table-done-input" type="checkbox"' +
-            (done ? " checked" : "") + (!title ? " disabled" : "") + '>' +
+            (done ? " checked" : "") + ((!title || decision === "delete") ? " disabled" : "") + '>' +
           '<span>✓</span></label></td>' +
         '<td class="node-col"><div class="table-node-cell" style="--depth:' + Math.min(node.depth || 0, 4) + '">' +
           (canExpand
@@ -1296,10 +1296,12 @@
       }
 
       if (!placeholder) {
-        html += '<button class="node-complete" type="button" aria-label="' +
-          (node.status === "done" ? "Mark open" : "Mark done") + '" title="' +
-          (node.status === "done" ? "Mark open" : "Mark done") + '">' +
-          (node.status === "done" ? "✓" : "") + "</button>";
+        if (decisionValue(node) !== "delete") {
+          html += '<button class="node-complete" type="button" aria-label="' +
+            (node.status === "done" ? "Mark open" : "Mark done") + '" title="' +
+            (node.status === "done" ? "Mark open" : "Mark done") + '">' +
+            (node.status === "done" ? "✓" : "") + "</button>";
+        }
 
         html += '<span class="node-badge">' + typeLabel(node) +
           (node.status === "done" ? " · DONE" : "") + "</span>" +
