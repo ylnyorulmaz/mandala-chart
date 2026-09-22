@@ -19,7 +19,7 @@ It supports:
 - one central goal,
 - eight driver nodes,
 - recursive actions and smaller steps,
-- switchable map and table views,
+- switchable Map, Table, and classic 9×9 Grid views,
 - responsive mobile touch layout with safe-area support,
 - phone-friendly table cards instead of forced desktop-width scrolling,
 - simple decisions: Do / Later / Hand off / Drop,
@@ -53,7 +53,7 @@ It supports:
 
 1. Enter one central goal.
 2. Eight driver nodes animate outward.
-3. Switch between the spatial Map view and a structured Table view at any time.
+3. Switch between Map, Table, and classic 9×9 Grid views at any time.
 4. Pan and zoom while keeping the whole map available.
 5. Click a node to focus the camera on that branch, or use the arrow keys to hop spatially between visible nodes.
 6. Expand a driver into executable actions.
@@ -264,3 +264,19 @@ Keyboard and pointer navigation are designed to cooperate:
 - Clicking empty canvas clears the active node; the next arrow key starts spatial navigation from what is currently on screen.
 - Manual drag, pinch, wheel, or node drag cancels any in-progress camera focus animation, so the camera does not fight the user.
 - Pointer movement is coalesced through animation frames for smoother canvas panning.
+
+
+### 9×9 Grid view
+
+The third view is a classic Mandala / Mandalart matrix:
+
+- exactly **9×9 cells**,
+- the goal sits in the exact center,
+- the eight drivers surround the goal in the middle 3×3,
+- each driver is repeated at the center of its own outer 3×3 block,
+- that block's eight surrounding cells show the driver's eight actions,
+- action cells stay synchronized with Map and Table state,
+- empty action cells can be tapped/clicked to create that action branch,
+- deeper descendants are represented with a small count instead of trying to force recursive steps into the fixed 9×9 matrix.
+
+The Grid view is a structured overview, not a replacement for the recursive Map view.
