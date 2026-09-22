@@ -410,3 +410,5 @@ Design rules:
 - Do not force deeper recursive Steps into the fixed matrix; show a small descendant count and use Map/Table for deeper structure.
 - Grid, Map, and Table must all read/write the same node objects. Never create a separate Grid data model.
 - Keep the current calm/playful visual language; the reference image is structural inspiration only.
+
+- Grid view must be hidden below 1024px viewport width; if the viewport shrinks while Grid is active, fall back to Map.
