@@ -2912,9 +2912,18 @@
       dawn: "Dawn"
     };
 
+    var themeColors = {
+      light: "#fbf8ef",
+      dark: "#202624",
+      sage: "#e7efe7",
+      dawn: "#f3e6df"
+    };
+
     $("#themeButton")
       .attr("title", "Palette: " + labels[current])
       .attr("aria-label", "Choose color palette. Current: " + labels[current]);
+
+    $('meta[name="theme-color"]').attr("content", themeColors[current]);
   }
 
   function applyStoredTheme() {
