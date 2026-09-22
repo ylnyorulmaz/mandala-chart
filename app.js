@@ -13,6 +13,7 @@
   var currentNextId = null;
   var toastTimer = null;
   var promptTimer = null;
+  var promptSwapTimer = null;
   var promptIndex = 0;
   var initialRender = true;
 
@@ -30,7 +31,9 @@
   var activeView = "map";
 
   var PROMPTS = [
-    "What do you want to achieve today?"
+    "achieve",
+    "do",
+    "finish"
   ];
 
   var LABELS = {
@@ -2149,7 +2152,30 @@
   function startPromptRotation() {
     stopPromptRotation();
     promptIndex = 0;
-    $("#rotatingPrompt").text(PROMPTS[0]);
+
+    var $verb = $("#rotatingVerb");
+    if (!$verb.length) return;
+
+    $verb.text(PROMPTS[0]);
+
+    promptTimer = setInterval(function () {
+      promptIndex = (promptIndex + 1) % PROMPTS.length;
+
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        $verb.text(PROMPTS[promptIndex]);
+        return;
+      }
+
+      $verb.addClass("swap-out");
+
+      promptSwapTimer = setTimeout(function () {
+        $verb.text(PROMPTS[promptIndex]).removeClass("swap-out").addClass("swap-in");
+        promptSwapTimer = setTimeout(function () {
+          $verb.removeClass("swap-in");
+          promptSwapTimer = null;
+        }, 220);
+      }, 180);
+    }, 2800);
   }
 
   function stopPromptRotation() {
@@ -2157,6 +2183,13 @@
       clearInterval(promptTimer);
       promptTimer = null;
     }
+
+    if (promptSwapTimer) {
+      clearTimeout(promptSwapTimer);
+      promptSwapTimer = null;
+    }
+
+    $("#rotatingVerb").removeClass("swap-out swap-in");
   }
 
   function openSuggestionModal() {
