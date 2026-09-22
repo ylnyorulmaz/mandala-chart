@@ -42,6 +42,18 @@
     return prefix + "_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 9);
   }
 
+  function stateSignature(state) {
+    var text = JSON.stringify(state);
+    var hash = 2166136261;
+
+    for (var i = 0; i < text.length; i++) {
+      hash ^= text.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+
+    return text.length.toString(36) + ":" + (hash >>> 0).toString(36);
+  }
+
   async function listMaps() {
     var db = await init();
     var maps = await db.getAll("maps");
@@ -112,7 +124,7 @@
   async function createSnapshot(mapId, title, state, reason) {
     if (!mapId || !state || !state.rootId) return null;
 
-    var signature = JSON.stringify(state);
+    var signature = stateSignature(state);
     var latest = (await listSnapshots(mapId, 1))[0];
 
     if (latest && latest.signature === signature) {
