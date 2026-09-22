@@ -118,6 +118,12 @@ Clicking a node should focus or center it while preserving spatial context.
 
 Goal, Driver, Action, and Step should be visually distinguishable.
 
+### Keep the visual language warm and personal
+
+Mandala should not look like an enterprise dashboard.
+
+Prefer warm neutrals, soft rounded controls, friendly accent colors, human microcopy, and a calm notebook-like canvas. Avoid cold corporate blue as the dominant language, dense admin chrome, and unnecessary uppercase UI text.
+
 ### Avoid visual clutter
 
 A graph can become unreadable quickly.
