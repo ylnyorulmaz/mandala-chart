@@ -536,7 +536,8 @@
 
       selectedId = id;
       editingId = null;
-      renderGrid();
+      $("#mandalaGrid .mandala-grid-cell").removeClass("selected");
+      $('#mandalaGrid .mandala-grid-cell[data-node-id="' + id + '"]').addClass("selected");
       $(this).focus();
     });
 
@@ -1371,9 +1372,8 @@
     var id = $next.data("node-id");
     if (id && state.nodes[id]) {
       selectedId = id;
-      renderGrid();
-      var $restored = $('#mandalaGrid .mandala-grid-cell[data-row="' + row + '"][data-col="' + col + '"]');
-      if ($restored.length) $restored.focus();
+      $("#mandalaGrid .mandala-grid-cell").removeClass("selected");
+      $('#mandalaGrid .mandala-grid-cell[data-node-id="' + id + '"]').addClass("selected");
     }
   }
 
