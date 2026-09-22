@@ -287,7 +287,10 @@ At minimum verify:
 - details inspector,
 - next action,
 - JSON export,
-- persistence after reload,
+- IndexedDB persistence after reload,
+- multiple map switching,
+- autosave snapshot restore,
+- legacy localStorage migration,
 - mobile viewport,
 - no CDN requests.
 
@@ -369,3 +372,20 @@ Do not copy the visual design of reference templates. Preserve Mandala's current
 Theme selection is now a four-choice palette menu: Light, Dark, Sage, Dawn.
 
 Persist the selected value using the existing theme localStorage key. Keep `body.dark` compatibility for the Dark palette, use root CSS variables for palette-wide backgrounds/surfaces, and keep all views readable before adding more palette choices.
+
+
+### IndexedDB persistence
+
+Planner persistence uses:
+
+- `vendor/idb-6.1.5.min.js`,
+- `storage.js`,
+- IndexedDB database `mandala-local`.
+
+Stores:
+
+- `maps`,
+- `snapshots`,
+- `meta`.
+
+The UI must use the `MandalaStorage` abstraction rather than direct IndexedDB calls where practical. Preserve migration from the old localStorage state. Map saves are debounced; snapshots are deduplicated, rate-limited, and capped at 30 per map. Starting a new map must not destroy the previous map. Restore must save the current version first.

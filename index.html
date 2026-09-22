@@ -32,6 +32,7 @@
         </nav>
 
         <div class="nav-actions">
+          <button class="soft-button maps-button" id="mapsButton" type="button">Maps</button>
           <button class="soft-button continue-button" id="continueButton" type="button" hidden>Resume</button>
           <div class="theme-picker">
             <button class="icon-button theme-button" id="themeButton" type="button"
@@ -85,7 +86,7 @@
           <button class="soft-button" id="nextButton" type="button">Next move</button>
           <button class="soft-button review-button" id="reviewButton" type="button">Review</button>
           <button class="soft-button" id="exportButton" type="button">Save</button>
-          <button class="soft-button muted" id="resetButton" type="button">Restart</button>
+          <button class="soft-button muted" id="resetButton" type="button">New map</button>
         </div>
 
         <div class="map-frame minimal-map-frame">
@@ -310,6 +311,38 @@
     </section>
   </div>
 
+  <div class="modal-backdrop" id="mapsModal" hidden>
+    <section class="modal maps-modal" role="dialog" aria-modal="true" aria-labelledby="mapsTitle">
+      <button class="icon-button modal-close" id="closeMapsModal" type="button" aria-label="Close maps">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+      </button>
+
+      <div id="mapsLibraryView">
+        <div class="maps-modal-head">
+          <div>
+            <span class="node-eyebrow">Local library</span>
+            <h2 id="mapsTitle">Your maps</h2>
+            <p>Each map stays on this device. Recent versions are saved automatically.</p>
+          </div>
+          <button class="primary-button" id="newMapButton" type="button">+ New map</button>
+        </div>
+        <div class="maps-list" id="mapsList" aria-live="polite"></div>
+      </div>
+
+      <div id="snapshotHistoryView" hidden>
+        <div class="snapshot-head">
+          <button class="soft-button" id="backToMapsButton" type="button">← Maps</button>
+          <div>
+            <span class="node-eyebrow">Autosave history</span>
+            <h2 id="snapshotMapTitle">Versions</h2>
+          </div>
+        </div>
+        <p class="snapshot-help">Restore any saved version. The current version is snapshotted first, so you can undo the restore.</p>
+        <div class="snapshot-list" id="snapshotList" aria-live="polite"></div>
+      </div>
+    </section>
+  </div>
+
   <div class="modal-backdrop" id="reviewModal" hidden>
     <section class="modal review-modal" role="dialog" aria-modal="true" aria-labelledby="reviewTitle">
       <button class="icon-button modal-close" id="closeReviewModal" type="button" aria-label="Close review">
@@ -344,6 +377,8 @@
   </div>
 
   <script src="vendor/jquery-3.7.1.min.js"></script>
+  <script src="vendor/idb-6.1.5.min.js"></script>
+  <script src="storage.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

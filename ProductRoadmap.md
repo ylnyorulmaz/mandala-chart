@@ -45,7 +45,9 @@ In progress / functional prototype.
 - synchronized Grid selection and action creation,
 - Next Move restricted to ready Do actions,
 - Review mode and triage summary,
-- localStorage,
+- IndexedDB via locally vendored `idb`,
+- multiple local maps,
+- autosave snapshots + restore,
 - JSON export,
 - local demo suggestions.
 
@@ -105,8 +107,8 @@ Reach a version that can be used every day without fighting the interface.
 
 ### 5. State safety
 
-- prevent localStorage corruption,
-- autosave reliably,
+- verify IndexedDB migration and recovery,
+- verify multi-map autosave reliably,
 - add import from exported JSON,
 - add explicit backup/export,
 - consider lightweight undo/redo.
@@ -304,16 +306,23 @@ For BYOK, design key handling deliberately before implementation.
 
 ---
 
-# Phase 5 — Multiple maps and history
+# Phase 5 — Expand multiple maps and history
 
 ## Goal
 
-Move from one experiment to a reusable personal system.
+Build on the now-shipped local multi-map + snapshot foundation and turn it into a stronger reusable personal system.
 
-## Features
+## Already implemented
 
 - create multiple maps,
-- map library,
+- local map library,
+- IndexedDB persistence via `idb`,
+- bounded autosave snapshots,
+- restore earlier versions.
+
+## Remaining features
+
+- richer map library,
 - rename/archive maps,
 - duplicate map,
 - templates,
@@ -321,7 +330,6 @@ Move from one experiment to a reusable personal system.
 - last-opened position/zoom,
 - map-level progress,
 - import/export,
-- version snapshots,
 - undo/redo,
 - recovery after accidental deletion.
 

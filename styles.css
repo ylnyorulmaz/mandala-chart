@@ -6603,3 +6603,215 @@ body.theme-dawn .minimal-planner > .planner-actions {
     transition: none !important;
   }
 }
+
+
+/* ==========================================================================
+   Local map library + autosave history
+   ========================================================================== */
+
+.maps-button {
+  min-height: 40px;
+  padding-inline: 12px;
+}
+
+.maps-modal {
+  width: min(780px, calc(100vw - 28px));
+}
+
+.maps-modal-head,
+.snapshot-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.maps-modal-head h2,
+.snapshot-head h2 {
+  margin: 4px 0 4px;
+}
+
+.maps-modal-head p,
+.snapshot-help {
+  margin: 0;
+  color: var(--flow-muted, var(--muted));
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.maps-list,
+.snapshot-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 18px;
+  max-height: min(58dvh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+.map-card,
+.snapshot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1px solid var(--flow-line, var(--line));
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--flow-paper, var(--surface-strong)) 78%, transparent);
+  box-shadow: 0 3px 0 rgba(55,80,71,.025);
+}
+
+.map-card.current {
+  border-color: color-mix(in srgb, var(--flow-jade, #4e9b88) 34%, transparent);
+  background: color-mix(in srgb, var(--flow-jade, #4e9b88) 7%, var(--flow-paper, #fbf8ef));
+}
+
+.map-card-copy,
+.snapshot-row > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.map-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.map-card-copy strong,
+.snapshot-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--flow-ink, var(--text));
+  font-size: 12px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-card-copy > span,
+.snapshot-row span {
+  color: var(--flow-muted, var(--muted));
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.current-map-pill {
+  flex: 0 0 auto;
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: #2f725c;
+  background: rgba(98,198,164,.15);
+  font-size: 7px;
+  font-weight: 950;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.map-card-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-card-actions .soft-button,
+.snapshot-row .soft-button {
+  min-height: 38px;
+  padding-inline: 10px;
+}
+
+.map-delete-button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(199,94,94,.13);
+  border-radius: 12px;
+  background: rgba(199,94,94,.055);
+  color: #a95757;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.map-delete-button:hover,
+.map-delete-button:focus-visible {
+  outline: 0;
+  background: rgba(199,94,94,.11);
+}
+
+.maps-empty {
+  padding: 26px 18px;
+  border: 1px dashed var(--flow-line, var(--line));
+  border-radius: 17px;
+  color: var(--flow-muted, var(--muted));
+  text-align: center;
+}
+
+.maps-empty strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--flow-ink, var(--text));
+}
+
+.maps-empty p {
+  margin: 0;
+  font-size: 10px;
+}
+
+.snapshot-head {
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.snapshot-help {
+  margin-top: 12px;
+}
+
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) {
+  .maps-button {
+    min-height: 42px;
+    padding-inline: 9px;
+    font-size: 9px;
+  }
+
+  .maps-modal-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .maps-modal-head .primary-button {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .maps-list,
+  .snapshot-list {
+    max-height: none;
+  }
+
+  .map-card,
+  .snapshot-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .map-card-actions {
+    width: 100%;
+  }
+
+  .map-card-actions .soft-button {
+    flex: 1 1 auto;
+  }
+
+  .map-delete-button {
+    width: 44px;
+    height: 44px;
+  }
+}

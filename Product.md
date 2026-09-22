@@ -446,6 +446,27 @@ A useful visual rule:
 
 > Calm before the action. Spark at the action. Calm after the action.
 
+### Multiple local maps and recovery
+
+Local-first now means more than one serialized map.
+
+The browser stores multiple maps in IndexedDB using a locally vendored `idb` wrapper.
+
+The Maps library lets the user:
+
+- keep several Mandalas on the same device,
+- switch between them without overwriting the current plan,
+- start a new map without destroying the old one,
+- inspect autosaved versions,
+- restore an earlier version.
+
+Autosave uses two layers:
+
+1. the current map record is saved shortly after edits,
+2. deduplicated version snapshots are created after editing settles, with a bounded history.
+
+Keep this intentionally local and simple. It is recovery/history, not cloud sync or collaborative version control.
+
 ### Personal color palettes
 
 The user can choose the background mood without changing the product's visual language.
@@ -513,7 +534,8 @@ The current front-end prototype supports:
 - dependency-aware Next Move selection from ready Do actions,
 - plan Review mode with execution-state summary,
 - local demo suggestions,
-- localStorage persistence,
+- IndexedDB multi-map persistence,
+- bounded autosave version history,
 - JSON export,
 - PWA installation,
 - offline-capable service-worker caching,

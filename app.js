@@ -5,8 +5,16 @@
   var LEGACY_STORAGE_KEY = "mandala-chart-state-v1";
   var THEME_KEY = "mandala-chart-theme-v1";
 
-  var state = loadState();
-  var selectedId = state.rootId || null;
+  var state = defaultState();
+  var currentMapId = null;
+  var currentMapCreatedAt = null;
+  var storageReady = false;
+  var stateSaveTimer = null;
+  var snapshotTimer = null;
+  var lastSnapshotAt = 0;
+  var snapshotHistoryMapId = null;
+
+  var selectedId = null;
   var editingId = null;
   var selectedDetailId = null;
   var suggestionBuffer = [];
@@ -181,7 +189,7 @@
 
   $(init);
 
-  function init() {
+  async function init() {
     applyStoredTheme();
     $("#year").text(new Date().getFullYear());
     bindGlobalEvents();
@@ -189,15 +197,27 @@
     if (!$("#mapViewport").length) return;
 
     bindPlannerEvents();
+    await initializePlannerStorage();
 
     if (state.rootId && state.nodes[state.rootId]) {
-      selectedId = selectedId || state.rootId;
+      selectedId = state.rootId;
       normalizeState();
     }
 
     showEmptyMap();
     startPromptRotation();
     initialRender = false;
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") {
+        persistCurrentMapNow();
+        createAutosaveSnapshot("Background autosave", false);
+      }
+    });
+
+    window.addEventListener("pagehide", function () {
+      persistCurrentMapNow();
+    });
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
@@ -242,6 +262,45 @@
       var delta = (e.key === "ArrowRight" || e.key === "ArrowDown") ? 1 : -1;
       var next = (current + delta + $choices.length) % $choices.length;
       $choices.eq(next).focus();
+    });
+
+    $("#mapsButton").on("click", function () {
+      openMapsModal();
+    });
+
+    $("#closeMapsModal").on("click", closeMapsModal);
+    $("#backToMapsButton").on("click", function () {
+      snapshotHistoryMapId = null;
+      $("#snapshotHistoryView").attr("hidden", true);
+      $("#mapsLibraryView").removeAttr("hidden");
+      renderMapsLibrary();
+    });
+
+    $("#newMapButton").on("click", async function () {
+      await createAutosaveSnapshot("Before new map", true);
+      await persistCurrentMapNow();
+      closeMapsModal();
+      startNewMap(true);
+    });
+
+    $("#mapsList").on("click", ".map-open-button", function () {
+      openStoredMap($(this).closest(".map-card").data("map-id"));
+    });
+
+    $("#mapsList").on("click", ".map-history-button", function () {
+      openSnapshotHistory($(this).closest(".map-card").data("map-id"));
+    });
+
+    $("#mapsList").on("click", ".map-delete-button", function () {
+      deleteStoredMap($(this).closest(".map-card").data("map-id"));
+    });
+
+    $("#snapshotList").on("click", ".snapshot-restore-button", function () {
+      restoreSnapshot($(this).closest(".snapshot-row").data("snapshot-id"));
+    });
+
+    $("#mapsModal").on("click", function (e) {
+      if (e.target === this) closeMapsModal();
     });
 
     $("#continueButton").on("click", function () {
@@ -864,7 +923,7 @@
     $(document).on("keydown", function (e) {
       if (e.key === "Escape") {
         closeInspector();
-        $("#suggestionModal, #nextModal, #reviewModal").attr("hidden", true);
+        $("#suggestionModal, #nextModal, #reviewModal, #mapsModal").attr("hidden", true);
         if (editingId) {
           editingId = null;
           renderAll(false);
@@ -908,11 +967,25 @@
     return {
       rootId: null,
       nodes: {},
-      version: 4
+      version: 5
     };
   }
 
-  function loadState() {
+  function mapUid() {
+    return "map_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 9);
+  }
+
+  function cloneState(value) {
+    return JSON.parse(JSON.stringify(value || defaultState()));
+  }
+
+  function currentMapTitle(sourceState) {
+    var target = sourceState || state;
+    var root = target.rootId && target.nodes ? target.nodes[target.rootId] : null;
+    return root && root.title && root.title.trim() ? root.title.trim() : "Untitled map";
+  }
+
+  function loadLegacyState() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) raw = localStorage.getItem(LEGACY_STORAGE_KEY);
@@ -920,10 +993,80 @@
 
       var parsed = JSON.parse(raw);
       if (!parsed || !parsed.nodes) return defaultState();
-      parsed.version = 4;
+      parsed.version = 5;
       return parsed;
     } catch (e) {
       return defaultState();
+    }
+  }
+
+  async function initializePlannerStorage() {
+    try {
+      if (!window.MandalaStorage) throw new Error("MandalaStorage unavailable");
+      await window.MandalaStorage.init();
+      storageReady = true;
+
+      var maps = await window.MandalaStorage.listMaps();
+
+      if (!maps.length) {
+        var legacy = loadLegacyState();
+
+        if (legacy.rootId && legacy.nodes[legacy.rootId]) {
+          currentMapId = mapUid();
+          currentMapCreatedAt = Date.now();
+          state = legacy;
+
+          await window.MandalaStorage.saveMap({
+            id: currentMapId,
+            title: currentMapTitle(legacy),
+            createdAt: currentMapCreatedAt,
+            updatedAt: Date.now(),
+            state: cloneState(legacy)
+          });
+          await window.MandalaStorage.setActiveMapId(currentMapId);
+          await window.MandalaStorage.createSnapshot(
+            currentMapId,
+            currentMapTitle(legacy),
+            cloneState(legacy),
+            "Migrated from localStorage"
+          );
+
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+          lastSnapshotAt = Date.now();
+          return;
+        }
+
+        state = defaultState();
+        return;
+      }
+
+      var activeId = await window.MandalaStorage.getActiveMapId();
+      var activeRecord = activeId ? await window.MandalaStorage.getMap(activeId) : null;
+
+      if (!activeRecord) {
+        activeRecord = maps[0];
+        activeId = activeRecord.id;
+        await window.MandalaStorage.setActiveMapId(activeId);
+      }
+
+      currentMapId = activeId;
+      currentMapCreatedAt = activeRecord.createdAt || Date.now();
+      state = activeRecord.state && activeRecord.state.nodes
+        ? cloneState(activeRecord.state)
+        : defaultState();
+      state.version = 5;
+
+      var latestSnapshot = (await window.MandalaStorage.listSnapshots(currentMapId, 1))[0];
+      lastSnapshotAt = latestSnapshot ? (latestSnapshot.createdAt || 0) : 0;
+    } catch (error) {
+      storageReady = false;
+      currentMapId = null;
+      currentMapCreatedAt = null;
+      state = loadLegacyState();
+      setTimeout(function () {
+        showToast("Local database unavailable — using single-map fallback.");
+      }, 0);
     }
   }
 
@@ -944,11 +1087,95 @@
       if (node.dependencyId && !state.nodes[node.dependencyId]) node.dependencyId = null;
       if (typeof node.dependencyId === "undefined") node.dependencyId = null;
     });
+    state.version = 5;
     saveState();
   }
 
   function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    state.version = 5;
+
+    if (!storageReady) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      return;
+    }
+
+    if (!state.rootId || !state.nodes[state.rootId]) return;
+
+    if (!currentMapId) {
+      currentMapId = mapUid();
+      currentMapCreatedAt = Date.now();
+      window.MandalaStorage.setActiveMapId(currentMapId).catch(function () {});
+    }
+
+    clearTimeout(stateSaveTimer);
+    stateSaveTimer = setTimeout(function () {
+      persistCurrentMapNow();
+    }, 220);
+
+    scheduleAutosaveSnapshot();
+  }
+
+  async function persistCurrentMapNow() {
+    clearTimeout(stateSaveTimer);
+    stateSaveTimer = null;
+
+    if (!storageReady || !currentMapId || !state.rootId || !state.nodes[state.rootId]) return;
+
+    try {
+      var now = Date.now();
+      var snapshot = cloneState(state);
+
+      await window.MandalaStorage.saveMap({
+        id: currentMapId,
+        title: currentMapTitle(snapshot),
+        createdAt: currentMapCreatedAt || now,
+        updatedAt: now,
+        state: snapshot
+      });
+    } catch (error) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+  }
+
+  function scheduleAutosaveSnapshot() {
+    if (!storageReady || !currentMapId || !state.rootId) return;
+
+    clearTimeout(snapshotTimer);
+    snapshotTimer = setTimeout(function () {
+      createAutosaveSnapshot();
+    }, 3500);
+  }
+
+  async function createAutosaveSnapshot(reason, force) {
+    clearTimeout(snapshotTimer);
+    snapshotTimer = null;
+
+    if (!storageReady || !currentMapId || !state.rootId || !state.nodes[state.rootId]) return null;
+
+    var now = Date.now();
+    var minimumGap = 30000;
+
+    if (!force && lastSnapshotAt && now - lastSnapshotAt < minimumGap) {
+      snapshotTimer = setTimeout(function () {
+        createAutosaveSnapshot(reason, false);
+      }, minimumGap - (now - lastSnapshotAt) + 100);
+      return null;
+    }
+
+    try {
+      await persistCurrentMapNow();
+      var created = await window.MandalaStorage.createSnapshot(
+        currentMapId,
+        currentMapTitle(),
+        cloneState(state),
+        reason || "Autosave"
+      );
+
+      if (created) lastSnapshotAt = created.createdAt || Date.now();
+      return created;
+    } catch (error) {
+      return null;
+    }
   }
 
   function uid() {
@@ -1092,10 +1319,19 @@
     }
 
     state = defaultState();
+    currentMapId = mapUid();
+    currentMapCreatedAt = Date.now();
+    lastSnapshotAt = 0;
+
     var root = createNode(value, null, 0);
     state.rootId = root.id;
     selectedId = root.id;
     createEightSlots(root.id);
+
+    if (storageReady) {
+      window.MandalaStorage.setActiveMapId(currentMapId).catch(function () {});
+    }
+
     saveState();
 
     showMap();
@@ -2344,7 +2580,8 @@
     return $("#inspector").hasClass("open") ||
       !$("#suggestionModal").is("[hidden]") ||
       !$("#nextModal").is("[hidden]") ||
-      !$("#reviewModal").is("[hidden]");
+      !$("#reviewModal").is("[hidden]") ||
+      !$("#mapsModal").is("[hidden]");
   }
 
   function directionVector(key) {
@@ -2813,20 +3050,280 @@
     delete state.nodes[id];
   }
 
-  function resetAll() {
-    if (state.rootId && !window.confirm("Start a new map? Your current local map will be cleared.")) return;
+  async function openMapsModal() {
+    if (!storageReady) {
+      showToast("Map library needs IndexedDB in this browser.");
+      return;
+    }
+
+    await persistCurrentMapNow();
+    snapshotHistoryMapId = null;
+    $("#snapshotHistoryView").attr("hidden", true);
+    $("#mapsLibraryView").removeAttr("hidden");
+    await renderMapsLibrary();
+    $("#mapsModal").removeAttr("hidden");
+  }
+
+  function closeMapsModal() {
+    $("#mapsModal").attr("hidden", true);
+    snapshotHistoryMapId = null;
+    $("#snapshotHistoryView").attr("hidden", true);
+    $("#mapsLibraryView").removeAttr("hidden");
+  }
+
+  async function renderMapsLibrary() {
+    if (!storageReady) return;
+
+    var maps = await window.MandalaStorage.listMaps();
+
+    if (!maps.length) {
+      $("#mapsList").html(
+        '<div class="maps-empty">' +
+          '<strong>No saved maps yet.</strong>' +
+          '<p>Create a goal and it will appear here automatically.</p>' +
+        '</div>'
+      );
+      return;
+    }
+
+    var rows = await Promise.all(maps.map(async function (map) {
+      return {
+        map: map,
+        snapshotCount: await window.MandalaStorage.countSnapshots(map.id)
+      };
+    }));
+
+    var html = rows.map(function (entry) {
+      var map = entry.map;
+      var current = map.id === currentMapId;
+      return '<article class="map-card' + (current ? ' current' : '') + '" data-map-id="' + map.id + '">' +
+        '<div class="map-card-copy">' +
+          '<div class="map-card-title-row">' +
+            '<strong>' + escapeHtml(map.title || "Untitled map") + '</strong>' +
+            (current ? '<span class="current-map-pill">Open</span>' : '') +
+          '</div>' +
+          '<span>Updated ' + escapeHtml(formatStoredTime(map.updatedAt)) +
+            ' · ' + entry.snapshotCount + ' version' + (entry.snapshotCount === 1 ? '' : 's') + '</span>' +
+        '</div>' +
+        '<div class="map-card-actions">' +
+          '<button class="soft-button map-open-button" type="button">' + (current ? 'Return' : 'Open') + '</button>' +
+          '<button class="soft-button map-history-button" type="button">History</button>' +
+          '<button class="map-delete-button" type="button" aria-label="Delete map" title="Delete map">×</button>' +
+        '</div>' +
+      '</article>';
+    }).join("");
+
+    $("#mapsList").html(html);
+  }
+
+  async function openStoredMap(mapId) {
+    if (!storageReady || !mapId) return;
+
+    await createAutosaveSnapshot("Before switching maps", true);
+    await persistCurrentMapNow();
+    var record = await window.MandalaStorage.getMap(mapId);
+    if (!record || !record.state) return;
+
+    currentMapId = record.id;
+    currentMapCreatedAt = record.createdAt || Date.now();
+    state = cloneState(record.state);
+    state.version = 5;
+    selectedId = state.rootId || null;
+    editingId = null;
+    selectedDetailId = null;
+    currentNextId = null;
+    activeView = "map";
+
+    var latest = (await window.MandalaStorage.listSnapshots(currentMapId, 1))[0];
+    lastSnapshotAt = latest ? (latest.createdAt || 0) : 0;
+
+    await window.MandalaStorage.setActiveMapId(currentMapId);
+    closeInspector();
+    closeMapsModal();
+
+    if (state.rootId && state.nodes[state.rootId]) {
+      normalizeState();
+      showMap();
+      renderAll(false);
+      setTimeout(function () { fitAll(true); }, 30);
+    } else {
+      showEmptyMap();
+      startPromptRotation();
+    }
+  }
+
+  async function deleteStoredMap(mapId) {
+    if (!storageReady || !mapId) return;
+
+    var record = await window.MandalaStorage.getMap(mapId);
+    if (!record) return;
+
+    if (!window.confirm('Delete "' + (record.title || "Untitled map") + '" and its autosave history?')) return;
+
+    await window.MandalaStorage.deleteMap(mapId);
+
+    if (mapId === currentMapId) {
+      currentMapId = null;
+      currentMapCreatedAt = null;
+      state = defaultState();
+
+      var remaining = await window.MandalaStorage.listMaps();
+
+      if (remaining.length) {
+        await openStoredMap(remaining[0].id);
+        await openMapsModal();
+      } else {
+        closeMapsModal();
+        startNewMap(true);
+      }
+      return;
+    }
+
+    await renderMapsLibrary();
+  }
+
+  async function openSnapshotHistory(mapId) {
+    if (!storageReady || !mapId) return;
+
+    await persistCurrentMapNow();
+
+    var record = await window.MandalaStorage.getMap(mapId);
+    if (!record) return;
+
+    snapshotHistoryMapId = mapId;
+    $("#mapsLibraryView").attr("hidden", true);
+    $("#snapshotHistoryView").removeAttr("hidden");
+    $("#snapshotMapTitle").text(record.title || "Untitled map");
+
+    var snapshots = await window.MandalaStorage.listSnapshots(mapId);
+
+    if (!snapshots.length) {
+      $("#snapshotList").html(
+        '<div class="maps-empty">' +
+          '<strong>No versions yet.</strong>' +
+          '<p>Keep editing. Autosave history appears after a few seconds.</p>' +
+        '</div>'
+      );
+      return;
+    }
+
+    var html = snapshots.map(function (snapshot, index) {
+      return '<article class="snapshot-row" data-snapshot-id="' + snapshot.id + '">' +
+        '<div>' +
+          '<strong>' + escapeHtml(index === 0 ? "Latest saved version" : "Saved version") + '</strong>' +
+          '<span>' + escapeHtml(formatStoredTime(snapshot.createdAt)) +
+            ' · ' + escapeHtml(snapshot.reason || "Autosave") + '</span>' +
+        '</div>' +
+        '<button class="soft-button snapshot-restore-button" type="button">Restore</button>' +
+      '</article>';
+    }).join("");
+
+    $("#snapshotList").html(html);
+  }
+
+  async function restoreSnapshot(snapshotId) {
+    if (!storageReady || !snapshotId) return;
+
+    var snapshot = await window.MandalaStorage.getSnapshot(snapshotId);
+    if (!snapshot || !snapshot.state) return;
+
+    var record = await window.MandalaStorage.getMap(snapshot.mapId);
+    if (!record) return;
+
+    if (!window.confirm("Restore this version? The current version will be saved first.")) return;
+
+    if (snapshot.mapId === currentMapId) {
+      await persistCurrentMapNow();
+      await createAutosaveSnapshot("Before restore", true);
+      record = await window.MandalaStorage.getMap(snapshot.mapId);
+    } else if (record.state && record.state.rootId) {
+      await window.MandalaStorage.createSnapshot(
+        record.id,
+        record.title || "Untitled map",
+        cloneState(record.state),
+        "Before restore"
+      );
+    }
+
+    var restoredState = cloneState(snapshot.state);
+    restoredState.version = 5;
+
+    await window.MandalaStorage.saveMap({
+      id: record.id,
+      title: currentMapTitle(restoredState),
+      createdAt: record.createdAt || Date.now(),
+      updatedAt: Date.now(),
+      state: restoredState
+    });
+
+    currentMapId = record.id;
+    currentMapCreatedAt = record.createdAt || Date.now();
+    state = restoredState;
+    selectedId = state.rootId || null;
+    editingId = null;
+    selectedDetailId = null;
+    currentNextId = null;
+    activeView = "map";
+    lastSnapshotAt = snapshot.createdAt || 0;
+
+    await window.MandalaStorage.setActiveMapId(currentMapId);
+    closeInspector();
+    closeMapsModal();
+
+    normalizeState();
+    showMap();
+    renderAll(false);
+    setTimeout(function () { fitAll(true); }, 30);
+    showToast("Version restored.");
+  }
+
+  function formatStoredTime(timestamp) {
+    if (!timestamp) return "just now";
+
+    try {
+      return new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short"
+      }).format(new Date(timestamp));
+    } catch (error) {
+      return new Date(timestamp).toLocaleString();
+    }
+  }
+
+  async function startNewMap(skipPersist) {
+    if (!skipPersist) {
+      await createAutosaveSnapshot("Before new map", true);
+      await persistCurrentMapNow();
+    }
+
+    clearTimeout(stateSaveTimer);
+    clearTimeout(snapshotTimer);
+    stateSaveTimer = null;
+    snapshotTimer = null;
+
+    if (!storageReady) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
 
     state = defaultState();
+    currentMapId = null;
+    currentMapCreatedAt = null;
+    lastSnapshotAt = 0;
     selectedId = null;
     editingId = null;
     selectedDetailId = null;
     currentNextId = null;
     activeView = "map";
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
+
     closeInspector();
     showEmptyMap();
     startPromptRotation();
+  }
+
+  async function resetAll() {
+    if (state.rootId && !window.confirm("Start a new map? Your current map will stay saved in Maps.")) return;
+    await startNewMap();
   }
 
   function exportState() {
@@ -2834,7 +3331,7 @@
 
     var payload = {
       exportedAt: new Date().toISOString(),
-      version: state.version || 4,
+      version: state.version || 5,
       rootId: state.rootId,
       nodes: state.nodes
     };
