@@ -2,170 +2,189 @@
 
 ## Purpose
 
-Mandala is no longer just a Mandala-chart generator or a visual productivity map.
+Mandala should keep the useful reasoning from several planning methods without forcing the user to learn or maintain all of them.
 
-It is a **visual decision-and-execution system**.
+The visible product model is intentionally small:
 
-The core loop is:
+**Break it down → Decide → Do next → Review**
 
-**Goal → Drivers → Actions → Triage → Execute → Learn → Revise**
+That is the UX.
 
-The 8×8 structure creates a broad possibility space. The product then helps the user decide which parts deserve execution.
-
-The governing principle is:
-
-> **Decompose broadly. Triage ruthlessly. Execute narrowly. Review reality. Revise.**
+The deeper principles stay under the hood.
 
 ---
 
-## 1. Decomposition layer
+## 1. Break it down
 
-Mandala provides the structural grammar:
+Start with one goal.
 
-**1 Goal → 8 Drivers → up to 8 Actions per Driver**
+Use the Mandala structure to expose major drivers, then turn those drivers into concrete actions.
 
-Recursive decomposition is allowed when an action is still too broad.
+Borrow the useful parts of:
 
-The system also borrows from Divide and Conquer, Work Breakdown Structure, mind mapping, progressive disclosure, controllable-action thinking, and Definition of Done.
+- Mandala 8×8,
+- Divide and Conquer,
+- Work Breakdown Structure,
+- outcome → controllable-action conversion,
+- actionability checks,
+- Definition of Done.
 
-Stop decomposing when the next physical or digital action is obvious.
+These are not separate UI modes.
 
----
+They are quality rules for decomposition.
 
-## 2. Actionability layer
+Stop splitting when the next physical or digital action is obvious.
 
-Leaf work should be controllable, specific, small enough to start, relevant to its parent, non-duplicative, and recognizable as complete.
+Bad:
 
-Convert uncontrollable outcomes into controllable actions.
+> Get 100 customers.
 
-Bad: **Get 100 customers.**
+Better:
 
-Better: **Contact 10 qualified prospects with a concrete paid offer.**
-
----
-
-## 3. Triage layer
-
-The 64 possible actions are **not** a command to execute 64 things.
-
-Each action can be assessed using several independent lenses.
-
-### Impact / Effort
-
-Use 1–5 values as rough sorting signals. High-impact / low-effort work is often attractive, but dependencies and importance still matter.
-
-### Important / Urgent
-
-Use Eisenhower-style binary flags:
-
-- Important + Urgent → usually DO now.
-- Important + Not Urgent → protect/schedule.
-- Not Important + Urgent → consider DELEGATE.
-- Not Important + Not Urgent → consider DELETE.
-
-Importance/Urgency is not the same thing as Impact/Effort.
-
-### Delegatability
-
-Use No / Partly / Yes. Delegation may mean another person, contractor, teammate, AI agent, automation, or specialist tool.
-
-### Dependencies
-
-Keep dependencies lightweight: Ready or Blocked by another node. Do not build enterprise dependency management.
+> Contact 10 qualified prospects with a concrete paid offer.
 
 ---
 
-## 4. The 4Ds
+## 2. Decide
 
-Every piece of work can be triaged as DO, DEFER, DELEGATE, or DELETE.
+The map is a possibility space, not a command to complete everything.
 
-### DO
+Give each meaningful action one simple decision:
 
-The action belongs in the user's active execution plan.
+- **Do** — keep it in the active plan.
+- **Later** — keep it, but remove it from the current queue.
+- **Hand off** — it should happen, but not necessarily by the user.
+- **Drop** — decide not to execute it.
 
-### DEFER
+These labels preserve the useful soul of the 4Ds without making the interface sound like a productivity seminar.
 
-The action matters but should not compete for attention now. A defer date is optional.
+**Drop is a decision, not destructive deletion.** The node stays visible. Clearing the node is a separate action.
 
-### DELEGATE
+Use only a few supporting signals:
 
-The action should happen but does not require the user to perform it directly. An optional delegate target may be recorded.
+- **Impact**
+- **Effort**
+- **Blocked by**
+- **Estimate**
+- **Status**
 
-### DELETE
+Impact/Effort is a sorting aid, not a score of truth.
 
-The action should not be executed.
+A blocker should be lightweight: Ready, or blocked by another node.
 
-**Delete is a decision, not destructive deletion.** The node remains visible because knowing what was intentionally rejected is useful planning information. Physical node clearing/removal is a separate operation.
+### Principles that stay behind the scenes
 
----
+Eisenhower-style importance/urgency, delegatability, prioritization heuristics, and similar concepts can inform product logic and future AI critique.
 
-## 5. Next Move
+They should not become permanent fields unless repeated real usage proves that users need them.
 
-Next Move should not simply choose the highest-scoring unfinished node.
+The rule is:
 
-An action is normally eligible only if it is concrete, a leaf, unfinished, marked DO, Ready, and not beneath a parent marked Defer, Delegate, or Delete.
-
-Eligible actions can then be sorted using Important, Urgent, Impact, Effort, and duration.
-
-The score is a heuristic, not truth.
-
----
-
-## 6. Views
-
-### Map
-
-The Map view is for spatial thinking, hierarchy, decomposition, context, branch navigation, and playful execution. It should show compact 4D/readiness cues without becoming a dashboard.
-
-### Table
-
-The Table view is the serious triage surface. It should make it easy to compare and edit 4D, Important, Urgent, Impact, Effort, Ready/Blocked, and Status. Driver rows remain expandable/collapsible.
-
-### Inspector
-
-The Inspector is for deeper metadata: 4D decision, Impact, Effort, Important, Urgent, Delegatable, Dependency, Delegate target, Defer date, Estimate, Status, and Notes.
+> **Keep the intelligence. Remove the methodology tax.**
 
 ---
 
-## 7. Progress
+## 3. Do next
 
-Progress should reflect the active execution plan rather than punish deliberate pruning. Work intentionally marked DELETE should not remain forever in the completion denominator.
+Next Move exists to reduce the whole map to one executable action.
 
-The system should reward useful execution, not completion theater.
+A node is normally eligible only when it is:
+
+- a concrete leaf,
+- unfinished,
+- set to **Do**,
+- Ready,
+- not beneath a parent set to Later, Hand off, or Drop.
+
+Among eligible actions, use simple signals such as:
+
+- Impact,
+- Effort,
+- current status,
+- duration.
+
+Do not pretend the ranking is objective.
+
+The result should be understandable without exposing a scoring formula.
 
 ---
 
-## 8. Review loop
+## 4. Review
 
 Plans are hypotheses.
 
-Review asks:
+After execution, ask:
 
-1. Which drivers were wrong?
-2. Which actions produced real progress?
-3. What should be deleted now?
-4. What new information changed priorities?
+1. What actually moved the goal?
+2. What turned out to be unnecessary?
+3. What is blocked?
+4. What changed?
 5. What is the next bottleneck?
 
-The output of Review is a revised map and a smaller, better execution queue.
+Then change the map.
+
+This preserves the useful parts of feedback loops and review triggers without creating another workflow users have to manage.
 
 ---
 
-## 9. Product loop
+## Product views
 
-### Explore
-Generate or manually create the possibility space.
+### Map
 
-### Decide
-Triage with 4Ds, Importance/Urgency, Impact/Effort, and dependencies.
+The Map is for thinking spatially, decomposing, keeping context, and executing.
 
-### Play
-Execute the strongest Ready + DO actions.
+Decision indicators should stay small and playful.
 
-### Learn
-Observe results and feedback.
+### Table
 
-### Rebuild
-Change the map when reality invalidates the original plan.
+The Table is for scanning and changing:
 
-This is the product's central philosophy.
+- Decision,
+- Impact,
+- Effort,
+- Ready / Blocked,
+- Status.
+
+Driver rows can expand and collapse.
+
+Do not add methodology columns merely because the underlying philosophy knows about them.
+
+### Inspector
+
+The Inspector contains deeper details only when needed:
+
+- Decision,
+- Impact,
+- Effort,
+- Blocked by,
+- Hand off to — shown only for Hand off,
+- Bring back on — shown only for Later,
+- Estimate,
+- Status,
+- Notes.
+
+This is progressive disclosure: only ask for information relevant to the decision the user made.
+
+---
+
+## Progress
+
+Progress should reflect active work.
+
+Later, Hand off, and Drop should not make the user feel that an intentionally narrowed plan is permanently incomplete.
+
+Reward useful execution, not completion theater.
+
+---
+
+## Design test
+
+Whenever a new planning concept is proposed, ask:
+
+> Does exposing this concept make the next useful action clearer?
+
+If yes, expose the smallest possible control.
+
+If no, keep the idea inside the reasoning layer or remove it.
+
+Mandala should feel like a simple game about getting unstuck, not Jira wearing colorful clothes.
