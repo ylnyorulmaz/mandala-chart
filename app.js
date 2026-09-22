@@ -1654,7 +1654,7 @@
         var hasFilledChildren = (node.children || []).some(function (childId) {
           return state.nodes[childId] && state.nodes[childId].title.trim();
         });
-        return !hasFilledChildren && decisionValue(node) !== "delete" && !hasSuppressedAncestor(node);
+        return !hasFilledChildren && decisionValue(node) === "do" && !hasSuppressedAncestor(node);
       });
 
     if (!actionable.length) {
@@ -1851,14 +1851,17 @@
 
   function updateCanvasStatus() {
     var nodes = executionNodes();
-    var done = nodes.filter(function (node) { return node.status === "done"; }).length;
-    var doNow = nodes.filter(function (node) {
-      return decisionValue(node) === "do" && !hasSuppressedAncestor(node) && !isNodeBlocked(node) && node.status !== "done";
+    var active = nodes.filter(function (node) {
+      return decisionValue(node) === "do" && !hasSuppressedAncestor(node);
+    });
+    var done = active.filter(function (node) { return node.status === "done"; }).length;
+    var doNow = active.filter(function (node) {
+      return !isNodeBlocked(node) && node.status !== "done";
     }).length;
     var cut = nodes.filter(function (node) { return decisionValue(node) === "delete"; }).length;
 
     $("#canvasStatusText").text(
-      done + " done · " + doNow + " ready DO · " + cut + " cut · Drag nodes to move"
+      done + " active done · " + doNow + " ready DO · " + cut + " cut · Drag nodes to move"
     );
   }
 
@@ -2159,6 +2162,12 @@
     node.tableCollapsed = false;
     node.offsetX = 0;
     node.offsetY = 0;
+
+    Object.keys(state.nodes).forEach(function (id) {
+      if (state.nodes[id] && state.nodes[id].dependencyId === selectedDetailId) {
+        state.nodes[id].dependencyId = null;
+      }
+    });
 
     saveState();
     closeInspector();
