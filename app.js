@@ -328,7 +328,17 @@
 
       node.offsetX = nodeDragState.baseX + dx;
       node.offsetY = nodeDragState.baseY + dy;
-      renderAll(false);
+
+      var basePos = calculatePositionFromPath(getIndexPath(node.id));
+      renderPositions[node.id] = withOffset(node, basePos);
+
+      $('.map-node[data-id="' + node.id + '"]').css({
+        left: renderPositions[node.id].x + "px",
+        top: renderPositions[node.id].y + "px"
+      });
+
+      renderEdges(getVisibleNodeIds());
+      renderMinimap();
     });
 
     $("#mapNodes").on("pointerup pointercancel", ".map-node", function () {
@@ -414,6 +424,7 @@
     $("#splitButton").on("click", splitSelected);
     $("#collapseButton").on("click", toggleCollapseSelected);
     $("#nextButton").on("click", openNextModal);
+    $("#exportButton").on("click", exportState);
     $("#resetButton").on("click", resetAll);
 
     $("#markDoneButton").on("click", function () {
@@ -1479,6 +1490,28 @@
     closeInspector();
     showEmptyMap();
     startPromptRotation();
+  }
+
+  function exportState() {
+    if (!state.rootId) return;
+
+    var payload = {
+      exportedAt: new Date().toISOString(),
+      version: state.version || 2,
+      rootId: state.rootId,
+      nodes: state.nodes
+    };
+
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = "mandala-map.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    showToast("Map exported.");
   }
 
   function toggleTheme() {
