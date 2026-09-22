@@ -3793,3 +3793,74 @@ body.dark .table-icon-button {
     animation: none !important;
   }
 }
+
+
+/* Keep Map/Table switching impossible to miss. */
+.floating-view-switcher {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 70;
+  transform: translateX(-50%);
+  padding: 5px;
+  border: 3px solid rgba(255,255,255,.82);
+  background: rgba(68,53,96,.92);
+  box-shadow:
+    0 5px 0 rgba(44,31,67,.28),
+    0 14px 30px rgba(57,39,87,.18);
+  backdrop-filter: blur(12px);
+}
+
+.floating-view-switcher .view-button {
+  min-width: 78px;
+  min-height: 36px;
+  color: rgba(255,255,255,.72);
+  font-size: 11px;
+}
+
+.floating-view-switcher .view-button.active {
+  color: #fff;
+}
+
+.floating-view-switcher .view-button:not(.active):hover {
+  color: #fff;
+  background: rgba(255,255,255,.09);
+}
+
+body.empty-start .floating-view-switcher {
+  display: none !important;
+}
+
+/* Leave room under the switcher for the game progress HUD. */
+.quest-progress {
+  top: 70px;
+}
+
+.table-view {
+  padding-top: 78px;
+}
+
+@media (max-width: 680px) {
+  .floating-view-switcher {
+    top: 8px;
+    padding: 4px;
+  }
+
+  .floating-view-switcher .view-button {
+    min-width: 72px;
+    min-height: 34px;
+    padding: 0 12px;
+  }
+
+  .quest-progress {
+    top: 58px;
+  }
+
+  .minimal-planner > .planner-actions {
+    top: 56px;
+  }
+
+  .table-view {
+    padding-top: 112px;
+  }
+}
