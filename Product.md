@@ -446,6 +446,37 @@ A useful visual rule:
 
 > Calm before the action. Spark at the action. Calm after the action.
 
+### Maps can form a larger structure
+
+A map is one goal system. Multiple maps do not need to be forced into one giant Mandala.
+
+Users may leave maps entirely independent, or optionally connect them at the map level.
+
+Supported map-level structure:
+
+- **Group** — loose organization only; no execution semantics.
+- **Related to** — horizontal association with no direction.
+- **Comes before / Comes after** — directional sequence.
+- **Parent of / Child of** — vertical hierarchy.
+
+This creates a second scale in the product:
+
+**inside a map:** Goal → Drivers → Actions → Steps  
+**between maps:** independent goals → optional groups, sequences, and hierarchies
+
+Example:
+
+> Earn $10k/month  
+> ↳ Launch ResumeBee  
+> ↳ Launch CarouselBee  
+> ↳ Launch another product
+
+Each child remains its own full Mandala instead of becoming an oversized branch inside one map.
+
+The rule is optional structure. A user cleaning the house, shipping a product, and organizing computer files should not be forced into an artificial hierarchy merely because all three maps exist.
+
+Parent and sequence links must remain acyclic. Groups must not secretly imply parentage or ordering.
+
 ### Multiple local maps and recovery
 
 Local-first now means more than one serialized map.
