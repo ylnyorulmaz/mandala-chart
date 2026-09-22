@@ -1,17 +1,27 @@
 (function ($) {
   "use strict";
 
-  var STORAGE_KEY = "mandala-chart-state-v1";
+  var STORAGE_KEY = "mandala-chart-state-v2";
+  var LEGACY_STORAGE_KEY = "mandala-chart-state-v1";
   var THEME_KEY = "mandala-chart-theme-v1";
 
   var state = loadState();
-  var focusedId = state.rootId || null;
+  var selectedId = state.rootId || null;
+  var editingId = null;
   var selectedDetailId = null;
   var suggestionBuffer = [];
   var currentNextId = null;
   var toastTimer = null;
   var promptTimer = null;
   var promptIndex = 0;
+  var initialRender = true;
+
+  var camera = { x: 0, y: 0, scale: 1 };
+  var panState = null;
+  var nodeDragState = null;
+  var pointers = {};
+  var pinchState = null;
+  var renderPositions = {};
 
   var PROMPTS = [
     "What do you want to finish?",
@@ -171,17 +181,24 @@
     $("#year").text(new Date().getFullYear());
     bindGlobalEvents();
 
-    if (!$("#mandalaStage").length) return;
+    if (!$("#mapViewport").length) return;
 
     bindPlannerEvents();
 
     if (state.rootId && state.nodes[state.rootId]) {
-      focusedId = focusedId || state.rootId;
+      selectedId = selectedId || state.rootId;
+      normalizeState();
       stopPromptRotation();
-      renderMap(false);
+      showMap();
+      renderAll(false);
+      setTimeout(function () {
+        fitAll(false);
+        initialRender = false;
+      }, 40);
     } else {
-      showFreshGoal();
+      showEmptyMap();
       startPromptRotation();
+      initialRender = false;
     }
 
     if ("serviceWorker" in navigator) {
@@ -196,96 +213,256 @@
   }
 
   function bindPlannerEvents() {
-    $("#centerNode").on("click", function (e) {
-      if ($(e.target).is("textarea, button")) return;
-      openCenterEditor();
+    $("#rootStarter").on("click", function (e) {
+      if ($(e.target).is("textarea")) return;
+      openRootEditor();
     });
 
-    $("#centerNode").on("keydown", function (e) {
+    $("#rootStarter").on("keydown", function (e) {
       if (e.key === "Enter" && !$(e.target).is("textarea")) {
         e.preventDefault();
-        openCenterEditor();
+        openRootEditor();
       }
     });
 
-    $("#centerInput").on("keydown", function (e) {
+    $("#rootInput").on("keydown", function (e) {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        commitCenter();
+        commitRoot();
       }
     });
 
-    $("#centerInput").on("blur", function () {
-      if ($(this).val().trim()) commitCenter();
+    $("#rootInput").on("blur", function () {
+      if ($(this).val().trim()) commitRoot();
     });
 
-    $("#centerInput").on("input", function () {
-      if (!focusedId) return;
-      state.nodes[focusedId].title = $(this).val();
-      saveState();
-      renderBreadcrumbs();
-    });
-
-    $("#centerDetailsButton").on("click", function (e) {
-      e.stopPropagation();
-      if (!focusedId) return;
-      openInspector(focusedId);
-    });
-
-    $("#childLayer").on("input", ".child-input", function () {
-      var id = $(this).closest(".child-node").data("id");
-      var node = state.nodes[id];
-      if (!node) return;
-      node.title = $(this).val();
-      saveState();
-      $(this).closest(".child-node").toggleClass("filled", !!node.title.trim());
-    });
-
-    $("#childLayer").on("keydown", ".child-input", function (e) {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        $(this).blur();
-      }
-    });
-
-    $("#childLayer").on("click", ".child-node", function (e) {
+    $("#mapNodes").on("click", ".map-node", function (e) {
       if ($(e.target).is("textarea")) return;
+      if (nodeDragState && nodeDragState.moved) return;
+
       var id = $(this).data("id");
       var node = state.nodes[id];
+      if (!node) return;
 
-      if (!node || !node.title.trim()) {
-        $(this).find("textarea").focus();
+      if (!node.title.trim()) {
+        selectedId = id;
+        editingId = id;
+        renderAll(false);
+        focusCameraOnNode(id, 1.05);
         return;
       }
 
-      focusNode(id);
+      selectNode(id, true);
+
+      if (node.depth === 1 && !node.children.length) {
+        createEightSlots(id);
+        renderAll(true);
+        focusCameraOnNode(id, .78);
+        showToast("Driver opened. Add eight actions around it.");
+      }
     });
 
-    $("#childLayer").on("dblclick", ".child-node", function (e) {
+    $("#mapNodes").on("dblclick", ".map-node", function (e) {
       e.preventDefault();
       e.stopPropagation();
-      openInspector($(this).data("id"));
-    });
-
-    $("#breadcrumbs").on("click", ".crumb", function () {
       var id = $(this).data("id");
       if (!state.nodes[id]) return;
-      focusedId = id;
-      renderMap(false);
+      selectedId = id;
+      editingId = id;
+      renderAll(false);
+    });
+
+    $("#mapNodes").on("keydown", ".node-edit", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        commitNodeEdit($(this).closest(".map-node").data("id"));
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        editingId = null;
+        renderAll(false);
+      }
+    });
+
+    $("#mapNodes").on("input", ".node-edit", function () {
+      var id = $(this).closest(".map-node").data("id");
+      if (!state.nodes[id]) return;
+      state.nodes[id].title = $(this).val();
+      saveState();
+      updateSelectionBar();
+    });
+
+    $("#mapNodes").on("blur", ".node-edit", function () {
+      commitNodeEdit($(this).closest(".map-node").data("id"));
+    });
+
+    $("#mapNodes").on("pointerdown", ".map-node", function (e) {
+      if (!e.shiftKey || $(e.target).is("textarea")) return;
+      var id = $(this).data("id");
+      var node = state.nodes[id];
+      if (!node) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      nodeDragState = {
+        id: id,
+        startX: e.clientX,
+        startY: e.clientY,
+        baseX: (node.offsetX || 0),
+        baseY: (node.offsetY || 0),
+        moved: false
+      };
+
+      try { this.setPointerCapture(e.pointerId); } catch (ignore) {}
+    });
+
+    $("#mapNodes").on("pointermove", ".map-node", function (e) {
+      if (!nodeDragState || nodeDragState.id !== $(this).data("id")) return;
+      var node = state.nodes[nodeDragState.id];
+      if (!node) return;
+
+      var dx = (e.clientX - nodeDragState.startX) / camera.scale;
+      var dy = (e.clientY - nodeDragState.startY) / camera.scale;
+
+      if (Math.abs(dx) + Math.abs(dy) > 4) nodeDragState.moved = true;
+
+      node.offsetX = nodeDragState.baseX + dx;
+      node.offsetY = nodeDragState.baseY + dy;
+
+      var basePos = calculatePositionFromPath(getIndexPath(node.id));
+      renderPositions[node.id] = withOffset(node, basePos);
+
+      $('.map-node[data-id="' + node.id + '"]').css({
+        left: renderPositions[node.id].x + "px",
+        top: renderPositions[node.id].y + "px"
+      });
+
+      renderEdges(getVisibleNodeIds());
+      renderMinimap();
+    });
+
+    $("#mapNodes").on("pointerup pointercancel", ".map-node", function () {
+      if (!nodeDragState) return;
+      saveState();
+      nodeDragState = null;
+    });
+
+    $("#mapViewport").on("pointerdown", function (e) {
+      pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+
+      if ($(e.target).closest(".map-node, .map-toolbar, .minimap, .empty-map").length) return;
+
+      try { this.setPointerCapture(e.pointerId); } catch (ignore) {}
+
+      if (Object.keys(pointers).length === 1) {
+        panState = {
+          startX: e.clientX,
+          startY: e.clientY,
+          cameraX: camera.x,
+          cameraY: camera.y
+        };
+        $(this).addClass("grabbing");
+      }
+
+      if (Object.keys(pointers).length === 2) beginPinch();
+    });
+
+    $("#mapViewport").on("pointermove", function (e) {
+      if (!pointers[e.pointerId]) return;
+      pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+
+      if (Object.keys(pointers).length === 2) {
+        updatePinch();
+        return;
+      }
+
+      if (!panState) return;
+
+      camera.x = panState.cameraX + (e.clientX - panState.startX);
+      camera.y = panState.cameraY + (e.clientY - panState.startY);
+      applyCamera();
+    });
+
+    $("#mapViewport").on("pointerup pointercancel", function (e) {
+      delete pointers[e.pointerId];
+      if (Object.keys(pointers).length < 2) pinchState = null;
+      if (Object.keys(pointers).length === 0) {
+        panState = null;
+        $(this).removeClass("grabbing");
+      }
+    });
+
+    $("#mapViewport").on("wheel", function (e) {
+      if (!state.rootId) return;
+      e.preventDefault();
+      var original = e.originalEvent;
+      var rect = this.getBoundingClientRect();
+      var px = original.clientX - rect.left;
+      var py = original.clientY - rect.top;
+      var factor = original.deltaY < 0 ? 1.12 : .89;
+      zoomAt(px, py, camera.scale * factor);
+    });
+
+    $("#zoomInButton").on("click", function () {
+      zoomAt(viewportWidth() / 2, viewportHeight() / 2, camera.scale * 1.18);
+    });
+
+    $("#zoomOutButton").on("click", function () {
+      zoomAt(viewportWidth() / 2, viewportHeight() / 2, camera.scale / 1.18);
+    });
+
+    $("#fitButton").on("click", function () { fitAll(true); });
+    $("#centerButton, #focusSelectedButton").on("click", function () {
+      if (selectedId) focusCameraOnNode(selectedId, Math.max(camera.scale, .85));
     });
 
     $("#suggestButton").on("click", openSuggestionModal);
+    $("#detailsButton, #editSelectedButton").on("click", function () {
+      if (selectedId) openInspector(selectedId);
+    });
+
+    $("#splitButton").on("click", splitSelected);
+    $("#collapseButton").on("click", toggleCollapseSelected);
     $("#nextButton").on("click", openNextModal);
     $("#exportButton").on("click", exportState);
     $("#resetButton").on("click", resetAll);
-    $("#splitButton").on("click", splitFocused);
+
+    $("#markDoneButton").on("click", function () {
+      if (!selectedId || !state.nodes[selectedId]) return;
+      state.nodes[selectedId].status = state.nodes[selectedId].status === "done" ? "open" : "done";
+      saveState();
+      renderAll(false);
+    });
+
+    $("#selectionBar").on("dblclick", function () {
+      if (!selectedId) return;
+      editingId = selectedId;
+      renderAll(false);
+    });
+
+    $("#minimap").on("click", function (e) {
+      if (!state.rootId) return;
+      var bounds = getWorldBounds();
+      if (!bounds) return;
+      var rect = this.getBoundingClientRect();
+      var rx = (e.clientX - rect.left) / rect.width;
+      var ry = (e.clientY - rect.top) / rect.height;
+      var wx = bounds.minX + rx * bounds.width;
+      var wy = bounds.minY + ry * bounds.height;
+      animateCameraTo(
+        viewportWidth() / 2 - wx * camera.scale,
+        viewportHeight() / 2 - wy * camera.scale,
+        camera.scale,
+        260
+      );
+    });
 
     $("#closeSuggestionModal").on("click", function () {
       $("#suggestionModal").attr("hidden", true);
     });
 
     $("#shuffleSuggestions").on("click", function () {
-      suggestionBuffer = buildSuggestions(state.nodes[focusedId], true);
+      suggestionBuffer = buildSuggestions(state.nodes[selectedId], true);
       renderSuggestions();
     });
 
@@ -298,16 +475,16 @@
     $("#openNextAction").on("click", function () {
       if (!currentNextId) return;
       $("#nextModal").attr("hidden", true);
-      focusedId = currentNextId;
-      renderMap(false);
+      selectNode(currentNextId, true);
+      focusCameraOnNode(currentNextId, 1.12);
     });
 
     $("#completeNextAction").on("click", function () {
       if (!currentNextId || !state.nodes[currentNextId]) return;
       state.nodes[currentNextId].status = "done";
       saveState();
+      renderAll(false);
       showToast("Done. Recalculating the next move.");
-      renderMap(false);
       openNextModal();
     });
 
@@ -340,29 +517,48 @@
 
     $("#statusInput").on("change", function () {
       updateSelectedDetail("status", $(this).val());
-      renderMap(false);
+      renderAll(false);
     });
 
     $("#notesInput").on("input", function () {
       updateSelectedDetail("notes", $(this).val());
     });
 
-    $("#deleteNodeButton").on("click", deleteSelectedNode);
+    $("#deleteNodeButton").on("click", clearSelectedNode);
 
     $(window).on("resize", debounce(function () {
-      if (focusedId) renderChildren(state.nodes[focusedId], false);
-      drawLines();
+      renderAll(false);
+      if (initialRender) fitAll(false);
     }, 100));
 
     $(document).on("keydown", function (e) {
       if (e.key === "Escape") {
         closeInspector();
         $("#suggestionModal, #nextModal").attr("hidden", true);
+        if (editingId) {
+          editingId = null;
+          renderAll(false);
+        }
       }
 
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && state.rootId) {
+      if (!state.rootId) return;
+
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         openNextModal();
+      }
+
+      if (!$(e.target).is("textarea,input,select")) {
+        if (e.key === "+" || e.key === "=") {
+          e.preventDefault();
+          $("#zoomInButton").trigger("click");
+        } else if (e.key === "-") {
+          e.preventDefault();
+          $("#zoomOutButton").trigger("click");
+        } else if (e.key.toLowerCase() === "f") {
+          e.preventDefault();
+          fitAll(true);
+        }
       }
     });
   }
@@ -371,20 +567,38 @@
     return {
       rootId: null,
       nodes: {},
-      version: 1
+      version: 2
     };
   }
 
   function loadState() {
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) raw = localStorage.getItem(LEGACY_STORAGE_KEY);
       if (!raw) return defaultState();
+
       var parsed = JSON.parse(raw);
       if (!parsed || !parsed.nodes) return defaultState();
+      parsed.version = 2;
       return parsed;
     } catch (e) {
       return defaultState();
     }
+  }
+
+  function normalizeState() {
+    Object.keys(state.nodes).forEach(function (id) {
+      var node = state.nodes[id];
+      if (!node.children) node.children = [];
+      if (typeof node.collapsed !== "boolean") node.collapsed = false;
+      if (typeof node.offsetX !== "number") node.offsetX = 0;
+      if (typeof node.offsetY !== "number") node.offsetY = 0;
+      if (!node.status) node.status = "open";
+      if (!node.impact) node.impact = 3;
+      if (!node.effort) node.effort = 3;
+      if (!node.urgency) node.urgency = 3;
+    });
+    saveState();
   }
 
   function saveState() {
@@ -392,7 +606,7 @@
   }
 
   function uid() {
-    return "n_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7);
+    return "n_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
   }
 
   function createNode(title, parentId, depth) {
@@ -409,6 +623,9 @@
       urgency: 3,
       duration: "",
       notes: "",
+      collapsed: false,
+      offsetX: 0,
+      offsetY: 0,
       createdAt: Date.now()
     };
 
@@ -427,316 +644,595 @@
       createNode("", parentId, parent.depth + 1);
     }
 
+    parent.collapsed = false;
     saveState();
   }
 
-  function showFreshGoal() {
-    focusedId = null;
-    $("#plannerActions, #plannerLegend, #stageEmptyNote").attr("hidden", true);
-    $("#breadcrumbs").empty();
-    $("#childLayer, #nodeLines").empty();
-    $("#plannerHint").text("Start with one thing. We will break it down only as far as needed.");
-    $("#centerNode").addClass("idle").attr("aria-label", "Enter your goal");
-    $("#centerPrompt").removeAttr("hidden");
-    $("#centerEditor").attr("hidden", true);
-    $("#centerInput").val("");
+  function showEmptyMap() {
+    $("#plannerActions, #selectionBar, #minimap").attr("hidden", true);
+    $("#emptyMap").removeAttr("hidden");
+    $("#mapNodes, #mapEdges, #minimapWorld").empty();
+    $("#rootInput").attr("hidden", true).val("");
+    $("#starterCopy").removeAttr("hidden");
+    camera = { x: viewportWidth() / 2, y: viewportHeight() / 2, scale: 1 };
+    applyCamera();
   }
 
-  function openCenterEditor() {
+  function showMap() {
+    $("#emptyMap").attr("hidden", true);
+    $("#plannerActions, #selectionBar, #minimap").removeAttr("hidden");
+  }
+
+  function openRootEditor() {
     stopPromptRotation();
-    $("#centerNode").removeClass("idle");
-    $("#centerPrompt").attr("hidden", true);
-    $("#centerEditor").removeAttr("hidden");
-
-    if (focusedId && state.nodes[focusedId]) {
-      $("#centerEyebrow").text(typeLabel(state.nodes[focusedId]));
-      $("#centerInput").val(state.nodes[focusedId].title);
-    } else {
-      $("#centerEyebrow").text("GOAL");
-      $("#centerInput").val("");
-    }
-
-    setTimeout(function () {
-      $("#centerInput").focus();
-      var input = $("#centerInput")[0];
-      if (input) input.setSelectionRange(input.value.length, input.value.length);
-    }, 30);
+    $("#starterCopy").attr("hidden", true);
+    $("#rootInput").removeAttr("hidden").focus();
   }
 
-  function commitCenter() {
-    var value = $("#centerInput").val().trim();
+  function commitRoot() {
+    var value = $("#rootInput").val().trim();
     if (!value) {
-      if (!state.rootId) {
-        showFreshGoal();
-        startPromptRotation();
-      }
+      $("#rootInput").attr("hidden", true);
+      $("#starterCopy").removeAttr("hidden");
+      startPromptRotation();
       return;
     }
 
-    if (!state.rootId) {
-      var root = createNode(value, null, 0);
-      state.rootId = root.id;
-      focusedId = root.id;
-      createEightSlots(root.id);
-      saveState();
-      renderMap(true);
-      showToast("Now define the eight drivers.");
+    state = defaultState();
+    var root = createNode(value, null, 0);
+    state.rootId = root.id;
+    selectedId = root.id;
+    createEightSlots(root.id);
+    saveState();
+
+    showMap();
+    renderAll(true);
+    fitAll(true);
+    showToast("Goal mapped. Fill the eight driver nodes.");
+  }
+
+  function renderAll(animateNew) {
+    if (!state.rootId || !state.nodes[state.rootId]) {
+      showEmptyMap();
       return;
     }
 
-    if (focusedId && state.nodes[focusedId]) {
-      state.nodes[focusedId].title = value;
-      saveState();
-      renderMap(false);
+    showMap();
+    normalizeState();
+
+    var visibleIds = getVisibleNodeIds();
+    renderPositions = computePositions(visibleIds);
+
+    renderEdges(visibleIds);
+    renderNodes(visibleIds, animateNew);
+    updateSelectionBar();
+    renderMinimap();
+    updateCanvasStatus();
+    applyCamera();
+
+    if (editingId) {
+      setTimeout(function () {
+        var $edit = $('.map-node[data-id="' + editingId + '"] .node-edit');
+        if ($edit.length) {
+          $edit.focus();
+          var el = $edit[0];
+          el.setSelectionRange(el.value.length, el.value.length);
+        }
+      }, 20);
     }
   }
 
-  function renderMap(animate) {
-    if (!focusedId || !state.nodes[focusedId]) {
-      focusedId = state.rootId;
-    }
+  function getVisibleNodeIds() {
+    var result = [];
 
-    var node = state.nodes[focusedId];
-    if (!node) {
-      showFreshGoal();
-      return;
-    }
-
-    stopPromptRotation();
-    $("#plannerActions, #plannerLegend").removeAttr("hidden");
-    $("#centerNode").removeClass("idle");
-    $("#centerPrompt").attr("hidden", true);
-    $("#centerEditor").removeAttr("hidden");
-    $("#centerEyebrow").text(typeLabel(node));
-    $("#centerInput").val(node.title);
-    $("#plannerHint").text(stageHint(node));
-    $("#stageEmptyNote").attr("hidden", !!node.children.length);
-
-    renderBreadcrumbs();
-    renderChildren(node, animate);
-    window.requestAnimationFrame(drawLines);
-  }
-
-  function renderBreadcrumbs() {
-    if (!focusedId) {
-      $("#breadcrumbs").empty();
-      return;
-    }
-
-    var path = ancestry(focusedId);
-    var html = "";
-
-    path.forEach(function (id, index) {
+    function walk(id) {
       var node = state.nodes[id];
       if (!node) return;
-      if (index) html += '<span class="crumb-sep">›</span>';
-      html += '<button class="crumb ' + (id === focusedId ? "current" : "") + '" data-id="' + id + '">' +
-        escapeHtml(node.title || typeLabel(node)) +
-        "</button>";
-    });
+      result.push(id);
 
-    $("#breadcrumbs").html(html);
-  }
+      if (node.collapsed) return;
 
-  function renderChildren(parent, animate) {
-    var $layer = $("#childLayer");
-    $layer.empty();
-
-    if (!parent || !parent.children || !parent.children.length) {
-      drawLines();
-      return;
-    }
-
-    var positions = getGridPositions();
-
-    parent.children.slice(0, 8).forEach(function (id, index) {
-      var node = state.nodes[id];
-      if (!node) return;
-
-      var pos = positions[index];
-      var filled = !!node.title.trim();
-      var meta = [];
-
-      if (node.duration) meta.push('<span class="meta-pill">' + escapeHtml(node.duration) + 'm</span>');
-      if (node.status === "done") meta.push('<span class="meta-pill">done</span>');
-      else if (node.children && node.children.some(function (childId) {
-        return state.nodes[childId] && state.nodes[childId].title.trim();
-      })) {
-        meta.push('<span class="meta-pill">open branch</span>');
-      } else if (filled) {
-        meta.push('<span>click to open ↗</span>');
-      }
-
-      var $node = $('<div class="child-node' +
-        (filled ? " filled" : "") +
-        (node.status === "done" ? " done" : "") +
-        (animate ? " entering" : "") +
-        '" data-id="' + id + '"></div>');
-
-      $node.css({
-        "--x": pos.x + "px",
-        "--y": pos.y + "px",
-        "--delay": (index * 55) + "ms"
+      (node.children || []).forEach(function (childId) {
+        if (state.nodes[childId]) walk(childId);
       });
+    }
 
-      $node.append('<span class="child-index">' + pad(index + 1) + " · " + typeLabel(node) + "</span>");
+    walk(state.rootId);
+    return result;
+  }
 
-      var $input = $('<textarea class="child-input" rows="3" maxlength="180"></textarea>');
-      $input.val(node.title);
-      $input.attr("placeholder", placeholderFor(node));
-      $node.append($input);
-      $node.append('<div class="child-meta">' + meta.join("") + "</div>");
-      $layer.append($node);
+  function computePositions(ids) {
+    var positions = {};
+    positions[state.rootId] = withOffset(state.nodes[state.rootId], { x: 0, y: 0 });
+
+    ids.forEach(function (id) {
+      if (id === state.rootId) return;
+      var node = state.nodes[id];
+      if (!node) return;
+
+      var path = getIndexPath(id);
+      var pos = calculatePositionFromPath(path);
+      positions[id] = withOffset(node, pos);
     });
+
+    return positions;
   }
 
-  function getGridPositions() {
-    var width = window.innerWidth;
+  function getIndexPath(id) {
+    var path = [];
+    var node = state.nodes[id];
 
-    if (width <= 680) {
-      return [
-        { x: -94, y: -120 },
-        { x: 0, y: -168 },
-        { x: 94, y: -120 },
-        { x: 132, y: 0 },
-        { x: 94, y: 120 },
-        { x: 0, y: 168 },
-        { x: -94, y: 120 },
-        { x: -132, y: 0 }
-      ];
+    while (node && node.parentId) {
+      var parent = state.nodes[node.parentId];
+      if (!parent) break;
+      var index = parent.children.indexOf(node.id);
+      path.unshift(Math.max(index, 0));
+      node = parent;
     }
 
-    if (width <= 900) {
-      return [
-        { x: -210, y: -170 },
-        { x: 0, y: -245 },
-        { x: 210, y: -170 },
-        { x: 295, y: 0 },
-        { x: 210, y: 170 },
-        { x: 0, y: 245 },
-        { x: -210, y: 170 },
-        { x: -295, y: 0 }
-      ];
-    }
-
-    return [
-      { x: -260, y: -205 },
-      { x: 0, y: -268 },
-      { x: 260, y: -205 },
-      { x: 350, y: 0 },
-      { x: 260, y: 205 },
-      { x: 0, y: 268 },
-      { x: -260, y: 205 },
-      { x: -350, y: 0 }
-    ];
+    return path;
   }
 
-  function drawLines() {
-    var stage = document.getElementById("mandalaStage");
-    var center = document.getElementById("centerNode");
-    var svg = $("#nodeLines");
+  function calculatePositionFromPath(path) {
+    if (!path.length) return { x: 0, y: 0 };
 
-    if (!stage || !center || !focusedId || !$(".child-node").length) {
-      svg.empty();
-      return;
+    var rootIndex = path[0] || 0;
+    var rootAngle = -Math.PI / 2 + rootIndex * (Math.PI * 2 / 8);
+
+    if (path.length === 1) {
+      return polar(360, rootAngle);
     }
 
-    var stageRect = stage.getBoundingClientRect();
-    var centerRect = center.getBoundingClientRect();
-    var x1 = centerRect.left + centerRect.width / 2 - stageRect.left;
-    var y1 = centerRect.top + centerRect.height / 2 - stageRect.top;
+    var childIndex = path[1] || 0;
+    var sectorStep = deg(5.65);
+    var actionAngle = rootAngle + (childIndex - 3.5) * sectorStep;
+
+    if (path.length === 2) {
+      return polar(880, actionAngle);
+    }
+
+    var parentPos = polar(880, actionAngle);
+    var pos = { x: parentPos.x, y: parentPos.y };
+    var outward = { x: Math.cos(actionAngle), y: Math.sin(actionAngle) };
+    var tangent = { x: -outward.y, y: outward.x };
+
+    for (var depth = 2; depth < path.length; depth++) {
+      var idx = path[depth] || 0;
+      var forward = 240 + (depth - 2) * 55;
+      var spread = 72 - Math.min((depth - 2) * 8, 28);
+      var lateral = (idx - 3.5) * spread;
+
+      pos = {
+        x: pos.x + outward.x * forward + tangent.x * lateral,
+        y: pos.y + outward.y * forward + tangent.y * lateral
+      };
+    }
+
+    return pos;
+  }
+
+  function withOffset(node, pos) {
+    return {
+      x: pos.x + (node.offsetX || 0),
+      y: pos.y + (node.offsetY || 0)
+    };
+  }
+
+  function polar(radius, angle) {
+    return {
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius
+    };
+  }
+
+  function deg(value) {
+    return value * Math.PI / 180;
+  }
+
+  function renderEdges(visibleIds) {
+    var visible = {};
+    visibleIds.forEach(function (id) { visible[id] = true; });
+
     var html = "";
 
-    $(".child-node").each(function () {
-      var rect = this.getBoundingClientRect();
-      var x2 = rect.left + rect.width / 2 - stageRect.left;
-      var y2 = rect.top + rect.height / 2 - stageRect.top;
-      html += '<line class="node-line" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"></line>';
+    visibleIds.forEach(function (id) {
+      var node = state.nodes[id];
+      if (!node || !node.parentId || !visible[node.parentId]) return;
+
+      var from = renderPositions[node.parentId];
+      var to = renderPositions[id];
+      if (!from || !to) return;
+
+      var dx = to.x - from.x;
+      var dy = to.y - from.y;
+      var c1x = from.x + dx * .42;
+      var c1y = from.y + dy * .42;
+      var c2x = from.x + dx * .72;
+      var c2y = from.y + dy * .72;
+
+      html += '<path class="edge-line depth-' + Math.min(node.depth, 3) +
+        '" d="M ' + round(from.x) + " " + round(from.y) +
+        " C " + round(c1x) + " " + round(c1y) +
+        ", " + round(c2x) + " " + round(c2y) +
+        ", " + round(to.x) + " " + round(to.y) + '"></path>';
     });
 
-    svg.attr("viewBox", "0 0 " + stageRect.width + " " + stageRect.height);
-    svg.html(html);
+    $("#mapEdges").html(html);
   }
 
-  function focusNode(id) {
+  function renderNodes(visibleIds, animateNew) {
+    var html = "";
+
+    visibleIds.forEach(function (id, index) {
+      var node = state.nodes[id];
+      var pos = renderPositions[id];
+      if (!node || !pos) return;
+
+      var placeholder = !node.title.trim();
+      var classes = [
+        "map-node",
+        "depth-" + Math.min(node.depth, 4),
+        placeholder ? "placeholder" : "",
+        selectedId === id ? "selected" : "",
+        node.status === "done" ? "done" : "",
+        node.collapsed && node.children.length ? "collapsed" : "",
+        animateNew && node.depth > 0 ? "node-enter" : ""
+      ].filter(Boolean).join(" ");
+
+      var hiddenCount = countDescendants(id);
+      var label = node.title.trim() || placeholderText(node);
+      var editing = editingId === id;
+
+      html += '<div class="' + classes + '" data-id="' + id + '" data-hidden-count="+' + hiddenCount + '"' +
+        ' style="left:' + round(pos.x) + 'px;top:' + round(pos.y) + 'px;' +
+        (animateNew ? "animation-delay:" + Math.min(index * 18, 180) + "ms;" : "") + '">' +
+        '<span class="node-type-dot"></span>';
+
+      if (editing) {
+        html += '<textarea class="node-edit" maxlength="180" rows="4" placeholder="' +
+          escapeHtml(placeholderText(node)) + '">' + escapeHtml(node.title) + "</textarea>";
+      } else {
+        html += '<span class="node-label">' + escapeHtml(label) + "</span>";
+      }
+
+      if (!placeholder) {
+        html += '<span class="node-badge">' + typeLabel(node) +
+          (node.status === "done" ? " · DONE" : "") + "</span>";
+      }
+
+      html += "</div>";
+    });
+
+    $("#mapNodes").html(html);
+  }
+
+  function placeholderText(node) {
+    if (node.depth === 1) return "Add driver";
+    if (node.depth === 2) return "Add action";
+    return "Add step";
+  }
+
+  function countDescendants(id) {
+    var node = state.nodes[id];
+    if (!node) return 0;
+    var count = 0;
+
+    (node.children || []).forEach(function (childId) {
+      if (!state.nodes[childId]) return;
+      count += 1 + countDescendants(childId);
+    });
+
+    return count;
+  }
+
+  function selectNode(id, focus) {
+    if (!state.nodes[id]) return;
+    selectedId = id;
+    editingId = null;
+    renderAll(false);
+    if (focus) focusCameraOnNode(id, Math.max(camera.scale, nodeFocusScale(state.nodes[id])));
+  }
+
+  function nodeFocusScale(node) {
+    if (!node) return .9;
+    if (node.depth === 0) return .9;
+    if (node.depth === 1) return .78;
+    if (node.depth === 2) return 1.05;
+    return 1.12;
+  }
+
+  function commitNodeEdit(id) {
     var node = state.nodes[id];
     if (!node) return;
 
-    focusedId = id;
+    var $edit = $('.map-node[data-id="' + id + '"] .node-edit');
+    if ($edit.length) node.title = $edit.val().trim();
 
-    if (node.depth === 1 && !node.children.length) {
-      createEightSlots(id);
-      renderMap(true);
-      showToast("Turn this driver into eight concrete actions.");
-      return;
-    }
-
-    renderMap(false);
+    editingId = null;
+    saveState();
+    renderAll(false);
   }
 
-  function splitFocused() {
-    if (!focusedId || !state.nodes[focusedId]) return;
-    var node = state.nodes[focusedId];
+  function splitSelected() {
+    if (!selectedId || !state.nodes[selectedId]) return;
+    var node = state.nodes[selectedId];
 
     if (node.children.length) {
-      showToast("This node is already split.");
+      node.collapsed = false;
+      saveState();
+      renderAll(true);
+      focusCameraOnNode(selectedId, nodeFocusScale(node));
+      showToast("Branch expanded.");
       return;
     }
 
-    createEightSlots(focusedId);
-    renderMap(true);
+    createEightSlots(selectedId);
+    renderAll(true);
+    focusCameraOnNode(selectedId, nodeFocusScale(node));
+    showToast("Eight child nodes added.");
   }
 
-  function placeholderFor(node) {
-    if (node.depth === 1) return "Add a driver…";
-    if (node.depth === 2) return "Add an action…";
-    return "Add a smaller step…";
+  function toggleCollapseSelected() {
+    if (!selectedId || !state.nodes[selectedId]) return;
+    var node = state.nodes[selectedId];
+
+    if (!node.children.length) {
+      showToast("This node has no branch to collapse.");
+      return;
+    }
+
+    node.collapsed = !node.collapsed;
+    saveState();
+    renderAll(false);
+
+    if (!node.collapsed) focusCameraOnNode(selectedId, nodeFocusScale(node));
+  }
+
+  function updateSelectionBar() {
+    var node = state.nodes[selectedId];
+    if (!node) {
+      $("#selectionBar").attr("hidden", true);
+      return;
+    }
+
+    $("#selectionBar").removeAttr("hidden");
+    $("#selectionType").text(typeLabel(node));
+    $("#selectionTitle").text(node.title.trim() || placeholderText(node));
+    $("#markDoneButton").text(node.status === "done" ? "Mark open" : "Mark done");
+    $("#collapseButton").text(node.collapsed ? "Expand" : "Collapse");
+    $("#collapseButton").prop("disabled", !node.children.length).css("opacity", node.children.length ? 1 : .45);
   }
 
   function typeLabel(node) {
     return LABELS[Math.min(node.depth || 0, 3)] || "STEP";
   }
 
-  function stageHint(node) {
-    if (node.depth === 0) {
-      return "What must be true for this goal to happen? Define the eight strongest drivers.";
-    }
+  function focusCameraOnNode(id, targetScale) {
+    var pos = renderPositions[id];
+    if (!pos) return;
 
-    if (node.depth === 1) {
-      return "What can you actually do to move this driver? Make each action concrete and controllable.";
-    }
-
-    if (!node.children.length) {
-      return "If this still feels too big to start, split it. If it is obvious and executable, do it.";
-    }
-
-    return "Keep decomposing only while it reduces friction. Stop when the next move is obvious.";
+    var scale = clamp(targetScale || camera.scale, .24, 2.2);
+    var x = viewportWidth() / 2 - pos.x * scale;
+    var y = viewportHeight() / 2 - pos.y * scale;
+    animateCameraTo(x, y, scale, 360);
   }
 
-  function ancestry(id) {
-    var list = [];
-    var cursor = state.nodes[id];
+  function fitAll(animated) {
+    if (!state.rootId) return;
 
-    while (cursor) {
-      list.unshift(cursor.id);
-      cursor = cursor.parentId ? state.nodes[cursor.parentId] : null;
+    var bounds = getWorldBounds();
+    if (!bounds) return;
+
+    var vw = viewportWidth();
+    var vh = viewportHeight();
+    var pad = Math.min(vw, vh) * .13 + 60;
+    var scaleX = (vw - pad * 2) / Math.max(bounds.width, 1);
+    var scaleY = (vh - pad * 2) / Math.max(bounds.height, 1);
+    var scale = clamp(Math.min(scaleX, scaleY), .24, 1.08);
+
+    var centerX = bounds.minX + bounds.width / 2;
+    var centerY = bounds.minY + bounds.height / 2;
+    var x = vw / 2 - centerX * scale;
+    var y = vh / 2 - centerY * scale;
+
+    if (animated) animateCameraTo(x, y, scale, 360);
+    else {
+      camera = { x: x, y: y, scale: scale };
+      applyCamera();
+    }
+  }
+
+  function getWorldBounds() {
+    var ids = Object.keys(renderPositions);
+    if (!ids.length) return null;
+
+    var minX = Infinity;
+    var minY = Infinity;
+    var maxX = -Infinity;
+    var maxY = -Infinity;
+
+    ids.forEach(function (id) {
+      var node = state.nodes[id];
+      var pos = renderPositions[id];
+      if (!node || !pos) return;
+
+      var radius = nodeRadius(node.depth) + 35;
+      minX = Math.min(minX, pos.x - radius);
+      minY = Math.min(minY, pos.y - radius);
+      maxX = Math.max(maxX, pos.x + radius);
+      maxY = Math.max(maxY, pos.y + radius);
+    });
+
+    return {
+      minX: minX,
+      minY: minY,
+      maxX: maxX,
+      maxY: maxY,
+      width: Math.max(maxX - minX, 1),
+      height: Math.max(maxY - minY, 1)
+    };
+  }
+
+  function nodeRadius(depth) {
+    if (depth === 0) return 95;
+    if (depth === 1) return 71;
+    if (depth === 2) return 43;
+    return 36;
+  }
+
+  function applyCamera() {
+    $("#mapWorld").css("transform", "translate(" + camera.x + "px," + camera.y + "px) scale(" + camera.scale + ")");
+    $("#zoomReadout").text(Math.round(camera.scale * 100) + "%");
+    renderMinimapCamera();
+  }
+
+  function animateCameraTo(x, y, scale, duration) {
+    var start = { x: camera.x, y: camera.y, scale: camera.scale };
+    var started = performance.now();
+    duration = duration || 300;
+
+    function frame(now) {
+      var t = clamp((now - started) / duration, 0, 1);
+      var eased = 1 - Math.pow(1 - t, 3);
+
+      camera.x = lerp(start.x, x, eased);
+      camera.y = lerp(start.y, y, eased);
+      camera.scale = lerp(start.scale, scale, eased);
+      applyCamera();
+
+      if (t < 1) requestAnimationFrame(frame);
     }
 
-    return list;
+    requestAnimationFrame(frame);
+  }
+
+  function zoomAt(screenX, screenY, targetScale) {
+    if (!state.rootId) return;
+
+    var newScale = clamp(targetScale, .24, 2.2);
+    var worldX = (screenX - camera.x) / camera.scale;
+    var worldY = (screenY - camera.y) / camera.scale;
+
+    camera.x = screenX - worldX * newScale;
+    camera.y = screenY - worldY * newScale;
+    camera.scale = newScale;
+    applyCamera();
+  }
+
+  function beginPinch() {
+    var pts = Object.keys(pointers).map(function (id) { return pointers[id]; });
+    if (pts.length !== 2) return;
+
+    pinchState = {
+      distance: distance(pts[0], pts[1]),
+      scale: camera.scale,
+      center: midpoint(pts[0], pts[1])
+    };
+    panState = null;
+  }
+
+  function updatePinch() {
+    if (!pinchState) return;
+    var pts = Object.keys(pointers).map(function (id) { return pointers[id]; });
+    if (pts.length !== 2) return;
+
+    var dist = Math.max(distance(pts[0], pts[1]), 1);
+    var center = midpoint(pts[0], pts[1]);
+    var rect = document.getElementById("mapViewport").getBoundingClientRect();
+    var sx = center.x - rect.left;
+    var sy = center.y - rect.top;
+    zoomAt(sx, sy, pinchState.scale * (dist / pinchState.distance));
+  }
+
+  function renderMinimap() {
+    var bounds = getWorldBounds();
+    if (!bounds) {
+      $("#minimap").attr("hidden", true);
+      return;
+    }
+
+    $("#minimap").removeAttr("hidden");
+
+    var w = $("#minimap").innerWidth() || 160;
+    var h = $("#minimap").innerHeight() || 112;
+    var html = "";
+
+    Object.keys(renderPositions).forEach(function (id) {
+      var node = state.nodes[id];
+      var pos = renderPositions[id];
+      if (!node || !pos) return;
+
+      var left = ((pos.x - bounds.minX) / bounds.width) * w;
+      var top = ((pos.y - bounds.minY) / bounds.height) * h;
+
+      html += '<span class="minimap-node depth-' + Math.min(node.depth, 2) +
+        (selectedId === id ? " selected" : "") +
+        '" style="left:' + left + 'px;top:' + top + 'px"></span>';
+    });
+
+    $("#minimapWorld").html(html);
+    renderMinimapCamera();
+  }
+
+  function renderMinimapCamera() {
+    if (!state.rootId || $("#minimap").is("[hidden]")) return;
+    var bounds = getWorldBounds();
+    if (!bounds) return;
+
+    var w = $("#minimap").innerWidth() || 160;
+    var h = $("#minimap").innerHeight() || 112;
+
+    var worldLeft = (0 - camera.x) / camera.scale;
+    var worldTop = (0 - camera.y) / camera.scale;
+    var worldRight = (viewportWidth() - camera.x) / camera.scale;
+    var worldBottom = (viewportHeight() - camera.y) / camera.scale;
+
+    var left = ((worldLeft - bounds.minX) / bounds.width) * w;
+    var top = ((worldTop - bounds.minY) / bounds.height) * h;
+    var width = ((worldRight - worldLeft) / bounds.width) * w;
+    var height = ((worldBottom - worldTop) / bounds.height) * h;
+
+    $("#minimapCamera").css({
+      left: clamp(left, -w, w * 2) + "px",
+      top: clamp(top, -h, h * 2) + "px",
+      width: Math.max(width, 6) + "px",
+      height: Math.max(height, 6) + "px"
+    });
+  }
+
+  function viewportWidth() {
+    return $("#mapViewport").innerWidth() || 1000;
+  }
+
+  function viewportHeight() {
+    return $("#mapViewport").innerHeight() || 650;
+  }
+
+  function updateCanvasStatus() {
+    var visibleCount = Object.keys(renderPositions).length;
+    var total = Object.keys(state.nodes).length;
+    var done = Object.keys(state.nodes).filter(function (id) {
+      return state.nodes[id].status === "done";
+    }).length;
+
+    $("#canvasStatusText").text(
+      visibleCount + " visible · " + total + " total · " + done + " done · Shift-drag to reposition"
+    );
   }
 
   function startPromptRotation() {
     stopPromptRotation();
 
     promptTimer = setInterval(function () {
-      if (state.rootId || $("#centerEditor").is(":visible")) return;
+      if (state.rootId || $("#rootInput").is(":visible")) return;
+
       promptIndex = (promptIndex + 1) % PROMPTS.length;
       var $prompt = $("#rotatingPrompt");
-
       $prompt.addClass("swap-out");
+
       setTimeout(function () {
         $prompt.text(PROMPTS[promptIndex]).removeClass("swap-out");
-      }, 190);
+      }, 180);
     }, 2800);
   }
 
@@ -748,14 +1244,16 @@
   }
 
   function openSuggestionModal() {
-    if (!focusedId || !state.nodes[focusedId]) return;
+    if (!selectedId || !state.nodes[selectedId]) return;
 
-    var node = state.nodes[focusedId];
+    var node = state.nodes[selectedId];
     if (!node.children.length) createEightSlots(node.id);
+    node.collapsed = false;
 
     suggestionBuffer = buildSuggestions(node, false);
     $("#suggestionTitle").text(node.depth === 0 ? "Suggested drivers" : "Suggested actions");
     renderSuggestions();
+    renderAll(true);
     $("#suggestionModal").removeAttr("hidden");
   }
 
@@ -799,7 +1297,7 @@
         '<input type="checkbox" id="suggestion_' + index + '" data-index="' + index + '" checked>' +
         '<label for="suggestion_' + index + '">' +
         '<strong>' + escapeHtml(item) + '</strong>' +
-        '<small>Fill one empty node with this suggestion.</small>' +
+        '<small>Fill one empty child node.</small>' +
         "</label></div>";
     }).join("");
 
@@ -807,7 +1305,7 @@
   }
 
   function applySuggestions() {
-    var parent = state.nodes[focusedId];
+    var parent = state.nodes[selectedId];
     if (!parent) return;
 
     if (!parent.children.length) createEightSlots(parent.id);
@@ -827,8 +1325,9 @@
 
     saveState();
     $("#suggestionModal").attr("hidden", true);
-    renderMap(true);
-    showToast("Suggestions added.");
+    renderAll(true);
+    focusCameraOnNode(parent.id, nodeFocusScale(parent));
+    showToast("Suggestions added to the map.");
   }
 
   function openNextModal() {
@@ -901,7 +1400,7 @@
 
   function closeInspector() {
     $("#inspector").removeClass("open").attr("aria-hidden", "true");
-    if (selectedDetailId) renderMap(false);
+    if (selectedDetailId) renderAll(false);
     selectedDetailId = null;
   }
 
@@ -911,9 +1410,9 @@
     state.nodes[selectedDetailId][key] = value;
     saveState();
 
-    if (selectedDetailId === focusedId && key === "title") {
-      $("#centerInput").val(value);
-      renderBreadcrumbs();
+    if (key === "title") {
+      updateSelectionBar();
+      renderAll(false);
     }
   }
 
@@ -945,26 +1444,30 @@
     $("#priorityCopy").text(copy);
   }
 
-  function deleteSelectedNode() {
+  function clearSelectedNode() {
     if (!selectedDetailId || selectedDetailId === state.rootId) return;
 
     var node = state.nodes[selectedDetailId];
     if (!node) return;
 
-    var parentId = node.parentId;
-    removeNodeRecursive(selectedDetailId);
+    (node.children || []).slice().forEach(removeNodeRecursive);
 
-    if (state.nodes[parentId]) {
-      state.nodes[parentId].children = state.nodes[parentId].children.filter(function (id) {
-        return id !== selectedDetailId;
-      });
-    }
+    node.children = [];
+    node.title = "";
+    node.status = "open";
+    node.impact = 3;
+    node.effort = 3;
+    node.urgency = 3;
+    node.duration = "";
+    node.notes = "";
+    node.collapsed = false;
+    node.offsetX = 0;
+    node.offsetY = 0;
 
-    if (focusedId === selectedDetailId) focusedId = parentId;
     saveState();
     closeInspector();
-    renderMap(false);
-    showToast("Node deleted.");
+    renderAll(false);
+    showToast("Node cleared.");
   }
 
   function removeNodeRecursive(id) {
@@ -978,38 +1481,49 @@
     if (state.rootId && !window.confirm("Start a new map? Your current local map will be cleared.")) return;
 
     state = defaultState();
-    focusedId = null;
+    selectedId = null;
+    editingId = null;
     selectedDetailId = null;
     currentNextId = null;
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
     closeInspector();
-    showFreshGoal();
+    showEmptyMap();
     startPromptRotation();
   }
 
   function exportState() {
     if (!state.rootId) return;
 
-    var blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    var payload = {
+      exportedAt: new Date().toISOString(),
+      version: state.version || 2,
+      rootId: state.rootId,
+      nodes: state.nodes
+    };
+
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     var url = URL.createObjectURL(blob);
-    var a = document.createElement("a");
-    a.href = url;
-    a.download = "mandala-map.json";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = "mandala-map.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
     URL.revokeObjectURL(url);
     showToast("Map exported.");
   }
 
   function toggleTheme() {
-    var light = !$("body").hasClass("light");
-    $("body").toggleClass("light", light);
-    localStorage.setItem(THEME_KEY, light ? "light" : "dark");
+    var dark = !$("body").hasClass("dark");
+    $("body").toggleClass("dark", dark);
+    localStorage.setItem(THEME_KEY, dark ? "dark" : "light");
   }
 
   function applyStoredTheme() {
-    $("body").toggleClass("light", localStorage.getItem(THEME_KEY) === "light");
+    var stored = localStorage.getItem(THEME_KEY);
+    var dark = stored ? stored === "dark" : false;
+    $("body").toggleClass("dark", dark);
   }
 
   function showToast(message) {
@@ -1030,8 +1544,26 @@
     return arr.slice(n).concat(arr.slice(0, n));
   }
 
-  function pad(value) {
-    return value < 10 ? "0" + value : String(value);
+  function round(value) {
+    return Math.round(value * 10) / 10;
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function distance(a, b) {
+    var dx = a.x - b.x;
+    var dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function midpoint(a, b) {
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
   }
 
   function escapeHtml(value) {

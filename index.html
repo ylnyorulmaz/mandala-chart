@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0a0b0f">
-  <meta name="description" content="Mandala turns a goal into drivers, actions, and a clear next step.">
-  <title>Mandala — Turn goals into action</title>
+  <meta name="theme-color" content="#f5f7fb">
+  <meta name="description" content="Mandala is a zoomable visual goal map for turning intentions into drivers, actions, and next steps.">
+  <title>Mandala — Visual goal map</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
@@ -37,67 +37,84 @@
     </header>
 
     <main>
-      <section class="planner-section">
-        <div class="planner-topline">
-          <div class="breadcrumbs" id="breadcrumbs" aria-label="Current path"></div>
+      <section class="planner-shell">
+        <div class="planner-head">
+          <div>
+            <span class="kicker">VISUAL GOAL MAP</span>
+            <h1>See the whole thing. Focus where it matters.</h1>
+            <p>Pan, zoom, expand branches, and keep the full structure visible while you work.</p>
+          </div>
 
           <div class="planner-actions" id="plannerActions" hidden>
-            <button class="soft-button" id="suggestButton" type="button">
-              <span class="spark">✦</span>
-              Suggest
-            </button>
+            <button class="soft-button" id="suggestButton" type="button"><span class="spark">✦</span> Suggest</button>
+            <button class="soft-button" id="detailsButton" type="button">Details</button>
+            <button class="soft-button" id="splitButton" type="button">Split</button>
+            <button class="soft-button" id="collapseButton" type="button">Collapse</button>
             <button class="soft-button" id="nextButton" type="button">Next action</button>
             <button class="soft-button" id="exportButton" type="button">Export</button>
             <button class="soft-button muted" id="resetButton" type="button">New</button>
           </div>
         </div>
 
-        <div class="planner-copy">
-          <span class="kicker">FROM INTENTION TO EXECUTION</span>
-          <p id="plannerHint">Start with one thing. We will break it down only as far as needed.</p>
-        </div>
+        <div class="map-frame">
+          <div class="map-toolbar" aria-label="Canvas controls">
+            <button class="map-tool" id="zoomOutButton" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+            <button class="map-tool" id="zoomInButton" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+            <button class="map-tool wide" id="fitButton" type="button" title="Fit all nodes">Fit</button>
+            <button class="map-tool wide" id="centerButton" type="button" title="Focus selected node">Focus</button>
+            <span class="zoom-readout" id="zoomReadout">100%</span>
+          </div>
 
-        <div class="mandala-stage" id="mandalaStage">
-          <svg class="node-lines" id="nodeLines" aria-hidden="true"></svg>
+          <div class="map-hint" id="mapHint">
+            Drag empty space to pan · scroll or pinch to zoom · click to focus · double-click to edit · Shift-drag to reposition
+          </div>
 
-          <div class="center-node idle" id="centerNode" tabindex="0" role="button" aria-label="Enter your goal">
-            <div class="center-glow" aria-hidden="true"></div>
-
-            <div class="center-prompt" id="centerPrompt">
-              <span class="prompt-label">START HERE</span>
-              <strong id="rotatingPrompt">What do you want to finish?</strong>
-              <small>Click to type</small>
+          <div class="map-viewport" id="mapViewport" tabindex="0" aria-label="Mandala map canvas">
+            <div class="map-world" id="mapWorld">
+              <svg class="map-edges" id="mapEdges" aria-hidden="true"></svg>
+              <div class="map-nodes" id="mapNodes"></div>
             </div>
 
-            <div class="center-editor" id="centerEditor" hidden>
-              <span class="node-eyebrow" id="centerEyebrow">GOAL</span>
-              <textarea id="centerInput" rows="4" maxlength="180" placeholder="Type it here…"></textarea>
-              <div class="center-editor-footer">
-                <span>Enter to continue</span>
-                <button class="tiny-button" id="centerDetailsButton" type="button">Details</button>
+            <div class="empty-map" id="emptyMap">
+              <div class="root-starter" id="rootStarter" tabindex="0" role="button" aria-label="Enter your goal">
+                <div class="starter-glow" aria-hidden="true"></div>
+                <div class="starter-copy" id="starterCopy">
+                  <span>START HERE</span>
+                  <strong id="rotatingPrompt">What do you want to finish?</strong>
+                  <small>Click to type your goal</small>
+                </div>
+                <textarea id="rootInput" rows="4" maxlength="180" placeholder="Type your goal…" hidden></textarea>
               </div>
             </div>
+
+            <div class="minimap" id="minimap" hidden>
+              <div class="minimap-world" id="minimapWorld"></div>
+              <div class="minimap-camera" id="minimapCamera"></div>
+            </div>
+
+            <div class="canvas-status" id="canvasStatus">
+              <span class="status-dot"></span>
+              <span id="canvasStatusText">Local-first · no account required</span>
+            </div>
           </div>
 
-          <div class="child-layer" id="childLayer"></div>
-
-          <div class="stage-empty-note" id="stageEmptyNote" hidden>
-            <span>This is still broad.</span>
-            <button id="splitButton" type="button">Break it down</button>
+          <div class="selection-bar" id="selectionBar" hidden>
+            <div class="selection-copy">
+              <span class="node-eyebrow" id="selectionType">GOAL</span>
+              <strong id="selectionTitle">Selected node</strong>
+            </div>
+            <div class="selection-actions">
+              <button id="editSelectedButton" type="button">Edit</button>
+              <button id="markDoneButton" type="button">Mark done</button>
+              <button id="focusSelectedButton" type="button">Center camera</button>
+            </div>
           </div>
-        </div>
-
-        <div class="planner-legend" id="plannerLegend" hidden>
-          <span><i class="legend-dot goal"></i> Goal</span>
-          <span><i class="legend-dot driver"></i> Driver</span>
-          <span><i class="legend-dot action"></i> Action</span>
-          <span class="legend-tip">Click a filled node to go deeper. Double-click for details.</span>
         </div>
       </section>
 
       <section class="manifesto-strip">
-        <p>Do not build a prettier to-do list. <strong>Break the thing down until the next move is obvious.</strong></p>
-        <a href="about.html">How it works →</a>
+        <p><strong>The map is not the work.</strong> Its job is to turn a vague goal into the next obvious move.</p>
+        <a href="about.html">How the system works →</a>
       </section>
     </main>
 
@@ -110,7 +127,7 @@
             </span>
             <span class="brand-name">mandala</span>
           </a>
-          <p>Turn a vague intention into a map of concrete, controllable actions.</p>
+          <p>A visual execution map for turning goals into concrete, controllable actions.</p>
         </div>
 
         <div class="footer-column">
@@ -212,7 +229,7 @@
       </button>
       <span class="node-eyebrow">PLANNING ASSISTANT</span>
       <h2 id="suggestionTitle">Suggested drivers</h2>
-      <p>Front-end prototype suggestions for now. The real LLM hook can replace this later.</p>
+      <p>Prototype suggestions for now. A model integration can replace this later without changing the interaction.</p>
       <div class="suggestion-list" id="suggestionList"></div>
       <div class="modal-actions">
         <button class="soft-button" id="shuffleSuggestions" type="button">Regenerate</button>
