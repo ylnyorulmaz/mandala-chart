@@ -473,6 +473,7 @@
     $("#splitButton").on("click", splitSelected);
     $("#collapseButton").on("click", toggleCollapseSelected);
     $("#nextButton").on("click", openNextModal);
+    $("#reviewButton").on("click", openReviewModal);
     $("#exportButton").on("click", exportState);
     $("#resetButton").on("click", resetAll);
 
@@ -532,6 +533,40 @@
       saveState();
       renderAll(false);
       if (!wasDone && status === "done") celebrateNode(state.nodes[id]);
+    });
+
+    $("#nodeTableBody").on("change", ".table-decision-select", function () {
+      var id = $(this).closest("tr").data("id");
+      if (!id || !state.nodes[id]) return;
+      state.nodes[id].decision = $(this).val();
+      saveState();
+      renderAll(false);
+    });
+
+    $("#nodeTableBody").on("change", ".table-important-input", function () {
+      var id = $(this).closest("tr").data("id");
+      if (!id || !state.nodes[id]) return;
+      state.nodes[id].important = this.checked;
+      saveState();
+      renderAll(false);
+    });
+
+    $("#nodeTableBody").on("change", ".table-urgent-input", function () {
+      var id = $(this).closest("tr").data("id");
+      if (!id || !state.nodes[id]) return;
+      state.nodes[id].urgent = this.checked;
+      saveState();
+      renderAll(false);
+    });
+
+    $("#nodeTableBody").on("change", ".table-impact-select, .table-effort-select", function () {
+      var id = $(this).closest("tr").data("id");
+      if (!id || !state.nodes[id]) return;
+      var node = state.nodes[id];
+      node.impact = parseInt($(this).closest("tr").find(".table-impact-select").val(), 10);
+      node.effort = parseInt($(this).closest("tr").find(".table-effort-select").val(), 10);
+      saveState();
+      renderAll(false);
     });
 
     $("#nodeTableBody").on("click", ".table-focus-button", function () {
@@ -595,6 +630,15 @@
       $("#nextModal").attr("hidden", true);
     });
 
+    $("#closeReviewModal, #closeReviewButton").on("click", function () {
+      $("#reviewModal").attr("hidden", true);
+    });
+
+    $("#openTriageTableButton").on("click", function () {
+      $("#reviewModal").attr("hidden", true);
+      switchView("table");
+    });
+
     $("#openNextAction").on("click", function () {
       if (!currentNextId) return;
       $("#nextModal").attr("hidden", true);
@@ -608,7 +652,7 @@
       setTimeout(openNextModal, 420);
     });
 
-    $("#suggestionModal, #nextModal").on("click", function (e) {
+    $("#suggestionModal, #nextModal, #reviewModal").on("click", function (e) {
       if (e.target === this) $(this).attr("hidden", true);
     });
 
@@ -618,17 +662,59 @@
       updateSelectedDetail("title", $(this).val());
     });
 
-    $("#impactInput, #effortInput, #urgencyInput").on("input", function () {
+    $("#impactInput, #effortInput").on("input", function () {
       if (!selectedDetailId || !state.nodes[selectedDetailId]) return;
       var node = state.nodes[selectedDetailId];
       node.impact = parseInt($("#impactInput").val(), 10);
       node.effort = parseInt($("#effortInput").val(), 10);
-      node.urgency = parseInt($("#urgencyInput").val(), 10);
       $("#impactOutput").text(node.impact);
       $("#effortOutput").text(node.effort);
-      $("#urgencyOutput").text(node.urgency);
       updatePriorityCard(node);
       saveState();
+    });
+
+    $("#decisionInput").on("change", function () {
+      updateSelectedDetail("decision", $(this).val());
+      if (selectedDetailId && state.nodes[selectedDetailId]) {
+        updatePriorityCard(state.nodes[selectedDetailId]);
+        renderAll(false);
+      }
+    });
+
+    $("#importantInput").on("change", function () {
+      updateSelectedDetail("important", this.checked);
+      if (selectedDetailId && state.nodes[selectedDetailId]) {
+        updatePriorityCard(state.nodes[selectedDetailId]);
+        renderAll(false);
+      }
+    });
+
+    $("#urgentInput").on("change", function () {
+      updateSelectedDetail("urgent", this.checked);
+      if (selectedDetailId && state.nodes[selectedDetailId]) {
+        updatePriorityCard(state.nodes[selectedDetailId]);
+        renderAll(false);
+      }
+    });
+
+    $("#delegatableInput").on("change", function () {
+      updateSelectedDetail("delegatable", $(this).val());
+    });
+
+    $("#dependencyInput").on("change", function () {
+      updateSelectedDetail("dependencyId", $(this).val() || null);
+      if (selectedDetailId && state.nodes[selectedDetailId]) {
+        updatePriorityCard(state.nodes[selectedDetailId]);
+        renderAll(false);
+      }
+    });
+
+    $("#delegatedToInput").on("input", function () {
+      updateSelectedDetail("delegatedTo", $(this).val());
+    });
+
+    $("#deferUntilInput").on("change", function () {
+      updateSelectedDetail("deferUntil", $(this).val());
     });
 
     $("#durationInput").on("input", function () {
@@ -662,7 +748,7 @@
     $(document).on("keydown", function (e) {
       if (e.key === "Escape") {
         closeInspector();
-        $("#suggestionModal, #nextModal").attr("hidden", true);
+        $("#suggestionModal, #nextModal, #reviewModal").attr("hidden", true);
         if (editingId) {
           editingId = null;
           renderAll(false);
@@ -695,7 +781,7 @@
     return {
       rootId: null,
       nodes: {},
-      version: 2
+      version: 3
     };
   }
 
@@ -707,7 +793,7 @@
 
       var parsed = JSON.parse(raw);
       if (!parsed || !parsed.nodes) return defaultState();
-      parsed.version = 2;
+      parsed.version = 3;
       return parsed;
     } catch (e) {
       return defaultState();
@@ -726,6 +812,14 @@
       if (!node.impact) node.impact = 3;
       if (!node.effort) node.effort = 3;
       if (!node.urgency) node.urgency = 3;
+      if (typeof node.important !== "boolean") node.important = false;
+      if (typeof node.urgent !== "boolean") node.urgent = parseInt(node.urgency || 0, 10) >= 4;
+      if (["do", "defer", "delegate", "delete"].indexOf(node.decision) === -1) node.decision = "do";
+      if (["no", "partly", "yes"].indexOf(node.delegatable) === -1) node.delegatable = "no";
+      if (typeof node.delegatedTo !== "string") node.delegatedTo = "";
+      if (typeof node.deferUntil !== "string") node.deferUntil = "";
+      if (node.dependencyId && !state.nodes[node.dependencyId]) node.dependencyId = null;
+      if (typeof node.dependencyId === "undefined") node.dependencyId = null;
     });
     saveState();
   }
@@ -750,6 +844,13 @@
       impact: 3,
       effort: 3,
       urgency: 3,
+      important: false,
+      urgent: false,
+      decision: "do",
+      delegatable: "no",
+      dependencyId: null,
+      delegatedTo: "",
+      deferUntil: "",
       duration: "",
       notes: "",
       collapsed: false,
@@ -902,7 +1003,7 @@
 
   function renderTable() {
     if (!state.rootId || !state.nodes[state.rootId]) {
-      $("#nodeTableBody").empty();
+      $("#nodeTableBody, #triageSummary").empty();
       return;
     }
 
@@ -913,8 +1014,6 @@
       var node = state.nodes[id];
       if (!node) return;
 
-      var parent = node.parentId ? state.nodes[node.parentId] : null;
-      var parentTitle = parent ? (parent.title.trim() || placeholderText(parent)) : "—";
       var title = node.title.trim();
       var placeholder = placeholderText(node);
       var done = node.status === "done";
@@ -923,12 +1022,17 @@
       var canExpand = hasChildren && node.depth >= 1;
       var collapsed = canExpand && node.tableCollapsed;
       var childCount = hasChildren ? node.children.length : 0;
+      var decision = decisionValue(node);
+      var blocked = isNodeBlocked(node);
+      var dependencyText = dependencyStateLabel(node);
       var rowClasses = [
         done ? "table-row-done" : "",
         !title ? "table-row-placeholder" : "",
         node.depth === 1 ? "table-driver-row" : "",
         canExpand ? "table-expandable-row" : "",
-        collapsed ? "table-row-collapsed" : ""
+        collapsed ? "table-row-collapsed" : "",
+        "table-decision-" + decision,
+        blocked ? "table-row-blocked" : ""
       ].filter(Boolean).join(" ");
 
       html += '<tr class="' + rowClasses + '" data-id="' + id + '">' +
@@ -953,7 +1057,19 @@
         '</div></td>' +
         '<td><span class="table-kind kind-' + Math.min(node.depth || 0, 3) + '">' +
           escapeHtml(typeLabel(node).toLowerCase()) + '</span></td>' +
-        '<td class="table-parent" title="' + escapeHtml(parentTitle) + '">' + escapeHtml(parentTitle) + '</td>' +
+        '<td><select class="table-decision-select decision-' + decision + '" aria-label="4D decision">' +
+          decisionOptions(decision) +
+        '</select></td>' +
+        '<td class="flag-col"><label class="mini-flag" title="Important"><input class="table-important-input" type="checkbox"' +
+          (node.important ? " checked" : "") + '><span>I</span></label></td>' +
+        '<td class="flag-col"><label class="mini-flag urgent" title="Urgent"><input class="table-urgent-input" type="checkbox"' +
+          (node.urgent ? " checked" : "") + '><span>U</span></label></td>' +
+        '<td><select class="table-score-select table-impact-select" aria-label="Impact">' +
+          scoreOptions(node.impact || 3) + '</select></td>' +
+        '<td><select class="table-score-select table-effort-select" aria-label="Effort">' +
+          scoreOptions(node.effort || 3) + '</select></td>' +
+        '<td><span class="readiness-pill ' + (blocked ? "blocked" : "ready") + '" title="' +
+          escapeHtml(dependencyText) + '">' + escapeHtml(blocked ? "Blocked" : "Ready") + '</span></td>' +
         '<td><select class="table-status-select" aria-label="Status">' +
           '<option value="open"' + (node.status === "open" ? " selected" : "") + '>Open</option>' +
           '<option value="doing"' + (node.status === "doing" ? " selected" : "") + '>Doing</option>' +
@@ -961,13 +1077,14 @@
         '</select></td>' +
         '<td class="table-time">' + estimate + '</td>' +
         '<td class="table-row-actions">' +
-          '<button class="table-icon-button table-details-button" type="button" title="Details" aria-label="Open details">•••</button>' +
+          '<button class="table-icon-button table-details-button" type="button" title="Triage & details" aria-label="Open triage and details">•••</button>' +
           '<button class="table-icon-button table-focus-button" type="button" title="Show on map" aria-label="Show on map">↗</button>' +
         '</td>' +
       '</tr>';
     });
 
     $("#nodeTableBody").html(html);
+    renderTriageSummary();
   }
 
   function getTableNodeIds() {
@@ -1156,6 +1273,8 @@
         placeholder ? "placeholder" : "",
         selectedId === id ? "selected" : "",
         node.status === "done" ? "done" : "",
+        "decision-" + decisionValue(node),
+        isNodeBlocked(node) ? "blocked" : "",
         node.collapsed && node.children.length ? "collapsed" : "",
         animateNew && node.depth > 0 ? "node-enter" : ""
       ].filter(Boolean).join(" ");
@@ -1183,7 +1302,9 @@
           (node.status === "done" ? "✓" : "") + "</button>";
 
         html += '<span class="node-badge">' + typeLabel(node) +
-          (node.status === "done" ? " · DONE" : "") + "</span>";
+          (node.status === "done" ? " · DONE" : "") + "</span>" +
+          '<span class="node-decision-badge decision-' + decisionValue(node) + '">' +
+          escapeHtml(decisionLabel(decisionValue(node))) + '</span>';
       }
 
       html += "</div>";
@@ -1287,7 +1408,7 @@
     }
 
     $("#selectionBar").removeAttr("hidden");
-    $("#selectionType").text(typeLabel(node));
+    $("#selectionType").text(typeLabel(node) + " · " + decisionLabel(decisionValue(node)).toUpperCase());
     $("#selectionTitle").text(node.title.trim() || placeholderText(node));
     $("#markDoneButton").text(node.status === "done" ? "Undo" : "Clear it ✓");
     $("#collapseButton").text(node.collapsed ? "Show branch" : "Hide branch");
@@ -1526,21 +1647,26 @@
       return;
     }
 
-    var playable = Object.keys(state.nodes).filter(function (id) {
-      var node = state.nodes[id];
-      return node && node.title && node.title.trim();
-    });
+    var actionable = Object.keys(state.nodes)
+      .map(function (id) { return state.nodes[id]; })
+      .filter(function (node) {
+        if (!node || !node.title || !node.title.trim() || node.depth < 2) return false;
+        var hasFilledChildren = (node.children || []).some(function (childId) {
+          return state.nodes[childId] && state.nodes[childId].title.trim();
+        });
+        return !hasFilledChildren && decisionValue(node) !== "delete" && !hasSuppressedAncestor(node);
+      });
 
-    if (!playable.length) {
+    if (!actionable.length) {
       $("#questProgress").attr("hidden", true);
       return;
     }
 
-    var done = playable.filter(function (id) {
-      return state.nodes[id].status === "done";
+    var done = actionable.filter(function (node) {
+      return node.status === "done";
     }).length;
 
-    var percent = Math.round((done / playable.length) * 100);
+    var percent = Math.round((done / actionable.length) * 100);
     $("#questProgress").removeAttr("hidden");
     $("#questProgressValue").text(percent + "%");
     $("#questProgressFill").css("width", percent + "%");
@@ -1608,15 +1734,131 @@
     layer.appendChild(fragment);
   }
 
+  function decisionValue(node) {
+    return node && ["do", "defer", "delegate", "delete"].indexOf(node.decision) !== -1 ? node.decision : "do";
+  }
+
+  function decisionLabel(decision) {
+    return {
+      "do": "Do",
+      "defer": "Defer",
+      "delegate": "Delegate",
+      "delete": "Delete"
+    }[decision] || "Do";
+  }
+
+  function decisionOptions(selected) {
+    return ["do", "defer", "delegate", "delete"].map(function (value) {
+      return '<option value="' + value + '"' + (selected === value ? " selected" : "") + '>' +
+        decisionLabel(value) + '</option>';
+    }).join("");
+  }
+
+  function scoreOptions(selected) {
+    selected = parseInt(selected || 3, 10);
+    return [1, 2, 3, 4, 5].map(function (value) {
+      return '<option value="' + value + '"' + (selected === value ? " selected" : "") + '>' +
+        value + '</option>';
+    }).join("");
+  }
+
+  function isDependencyResolved(node) {
+    if (!node || !node.dependencyId) return true;
+    var dependency = state.nodes[node.dependencyId];
+    if (!dependency) return true;
+    return dependency.status === "done" || decisionValue(dependency) === "delete";
+  }
+
+  function isNodeBlocked(node) {
+    return !!(node && node.dependencyId && !isDependencyResolved(node));
+  }
+
+  function dependencyStateLabel(node) {
+    if (!node || !node.dependencyId) return "Ready";
+    var dependency = state.nodes[node.dependencyId];
+    if (!dependency) return "Ready";
+    if (isDependencyResolved(node)) return "Ready";
+    return "Blocked by " + (dependency.title.trim() || typeLabel(dependency));
+  }
+
+  function hasSuppressedAncestor(node) {
+    var cursor = node && node.parentId ? state.nodes[node.parentId] : null;
+
+    while (cursor) {
+      if (cursor.depth >= 1 && decisionValue(cursor) !== "do") return true;
+      cursor = cursor.parentId ? state.nodes[cursor.parentId] : null;
+    }
+
+    return false;
+  }
+
+  function executionNodes() {
+    return Object.keys(state.nodes)
+      .map(function (id) { return state.nodes[id]; })
+      .filter(function (node) {
+        return node && node.title && node.title.trim() && node.depth >= 2;
+      });
+  }
+
+  function renderTriageSummary() {
+    var nodes = executionNodes();
+    var counts = { do: 0, defer: 0, delegate: 0, delete: 0, ready: 0, blocked: 0, done: 0 };
+
+    nodes.forEach(function (node) {
+      counts[decisionValue(node)] += 1;
+      if (node.status === "done") counts.done += 1;
+      if (decisionValue(node) === "do" && !hasSuppressedAncestor(node)) {
+        if (isNodeBlocked(node)) counts.blocked += 1;
+        else counts.ready += 1;
+      }
+    });
+
+    var html =
+      '<span class="triage-chip do"><b>' + counts.do + '</b> Do</span>' +
+      '<span class="triage-chip defer"><b>' + counts.defer + '</b> Defer</span>' +
+      '<span class="triage-chip delegate"><b>' + counts.delegate + '</b> Delegate</span>' +
+      '<span class="triage-chip delete"><b>' + counts.delete + '</b> Delete</span>' +
+      '<span class="triage-chip ready"><b>' + counts.ready + '</b> ready</span>' +
+      '<span class="triage-chip blocked"><b>' + counts.blocked + '</b> blocked</span>';
+
+    $("#triageSummary").html(html);
+  }
+
+  function openReviewModal() {
+    var nodes = executionNodes();
+    var counts = { do: 0, defer: 0, delegate: 0, delete: 0, ready: 0, blocked: 0, done: 0 };
+
+    nodes.forEach(function (node) {
+      counts[decisionValue(node)] += 1;
+      if (node.status === "done") counts.done += 1;
+      if (decisionValue(node) === "do" && !hasSuppressedAncestor(node)) {
+        if (isNodeBlocked(node)) counts.blocked += 1;
+        else counts.ready += 1;
+      }
+    });
+
+    $("#reviewStats").html(
+      '<div><b>' + counts.done + '</b><span>done</span></div>' +
+      '<div><b>' + counts.ready + '</b><span>ready DO</span></div>' +
+      '<div><b>' + counts.defer + '</b><span>deferred</span></div>' +
+      '<div><b>' + counts.delegate + '</b><span>delegated</span></div>' +
+      '<div><b>' + counts.delete + '</b><span>deleted</span></div>' +
+      '<div><b>' + counts.blocked + '</b><span>blocked</span></div>'
+    );
+
+    $("#reviewModal").removeAttr("hidden");
+  }
+
   function updateCanvasStatus() {
-    var visibleCount = Object.keys(renderPositions).length;
-    var total = Object.keys(state.nodes).length;
-    var done = Object.keys(state.nodes).filter(function (id) {
-      return state.nodes[id].status === "done";
+    var nodes = executionNodes();
+    var done = nodes.filter(function (node) { return node.status === "done"; }).length;
+    var doNow = nodes.filter(function (node) {
+      return decisionValue(node) === "do" && !hasSuppressedAncestor(node) && !isNodeBlocked(node) && node.status !== "done";
     }).length;
+    var cut = nodes.filter(function (node) { return decisionValue(node) === "delete"; }).length;
 
     $("#canvasStatusText").text(
-      done + " cleared · " + Math.max(total - done, 0) + " left · Drag nodes to move"
+      done + " done · " + doNow + " ready DO · " + cut + " cut · Drag nodes to move"
     );
   }
 
@@ -1731,7 +1973,10 @@
         return node.title.trim() &&
           node.status !== "done" &&
           !hasFilledChildren &&
-          node.depth >= 2;
+          node.depth >= 2 &&
+          decisionValue(node) === "do" &&
+          !hasSuppressedAncestor(node) &&
+          !isNodeBlocked(node);
       });
 
     candidates.sort(function (a, b) {
@@ -1741,8 +1986,8 @@
     currentNextId = candidates.length ? candidates[0].id : null;
 
     if (!currentNextId) {
-      $("#nextActionTitle").text("Nothing actionable yet.");
-      $("#nextActionMeta").text("Add actions under a driver, or split a broad action into smaller steps.");
+      $("#nextActionTitle").text("No ready DO action yet.");
+      $("#nextActionMeta").text("Triage actions in Table view: choose DO, resolve blockers, or split broad work.");
       $("#openNextAction, #completeNextAction").prop("disabled", true).css("opacity", .45);
     } else {
       var node = state.nodes[currentNextId];
@@ -1750,6 +1995,9 @@
       if (node.duration) meta.push(node.duration + " min");
       meta.push("impact " + (node.impact || 3) + "/5");
       meta.push("effort " + (node.effort || 3) + "/5");
+      if (node.important) meta.push("important");
+      if (node.urgent) meta.push("urgent");
+      meta.push("ready");
 
       $("#nextActionTitle").text(node.title);
       $("#nextActionMeta").text(meta.join(" · "));
@@ -1762,8 +2010,13 @@
   function scoreNode(node) {
     var impact = parseInt(node.impact || 3, 10);
     var effort = parseInt(node.effort || 3, 10);
-    var urgency = parseInt(node.urgency || 3, 10);
-    return impact * 2 + urgency - effort;
+    var score = impact * 2 - effort;
+
+    if (node.important) score += 4;
+    if (node.urgent) score += 3;
+    if (node.duration && parseInt(node.duration, 10) <= 30) score += 1;
+
+    return score;
   }
 
   function openInspector(id) {
@@ -1775,10 +2028,16 @@
     $("#detailTitle").val(node.title);
     $("#impactInput").val(node.impact || 3);
     $("#effortInput").val(node.effort || 3);
-    $("#urgencyInput").val(node.urgency || 3);
     $("#impactOutput").text(node.impact || 3);
     $("#effortOutput").text(node.effort || 3);
-    $("#urgencyOutput").text(node.urgency || 3);
+    $("#decisionInput").val(decisionValue(node));
+    $("#importantInput").prop("checked", !!node.important);
+    $("#urgentInput").prop("checked", !!node.urgent);
+    $("#delegatableInput").val(node.delegatable || "no");
+    populateDependencyOptions(node);
+    $("#dependencyInput").val(node.dependencyId || "");
+    $("#delegatedToInput").val(node.delegatedTo || "");
+    $("#deferUntilInput").val(node.deferUntil || "");
     $("#durationInput").val(node.duration || "");
     $("#statusInput").val(node.status || "open");
     $("#notesInput").val(node.notes || "");
@@ -1809,29 +2068,68 @@
   function updatePriorityCard(node) {
     var impact = parseInt(node.impact || 3, 10);
     var effort = parseInt(node.effort || 3, 10);
-    var urgency = parseInt(node.urgency || 3, 10);
-    var label = "Balanced";
-    var copy = "Useful, but not an obvious first move.";
+    var decision = decisionValue(node);
+    var blocked = isNodeBlocked(node);
+    var label = decisionLabel(decision);
+    var copy = "Triaged for execution.";
 
-    if (impact >= 4 && effort <= 2) {
+    if (decision === "delete") {
+      label = "Delete";
+      copy = "Keep the decision visible, but do not spend execution time on this.";
+    } else if (decision === "delegate") {
+      label = "Delegate";
+      copy = node.delegatedTo ? "Hand this to " + node.delegatedTo + "." : "This should happen, but not necessarily by you.";
+    } else if (decision === "defer") {
+      label = "Defer";
+      copy = node.deferUntil ? "Not now. Revisit on " + node.deferUntil + "." : "Important enough to keep, but not part of the current execution queue.";
+    } else if (blocked) {
+      label = "Blocked";
+      copy = dependencyStateLabel(node);
+    } else if (node.important && node.urgent) {
+      label = "Do now";
+      copy = "Important, urgent, and ready. Strong immediate candidate.";
+    } else if (impact >= 4 && effort <= 2) {
       label = "Quick win";
-      copy = "High impact with relatively low effort. Strong candidate to do early.";
-    } else if (impact >= 4 && effort >= 4) {
-      label = "Major move";
-      copy = "High impact, high effort. Schedule it or break it down further.";
+      copy = "High impact with relatively low effort. Strong DO candidate.";
+    } else if (node.important && !node.urgent) {
+      label = "Schedule";
+      copy = "Important but not urgent. Protect time for it without letting urgency theater take over.";
+    } else if (!node.important && node.urgent && node.delegatable !== "no") {
+      label = "Delegate";
+      copy = "Urgent but not important to do personally. Delegation is worth considering.";
     } else if (impact <= 2 && effort >= 4) {
-      label = "Low leverage";
-      copy = "High effort for limited impact. Consider dropping or redesigning it.";
-    } else if (urgency >= 4 && impact >= 3) {
-      label = "Do soon";
-      copy = "Meaningful and time-sensitive. Avoid unnecessary delay.";
-    } else if (impact <= 2 && urgency <= 2) {
-      label = "Defer or drop";
-      copy = "Low impact and low urgency. It should not displace stronger work.";
+      label = "Question it";
+      copy = "Low impact and high effort. Consider DELETE or redesign.";
     }
 
     $("#priorityLabel").text(label);
     $("#priorityCopy").text(copy);
+  }
+
+  function populateDependencyOptions(node) {
+    var options = ['<option value="">Ready</option>'];
+
+    Object.keys(state.nodes).forEach(function (id) {
+      var candidate = state.nodes[id];
+      if (!candidate || id === node.id || !candidate.title.trim()) return;
+      if (isDescendantOf(id, node.id)) return;
+
+      options.push('<option value="' + id + '">' +
+        escapeHtml(typeLabel(candidate) + ": " + candidate.title.trim()) + '</option>');
+    });
+
+    $("#dependencyInput").html(options.join(""));
+  }
+
+  function isDescendantOf(candidateId, ancestorId) {
+    var cursor = state.nodes[candidateId];
+
+    while (cursor && cursor.parentId) {
+      if (cursor.parentId === ancestorId) return true;
+      cursor = state.nodes[cursor.parentId];
+    }
+
+    return false;
   }
 
   function clearSelectedNode() {
@@ -1848,6 +2146,13 @@
     node.impact = 3;
     node.effort = 3;
     node.urgency = 3;
+    node.important = false;
+    node.urgent = false;
+    node.decision = "do";
+    node.delegatable = "no";
+    node.dependencyId = null;
+    node.delegatedTo = "";
+    node.deferUntil = "";
     node.duration = "";
     node.notes = "";
     node.collapsed = false;
@@ -1889,7 +2194,7 @@
 
     var payload = {
       exportedAt: new Date().toISOString(),
-      version: state.version || 2,
+      version: state.version || 3,
       rootId: state.rootId,
       nodes: state.nodes
     };
