@@ -13,6 +13,7 @@
   var snapshotTimer = null;
   var lastSnapshotAt = 0;
   var snapshotHistoryMapId = null;
+  var relationshipMapId = null;
 
   var selectedId = null;
   var editingId = null;
@@ -269,10 +270,8 @@
     });
 
     $("#closeMapsModal").on("click", closeMapsModal);
-    $("#backToMapsButton").on("click", function () {
-      snapshotHistoryMapId = null;
-      $("#snapshotHistoryView").attr("hidden", true);
-      $("#mapsLibraryView").removeAttr("hidden");
+    $("#backToMapsButton, #backFromRelationshipsButton").on("click", function () {
+      showMapsLibraryPane();
       renderMapsLibrary();
     });
 
@@ -291,12 +290,30 @@
       openSnapshotHistory($(this).closest(".map-card").data("map-id"));
     });
 
+    $("#mapsList").on("click", ".map-connect-button", function () {
+      openMapRelationships($(this).closest(".map-card").data("map-id"));
+    });
+
     $("#mapsList").on("click", ".map-delete-button", function () {
       deleteStoredMap($(this).closest(".map-card").data("map-id"));
     });
 
     $("#snapshotList").on("click", ".snapshot-restore-button", function () {
       restoreSnapshot($(this).closest(".snapshot-row").data("snapshot-id"));
+    });
+
+    $("#saveMapGroupButton").on("click", saveRelationshipMapGroup);
+    $("#mapGroupInput").on("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        saveRelationshipMapGroup();
+      }
+    });
+
+    $("#addMapRelationButton").on("click", addRelationshipFromEditor);
+
+    $("#mapRelationsList").on("click", ".remove-map-link", function () {
+      removeMapRelationship($(this).closest(".map-relation-row").data("link-id"));
     });
 
     $("#mapsModal").on("click", function (e) {
