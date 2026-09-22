@@ -47,7 +47,7 @@ It supports:
 - JSON export,
 - PWA installation,
 - offline caching,
-- dark/light themes.
+- four persistent color palettes: Light, Dark, Sage, and Dawn.
 
 ## Interaction model
 
@@ -280,3 +280,15 @@ The third view is a classic Mandala / Mandalart matrix. **Grid view is available
 - deeper descendants are represented with a small count instead of trying to force recursive steps into the fixed 9×9 matrix.
 
 The Grid view is a structured overview, not a replacement for the recursive Map view.
+
+
+### Color palettes
+
+The old binary dark/light toggle is now a small palette picker with four persistent choices:
+
+- **Light** — the default warm paper look,
+- **Dark** — the existing night theme,
+- **Sage** — a soft green, calmer background,
+- **Dawn** — a warm peach / coral background.
+
+The chosen palette is stored locally and applies across the planner and About page.
