@@ -41,7 +41,6 @@ It supports:
 - minimap navigation,
 - impact / effort metadata,
 - duration, status, and notes,
-
 - local demo suggestions,
 - IndexedDB persistence via locally vendored `idb`,
 - multiple local maps,
@@ -51,7 +50,9 @@ It supports:
 - JSON export,
 - PWA installation,
 - offline caching,
-- four persistent color palettes: Light, Dark, Sage, and Dawn.
+- four persistent color palettes: Light, Dark, Sage, and Dawn,
+- a calm opening prompt whose italic action verb rotates through **achieve / do / finish**,
+- a slow breathing starter pulse instead of a rotating orbit.
 
 ## Interaction model
 
@@ -95,6 +96,7 @@ See [Product.md](Product.md) for the full product vision and philosophy.
 
 - [Product.md](Product.md) — product vision, philosophy, audience, capabilities, constraints, limitations, and business hypothesis.
 - [ProductRoadmap.md](ProductRoadmap.md) — staged roadmap from prototype hardening through dogfooding, AI assistance, optional cloud sync, and validation.
+- [ExecutionFramework.md](ExecutionFramework.md) — the product's decomposition, decision, next-move, review, and cross-map reasoning model.
 - [Agents.md](Agents.md) — rules and constraints for coding agents working in the repository.
 - [Cloudy.md](Cloudy.md) — coding-assistant guide focused on the product architecture and interaction model.
 - [about.html](about.html) — public-facing explanation of the product and method.
@@ -179,6 +181,8 @@ Stores:
 - `snapshots` — autosaved map versions,
 - `meta` — active-map metadata,
 - `mapLinks` — optional relationships between otherwise independent maps.
+
+The current IndexedDB schema is version **2**. Map-level grouping is stored on each map record; cross-map relationships live separately in `mapLinks`, so restoring an internal map snapshot does not rewrite the outer map structure.
 
 Autosave behavior:
 
@@ -307,7 +311,7 @@ The third view is a classic Mandala / Mandalart matrix. **Grid view is available
 - empty action cells can be tapped/clicked to create that action branch,
 - deeper descendants are represented with a small count instead of trying to force recursive steps into the fixed 9×9 matrix.
 
-The Grid view is a structured overview, not a replacement for the recursive Map view.
+The Grid view is a structured overview, not a replacement for the recursive Map view. It is deliberately hidden below **1024px**; phones and narrow tablets use Map and Table only.
 
 
 ### Color palettes
@@ -340,3 +344,27 @@ Examples:
 - `Clean computer files` can remain completely unrelated to both.
 
 Groups are organizational labels, not hierarchy. Parent/child and before/after relationships are stored separately. The app blocks circular parent hierarchies and circular sequences.
+
+
+### Two scales of structure
+
+Mandala now has two intentionally separate structural layers:
+
+**Inside one map**
+
+> Goal → Drivers → Actions → Steps
+
+**Between maps**
+
+> Independent goals → optional Group / Related / Before-After / Parent-Child relationships
+
+A map should stay independent when that is the clearest model. Cross-map structure is optional and should prevent giant artificial Mandalas rather than create portfolio bureaucracy.
+
+The first outer-graph model keeps:
+
+- **Group** as a loose label only,
+- **Related** as symmetric association,
+- **Before / After** as an acyclic sequence,
+- **Parent / Child** as an acyclic hierarchy with one direct parent per map.
+
+There is not yet a separate zoomable "map of maps" canvas; the current outer graph is managed from the Maps library.
