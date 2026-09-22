@@ -439,3 +439,21 @@ Design rules:
 - Restoring a version must preserve the current version first.
 - Theme/palette preferences may remain in localStorage.
 - IndexedDB failure may fall back to legacy single-map localStorage, but the app must say that multi-map storage is unavailable.
+
+
+## Cross-map structure invariants
+
+- Every map is independent by default. Never require a group or relationship.
+- Group names are loose organizational metadata on map records. A group does not imply order, hierarchy, or execution dependency.
+- Cross-map links live in the IndexedDB `mapLinks` store.
+- Supported canonical link types are:
+  - `related` — symmetric association,
+  - `before` — directional sequence from earlier map to later map,
+  - `parent` — directional hierarchy from parent map to child map.
+- UI labels may expose reverse language such as After and Child of, but persistence should normalize those to `before` and `parent`.
+- A map may have many Related links and many sequence links.
+- A map may have at most one direct Parent in the initial model.
+- Parent links and Before links must remain acyclic.
+- Deleting a map must delete every cross-map link that references it.
+- Autosave/restore of a map's internal state must not erase its group metadata or map-level relationships.
+- Do not copy map-level links into node state. The inner Mandala tree and outer map graph are separate layers.

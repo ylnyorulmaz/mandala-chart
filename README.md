@@ -45,6 +45,8 @@ It supports:
 - local demo suggestions,
 - IndexedDB persistence via locally vendored `idb`,
 - multiple local maps,
+- optional cross-map grouping and relationships,
+- related / before-after / parent-child map links,
 - autosave version snapshots and restore,
 - JSON export,
 - PWA installation,
@@ -175,7 +177,8 @@ Stores:
 
 - `maps` — multiple complete Mandala maps,
 - `snapshots` — autosaved map versions,
-- `meta` — active-map metadata.
+- `meta` — active-map metadata,
+- `mapLinks` — optional relationships between otherwise independent maps.
 
 Autosave behavior:
 
@@ -317,3 +320,23 @@ The old binary dark/light toggle is now a small palette picker with four persist
 - **Dawn** — a warm peach / coral background.
 
 The chosen palette is stored locally and applies across the planner and About page.
+
+
+### Map groups and relationships
+
+A Mandala map is still independent by default. Users can optionally create structure *between* maps when that helps.
+
+The Maps library supports:
+
+- a lightweight **Group** name, such as `$10k/month`, `Home`, or `Project 207`,
+- **Related to** for horizontal association without hierarchy,
+- **Comes before / Comes after** for directional sequence,
+- **Parent of / Child of** for vertical hierarchy.
+
+Examples:
+
+- `Earn $10k/month` can be the parent of separate ResumeBee, CarouselBee, and other product-launch maps.
+- `Build landing page` can come before `Launch campaign`.
+- `Clean computer files` can remain completely unrelated to both.
+
+Groups are organizational labels, not hierarchy. Parent/child and before/after relationships are stored separately. The app blocks circular parent hierarchies and circular sequences.

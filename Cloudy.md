@@ -389,3 +389,17 @@ Stores:
 - `meta`.
 
 The UI must use the `MandalaStorage` abstraction rather than direct IndexedDB calls where practical. Preserve migration from the old localStorage state. Map saves are debounced; snapshots are deduplicated, rate-limited, and capped at 30 per map. Starting a new map must not destroy the previous map. Restore must save the current version first.
+
+
+### Cross-map graph
+
+Maps may remain standalone or participate in a lightweight outer graph.
+
+Use:
+
+- `map.group` for loose grouping,
+- `mapLinks.type=related` for horizontal association,
+- `mapLinks.type=before` for sequence,
+- `mapLinks.type=parent` for hierarchy.
+
+Reverse UI labels such as After and Child of normalize into the same directed edge. Do not allow cycles in `before` or `parent`. Keep one direct parent per map for now. Map state snapshots do not contain these links; restoring a snapshot must leave outer-graph metadata intact.

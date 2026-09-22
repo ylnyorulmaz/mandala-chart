@@ -2,7 +2,7 @@
   "use strict";
 
   var DB_NAME = "mandala-local";
-  var DB_VERSION = 1;
+  var DB_VERSION = 2;
   var MAX_SNAPSHOTS_PER_MAP = 30;
   var dbPromise = null;
 
@@ -31,6 +31,13 @@
 
         if (!db.objectStoreNames.contains("meta")) {
           db.createObjectStore("meta", { keyPath: "key" });
+        }
+
+        if (!db.objectStoreNames.contains("mapLinks")) {
+          var links = db.createObjectStore("mapLinks", { keyPath: "id" });
+          links.createIndex("fromMapId", "fromMapId");
+          links.createIndex("toMapId", "toMapId");
+          links.createIndex("type", "type");
         }
       }
     });
@@ -75,6 +82,78 @@
     return record;
   }
 
+  async function updateMapGroup(mapId, groupName) {
+    var map = await getMap(mapId);
+    if (!map) return null;
+
+    map.group = String(groupName || "").trim();
+    map.updatedAt = Date.now();
+    await saveMap(map);
+    return map;
+  }
+
+  function normalizeLink(type, fromMapId, toMapId) {
+    if (["related", "before", "parent"].indexOf(type) === -1) {
+      throw new Error("Unsupported map link type");
+    }
+
+    if (!fromMapId || !toMapId || fromMapId === toMapId) {
+      throw new Error("Map links require two different maps");
+    }
+
+    if (type === "related" && fromMapId > toMapId) {
+      var swap = fromMapId;
+      fromMapId = toMapId;
+      toMapId = swap;
+    }
+
+    return {
+      type: type,
+      fromMapId: fromMapId,
+      toMapId: toMapId
+    };
+  }
+
+  async function listMapLinks(mapId) {
+    var db = await init();
+    var links = await db.getAll("mapLinks");
+
+    if (!mapId) return links;
+
+    return links.filter(function (link) {
+      return link.fromMapId === mapId || link.toMapId === mapId;
+    });
+  }
+
+  async function addMapLink(type, fromMapId, toMapId) {
+    var normalized = normalizeLink(type, fromMapId, toMapId);
+    var existing = (await listMapLinks()).find(function (link) {
+      return link.type === normalized.type &&
+        link.fromMapId === normalized.fromMapId &&
+        link.toMapId === normalized.toMapId;
+    });
+
+    if (existing) return existing;
+
+    var link = {
+      id: makeId("link"),
+      type: normalized.type,
+      fromMapId: normalized.fromMapId,
+      toMapId: normalized.toMapId,
+      createdAt: Date.now()
+    };
+
+    var db = await init();
+    await db.put("mapLinks", link);
+    return link;
+  }
+
+  async function deleteMapLink(id) {
+    if (!id) return;
+    var db = await init();
+    await db.delete("mapLinks", id);
+  }
+
   async function deleteMap(id) {
     if (!id) return;
     var db = await init();
@@ -83,6 +162,11 @@
     var snapshots = await listSnapshots(id);
     await Promise.all(snapshots.map(function (snapshot) {
       return db.delete("snapshots", snapshot.id);
+    }));
+
+    var links = await listMapLinks(id);
+    await Promise.all(links.map(function (link) {
+      return db.delete("mapLinks", link.id);
     }));
 
     var active = await getMeta("activeMapId");
@@ -175,6 +259,10 @@
     listSnapshots: listSnapshots,
     createSnapshot: createSnapshot,
     getSnapshot: getSnapshot,
-    countSnapshots: countSnapshots
+    countSnapshots: countSnapshots,
+    updateMapGroup: updateMapGroup,
+    listMapLinks: listMapLinks,
+    addMapLink: addMapLink,
+    deleteMapLink: deleteMapLink
   };
 })(window);

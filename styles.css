@@ -6815,3 +6815,218 @@ body.theme-dawn .minimal-planner > .planner-actions {
     height: 44px;
   }
 }
+
+
+/* ==========================================================================
+   Cross-map structure: groups + relationships
+   ========================================================================== */
+
+.map-group-section {
+  display: grid;
+  gap: 8px;
+}
+
+.map-group-section + .map-group-section {
+  margin-top: 16px;
+}
+
+.map-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 4px;
+}
+
+.map-group-heading strong {
+  color: var(--flow-ink, var(--text));
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.map-group-heading span {
+  color: var(--flow-muted, var(--muted));
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.map-group-cards {
+  display: grid;
+  gap: 8px;
+}
+
+.map-link-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.map-link-chip {
+  max-width: min(260px, 100%);
+  padding: 4px 7px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--flow-teal, #5ca6a0) 18%, transparent);
+  border-radius: 999px;
+  color: var(--flow-muted, var(--muted));
+  background: color-mix(in srgb, var(--flow-teal, #5ca6a0) 7%, transparent);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-link-chip b {
+  color: var(--flow-jade-deep, #376f5e);
+  font-weight: 950;
+}
+
+body.dark .map-link-chip b {
+  color: #a9d6c9;
+}
+
+.map-link-more {
+  min-width: 28px;
+  text-align: center;
+}
+
+.map-group-editor {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 9px;
+}
+
+.map-group-editor .soft-button {
+  min-height: 43px;
+}
+
+.map-link-editor {
+  margin-top: 14px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: minmax(140px, .75fr) minmax(190px, 1.25fr) auto;
+  align-items: end;
+  gap: 9px;
+  border: 1px solid var(--flow-line, var(--line));
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--flow-paper, var(--surface-strong)) 72%, transparent);
+}
+
+.map-link-editor .primary-button {
+  min-height: 43px;
+  white-space: nowrap;
+}
+
+.map-relations-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.map-relation-row {
+  min-width: 0;
+  padding: 11px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--flow-line, var(--line));
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--flow-paper, var(--surface-strong)) 80%, transparent);
+}
+
+.map-relation-copy {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.map-relation-copy strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--flow-ink, var(--text));
+  font-size: 11px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relation-kind {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: var(--flow-jade-deep, #376f5e);
+  background: color-mix(in srgb, var(--flow-jade, #4e9b88) 11%, transparent);
+  font-size: 8px;
+  font-weight: 950;
+}
+
+body.dark .relation-kind {
+  color: #b6ddd2;
+}
+
+.remove-map-link {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(199,94,94,.13);
+  border-radius: 11px;
+  background: rgba(199,94,94,.055);
+  color: #a95757;
+  cursor: pointer;
+  font-size: 19px;
+}
+
+.remove-map-link:hover,
+.remove-map-link:focus-visible {
+  outline: 0;
+  background: rgba(199,94,94,.11);
+}
+
+.relation-empty {
+  margin-top: 14px;
+}
+
+@media (max-width: 760px), (max-height: 560px) and (pointer: coarse) {
+  .map-group-heading {
+    padding-inline: 2px;
+  }
+
+  .map-card-actions {
+    flex-wrap: wrap;
+  }
+
+  .map-card-actions .map-connect-button,
+  .map-card-actions .map-history-button {
+    flex: 1 1 40%;
+  }
+
+  .map-group-editor,
+  .map-link-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .map-group-editor .soft-button,
+  .map-link-editor .primary-button {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .map-relation-row {
+    min-height: 54px;
+  }
+
+  .remove-map-link {
+    width: 44px;
+    height: 44px;
+  }
+}
