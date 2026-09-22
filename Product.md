@@ -300,6 +300,15 @@ The user can:
 - ask for suggestions,
 - replace weak or overlapping drivers.
 
+### Views
+
+Mandala provides two synchronized ways to work with the same plan:
+
+- **Map view** for spatial thinking, hierarchy, movement, zooming, and branch context.
+- **Table view** for scanning many nodes quickly, editing titles inline, changing status, checking work done, and jumping back to any node on the map.
+
+Both views operate on the same local state. Changing a node in one view changes it everywhere.
+
 ### Map navigation
 
 The whole map remains available on one canvas.
@@ -344,6 +353,7 @@ The current front-end prototype supports:
 - one central goal,
 - eight driver nodes,
 - recursive child/action decomposition,
+- switchable spatial Map view and structured Table view,
 - persistent zoomable mind-map canvas,
 - pan and zoom,
 - fit-to-screen,

@@ -24,6 +24,7 @@
   var pointers = {};
   var pinchState = null;
   var renderPositions = {};
+  var activeView = "map";
 
   var PROMPTS = [
     "What do you want to achieve today?"
@@ -475,6 +476,73 @@
     $("#exportButton").on("click", exportState);
     $("#resetButton").on("click", resetAll);
 
+    $("#mapViewButton").on("click", function () {
+      switchView("map");
+    });
+
+    $("#tableViewButton").on("click", function () {
+      switchView("table");
+    });
+
+    $("#nodeTableBody").on("change", ".table-done-input", function () {
+      var id = $(this).closest("tr").data("id");
+      if (!id || !state.nodes[id]) return;
+      var nextStatus = this.checked ? "done" : "open";
+      setNodeStatus(id, nextStatus, this.checked);
+    });
+
+    $("#nodeTableBody").on("input", ".table-title-input", function () {
+      var id = $(this).closest("tr").data("id");
+      if (!id || !state.nodes[id]) return;
+      state.nodes[id].title = $(this).val();
+      saveState();
+    });
+
+    $("#nodeTableBody").on("keydown", ".table-title-input", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        $(this).blur();
+      }
+    });
+
+    $("#nodeTableBody").on("blur", ".table-title-input", function () {
+      var id = $(this).closest("tr").data("id");
+      if (!id || !state.nodes[id]) return;
+      state.nodes[id].title = $(this).val().trim();
+      saveState();
+      renderTable();
+    });
+
+    $("#nodeTableBody").on("change", ".table-status-select", function () {
+      var id = $(this).closest("tr").data("id");
+      if (!id || !state.nodes[id]) return;
+      var wasDone = state.nodes[id].status === "done";
+      var status = $(this).val();
+      state.nodes[id].status = status;
+      saveState();
+      renderAll(false);
+      if (!wasDone && status === "done") celebrateNode(state.nodes[id]);
+    });
+
+    $("#nodeTableBody").on("click", ".table-focus-button", function () {
+      var id = $(this).closest("tr").data("id");
+      if (!id || !state.nodes[id]) return;
+      revealNodePath(id);
+      selectedId = id;
+      switchView("map");
+      renderAll(false);
+      setTimeout(function () {
+        focusCameraOnNode(id, Math.max(camera.scale, nodeFocusScale(state.nodes[id])));
+      }, 30);
+    });
+
+    $("#nodeTableBody").on("click", ".table-details-button", function () {
+      var id = $(this).closest("tr").data("id");
+      if (!id || !state.nodes[id]) return;
+      selectedId = id;
+      openInspector(id);
+    });
+
     $("#markDoneButton").on("click", function () {
       toggleNodeDone(selectedId, true);
     });
@@ -701,7 +769,8 @@
   function showEmptyMap() {
     $("body").addClass("empty-start");
     $("#continueButton").attr("hidden", !(state.rootId && state.nodes[state.rootId]));
-    $("#plannerActions, #selectionBar, #minimap").attr("hidden", true);
+    $("#plannerActions, #selectionBar, #minimap, #tableView").attr("hidden", true);
+    $("#mapViewport").removeAttr("hidden");
     $("#emptyMap").removeAttr("hidden");
     $("#mapNodes, #mapEdges, #minimapWorld").empty();
     $("#rootInput").attr("hidden", true).val("");
@@ -714,7 +783,47 @@
     $("body").removeClass("empty-start");
     $("#continueButton").attr("hidden", true);
     $("#emptyMap").attr("hidden", true);
-    $("#plannerActions, #selectionBar, #minimap").removeAttr("hidden");
+    $("#plannerActions").removeAttr("hidden");
+    applyActiveView();
+  }
+
+  function switchView(view) {
+    if (view !== "map" && view !== "table") return;
+    if (!state.rootId || !state.nodes[state.rootId]) return;
+
+    activeView = view;
+    applyActiveView();
+
+    if (view === "table") {
+      renderTable();
+    } else {
+      renderAll(false);
+      setTimeout(function () {
+        applyCamera();
+      }, 20);
+    }
+  }
+
+  function applyActiveView() {
+    var tableMode = activeView === "table";
+
+    $("#mapViewButton")
+      .toggleClass("active", !tableMode)
+      .attr("aria-pressed", tableMode ? "false" : "true");
+
+    $("#tableViewButton")
+      .toggleClass("active", tableMode)
+      .attr("aria-pressed", tableMode ? "true" : "false");
+
+    $("#mapViewport").attr("hidden", tableMode);
+    $("#tableView").attr("hidden", !tableMode);
+
+    if (tableMode) {
+      $("#selectionBar, #minimap").attr("hidden", true);
+    } else {
+      $("#minimap").removeAttr("hidden");
+      updateSelectionBar();
+    }
   }
 
   function openRootEditor() {
@@ -759,11 +868,13 @@
 
     renderEdges(visibleIds);
     renderNodes(visibleIds, animateNew);
+    renderTable();
     updateSelectionBar();
     renderMinimap();
     updateCanvasStatus();
     updateQuestProgress();
     applyCamera();
+    applyActiveView();
 
     if (editingId) {
       setTimeout(function () {
@@ -775,6 +886,86 @@
         }
       }, 20);
     }
+  }
+
+  function renderTable() {
+    if (!state.rootId || !state.nodes[state.rootId]) {
+      $("#nodeTableBody").empty();
+      return;
+    }
+
+    var ids = getAllNodeIds();
+    var html = "";
+
+    ids.forEach(function (id) {
+      var node = state.nodes[id];
+      if (!node) return;
+
+      var parent = node.parentId ? state.nodes[node.parentId] : null;
+      var parentTitle = parent ? (parent.title.trim() || placeholderText(parent)) : "—";
+      var title = node.title.trim();
+      var placeholder = placeholderText(node);
+      var done = node.status === "done";
+      var estimate = node.duration ? escapeHtml(String(node.duration)) + " min" : "—";
+
+      html += '<tr class="' + (done ? "table-row-done " : "") +
+        (!title ? "table-row-placeholder" : "") + '" data-id="' + id + '">' +
+        '<td class="done-col"><label class="table-check" aria-label="' +
+          escapeHtml(done ? "Mark open" : "Mark done") + '">' +
+          '<input class="table-done-input" type="checkbox"' +
+            (done ? " checked" : "") + (!title ? " disabled" : "") + '>' +
+          '<span>✓</span></label></td>' +
+        '<td class="node-col"><div class="table-node-cell" style="--depth:' + Math.min(node.depth || 0, 4) + '">' +
+          '<span class="table-tree-dot depth-' + Math.min(node.depth || 0, 3) + '"></span>' +
+          '<input class="table-title-input" type="text" maxlength="180" value="' +
+            escapeHtml(node.title || "") + '" placeholder="' + escapeHtml(placeholder) + '">' +
+        '</div></td>' +
+        '<td><span class="table-kind kind-' + Math.min(node.depth || 0, 3) + '">' +
+          escapeHtml(typeLabel(node).toLowerCase()) + '</span></td>' +
+        '<td class="table-parent" title="' + escapeHtml(parentTitle) + '">' + escapeHtml(parentTitle) + '</td>' +
+        '<td><select class="table-status-select" aria-label="Status">' +
+          '<option value="open"' + (node.status === "open" ? " selected" : "") + '>Open</option>' +
+          '<option value="doing"' + (node.status === "doing" ? " selected" : "") + '>Doing</option>' +
+          '<option value="done"' + (node.status === "done" ? " selected" : "") + '>Done</option>' +
+        '</select></td>' +
+        '<td class="table-time">' + estimate + '</td>' +
+        '<td class="table-row-actions">' +
+          '<button class="table-icon-button table-details-button" type="button" title="Details" aria-label="Open details">•••</button>' +
+          '<button class="table-icon-button table-focus-button" type="button" title="Show on map" aria-label="Show on map">↗</button>' +
+        '</td>' +
+      '</tr>';
+    });
+
+    $("#nodeTableBody").html(html);
+  }
+
+  function getAllNodeIds() {
+    var result = [];
+
+    function walk(id) {
+      var node = state.nodes[id];
+      if (!node) return;
+      result.push(id);
+      (node.children || []).forEach(function (childId) {
+        if (state.nodes[childId]) walk(childId);
+      });
+    }
+
+    walk(state.rootId);
+    return result;
+  }
+
+  function revealNodePath(id) {
+    var node = state.nodes[id];
+
+    while (node && node.parentId) {
+      var parent = state.nodes[node.parentId];
+      if (!parent) break;
+      parent.collapsed = false;
+      node = parent;
+    }
+
+    saveState();
   }
 
   function getVisibleNodeIds() {
@@ -1049,6 +1240,11 @@
   }
 
   function updateSelectionBar() {
+    if (activeView !== "map") {
+      $("#selectionBar").attr("hidden", true);
+      return;
+    }
+
     var node = state.nodes[selectedId];
     if (!node) {
       $("#selectionBar").attr("hidden", true);
@@ -1644,6 +1840,7 @@
     editingId = null;
     selectedDetailId = null;
     currentNextId = null;
+    activeView = "map";
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(LEGACY_STORAGE_KEY);
     closeInspector();
