@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#fbf6ed">
-  <meta name="description" content="Mandala is a zoomable visual goal map for turning intentions into drivers, actions, and next steps.">
-  <title>Mandala — Make the big thing feel doable</title>
+  <meta name="description" content="Mandala turns one goal into a visual map of drivers, actions, and next steps.">
+  <title>Mandala</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <div class="site-shell">
+<body class="empty-start">
+  <div class="site-shell app-page">
     <header class="site-header">
       <div class="nav-wrap">
         <a class="brand" href="index.html" aria-label="Mandala home">
@@ -36,27 +36,19 @@
       </div>
     </header>
 
-    <main>
-      <section class="planner-shell">
-        <div class="planner-head">
-          <div>
-            <span class="kicker">MAKE IT FEEL DOABLE</span>
-            <h1>Put the big thing in the middle.</h1>
-            <p>Then untangle it into smaller pieces until the next move feels obvious.</p>
-          </div>
-
-          <div class="planner-actions" id="plannerActions" hidden>
-            <button class="soft-button" id="suggestButton" type="button"><span class="spark">✦</span> Suggest</button>
-            <button class="soft-button" id="detailsButton" type="button">Details</button>
-            <button class="soft-button" id="splitButton" type="button">Split</button>
-            <button class="soft-button" id="collapseButton" type="button">Collapse</button>
-            <button class="soft-button" id="nextButton" type="button">Next action</button>
-            <button class="soft-button" id="exportButton" type="button">Export</button>
-            <button class="soft-button muted" id="resetButton" type="button">New</button>
-          </div>
+    <main class="minimal-main">
+      <section class="planner-shell minimal-planner">
+        <div class="planner-actions" id="plannerActions" hidden>
+          <button class="soft-button" id="suggestButton" type="button"><span class="spark">✦</span> Suggest</button>
+          <button class="soft-button" id="detailsButton" type="button">Details</button>
+          <button class="soft-button" id="splitButton" type="button">Split</button>
+          <button class="soft-button" id="collapseButton" type="button">Collapse</button>
+          <button class="soft-button" id="nextButton" type="button">Next action</button>
+          <button class="soft-button" id="exportButton" type="button">Export</button>
+          <button class="soft-button muted" id="resetButton" type="button">New</button>
         </div>
 
-        <div class="map-frame">
+        <div class="map-frame minimal-map-frame">
           <div class="map-toolbar" aria-label="Canvas controls">
             <button class="map-tool" id="zoomOutButton" type="button" title="Zoom out" aria-label="Zoom out">−</button>
             <button class="map-tool" id="zoomInButton" type="button" title="Zoom in" aria-label="Zoom in">+</button>
@@ -65,9 +57,7 @@
             <span class="zoom-readout" id="zoomReadout">100%</span>
           </div>
 
-          <div class="map-hint" id="mapHint">
-            Drag to roam · scroll or pinch to zoom · click a bubble to focus · double-click to edit
-          </div>
+          <div class="map-hint" id="mapHint">Drag to roam · scroll or pinch to zoom · click to focus · double-click to edit</div>
 
           <div class="map-viewport" id="mapViewport" tabindex="0" aria-label="Mandala map canvas">
             <div class="map-world" id="mapWorld">
@@ -79,9 +69,7 @@
               <div class="root-starter" id="rootStarter" tabindex="0" role="button" aria-label="Enter your goal">
                 <div class="starter-glow" aria-hidden="true"></div>
                 <div class="starter-copy" id="starterCopy">
-                  <span>ONE THING</span>
-                  <strong id="rotatingPrompt">What do you want to finish?</strong>
-                  <small>Click and put it into words</small>
+                  <strong id="rotatingPrompt">What do you want to achieve today?</strong>
                 </div>
                 <textarea id="rootInput" rows="4" maxlength="180" placeholder="Type your goal…" hidden></textarea>
               </div>
@@ -94,7 +82,7 @@
 
             <div class="canvas-status" id="canvasStatus">
               <span class="status-dot"></span>
-              <span id="canvasStatusText">Saved on this device · no account needed</span>
+              <span id="canvasStatusText">Saved on this device</span>
             </div>
           </div>
 
@@ -106,60 +94,18 @@
             <div class="selection-actions">
               <button id="editSelectedButton" type="button">Edit</button>
               <button id="markDoneButton" type="button">Mark done</button>
-              <button id="focusSelectedButton" type="button">Bring to center</button>
+              <button id="focusSelectedButton" type="button">Center</button>
             </div>
           </div>
         </div>
       </section>
-
-      <section class="manifesto-strip">
-        <p><strong>Big things feel lighter when you can see the pieces.</strong> The map exists to get you moving, not to give you more planning to do.</p>
-        <a href="about.html">Why this works →</a>
-      </section>
     </main>
-
-    <footer class="site-footer">
-      <div class="footer-grid">
-        <div>
-          <a class="brand footer-brand" href="index.html">
-            <span class="brand-grid" aria-hidden="true">
-              <span></span><span></span><span></span><span></span>
-            </span>
-            <span class="brand-name">mandala</span>
-          </a>
-          <p>A warm little map for turning “I should do this” into “I know what to do next.”</p>
-        </div>
-
-        <div class="footer-column">
-          <span>EXPLORE</span>
-          <a href="about.html">About the method</a>
-          <a href="https://github.com/ylnyorulmaz/mandala-chart" target="_blank" rel="noreferrer">Source on GitHub</a>
-        </div>
-
-        <div class="footer-column">
-          <span>CONTACT</span>
-          <a href="mailto:yorulmazyln@gmail.com">yorulmazyln@gmail.com</a>
-          <a href="https://ylnyorulmaz.com" target="_blank" rel="noreferrer">ylnyorulmaz.com</a>
-        </div>
-
-        <div class="footer-support">
-          <span>HELP KEEP IT GOING</span>
-          <p>If Mandala helps you get unstuck, you can buy me a coffee.</p>
-          <a class="coffee-button" href="https://buymeacoffee.com/ylnyorulmaz" target="_blank" rel="noreferrer">Buy me a coffee ↗</a>
-        </div>
-      </div>
-
-      <div class="footer-bottom">
-        <span>Made for getting unstuck, one branch at a time.</span>
-        <span>© <span id="year"></span> Yalın Yorulmaz</span>
-      </div>
-    </footer>
   </div>
 
   <aside class="inspector" id="inspector" aria-hidden="true">
     <div class="inspector-head">
       <div>
-        <span class="node-eyebrow">A LITTLE CONTEXT</span>
+        <span class="node-eyebrow">Details</span>
         <h2 id="inspectorTitle">Edit node</h2>
       </div>
       <button class="icon-button" id="closeInspector" type="button" aria-label="Close details">
@@ -195,7 +141,6 @@
           <em>min</em>
         </div>
       </label>
-
       <label class="field">
         <span>Status</span>
         <select id="statusInput">
@@ -227,9 +172,8 @@
       <button class="icon-button modal-close" id="closeSuggestionModal" type="button" aria-label="Close suggestions">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
       </button>
-      <span class="node-eyebrow">NEED A NUDGE?</span>
+      <span class="node-eyebrow">Suggestions</span>
       <h2 id="suggestionTitle">Suggested drivers</h2>
-      <p>Pick anything useful, ignore the rest. These are just prompts to help you think.</p>
       <div class="suggestion-list" id="suggestionList"></div>
       <div class="modal-actions">
         <button class="soft-button" id="shuffleSuggestions" type="button">Regenerate</button>
@@ -243,7 +187,7 @@
       <button class="icon-button modal-close" id="closeNextModal" type="button" aria-label="Close next action">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
       </button>
-      <span class="node-eyebrow">ONE THING AT A TIME</span>
+      <span class="node-eyebrow">Next</span>
       <div class="next-pulse"><span></span></div>
       <h2 id="nextActionTitle">Nothing actionable yet.</h2>
       <p id="nextActionMeta">Add or split a branch into concrete actions.</p>
