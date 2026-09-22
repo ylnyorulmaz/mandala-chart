@@ -4,11 +4,11 @@
 
 **Mandala**
 
-A local-first visual execution map that turns a vague intention into concrete, controllable next actions.
+A local-first visual decision-and-execution system that turns a vague intention into a structured possibility space, triages the work, and surfaces concrete next actions.
 
 The product starts from one goal, exposes the major drivers required to reach it, decomposes those drivers into executable actions, and keeps the entire structure visible on a zoomable mind-map canvas.
 
-The product is not primarily a to-do list. It is a **goal decomposition and execution interface**.
+The product is not primarily a to-do list. It is a **goal decomposition, decision, and execution interface**.
 
 ---
 
@@ -23,9 +23,11 @@ A user often knows the outcome they want but not the exact sequence of actions t
 Mandala should make this transition:
 
 > **I want to achieve X**  
-> → **These are the things that need to become true**  
+> → **These are the things that may need to become true**  
 > → **These are the actions under my control**  
-> → **This is the next useful thing to do**
+> → **These actions deserve execution; these do not**  
+> → **This is the next useful thing to do**  
+> → **Reality changed the plan; revise it**
 
 The long-term vision is a lightweight visual operating system for personal execution: spatial enough to show the whole problem, structured enough to prevent a messy mind map, and opinionated enough to surface a next action.
 
@@ -68,7 +70,23 @@ The user should be able to see the whole structure at a glance.
 
 Clicking a node should move the camera toward that branch without destroying context. Mandala should feel like navigating a map, not moving through disconnected pages.
 
-### 2. Execution over organization
+### 2. Explore broadly, execute narrowly
+
+The Mandala structure generates a possibility space. It does **not** create a command to complete every generated node.
+
+The product should encourage this sequence:
+
+**Explore → Decide → Play → Learn → Rebuild**
+
+- **Explore:** decompose the goal broadly.
+- **Decide:** triage work with Impact/Effort, Important/Urgent, dependencies, delegatability, and the 4Ds.
+- **Play:** execute only the strongest ready actions.
+- **Learn:** observe what happened.
+- **Rebuild:** revise the map when reality changes.
+
+A 64-action Mandala is useful partly because it exposes work that should be deferred, delegated, or deleted.
+
+### 3. Execution over organization
 
 The product succeeds when it causes useful work to happen.
 
@@ -83,7 +101,7 @@ Every feature should ultimately improve one of these:
 - completion,
 - learning from results.
 
-### 3. Decompose only until the next move is obvious
+### 4. Decompose only until the next move is obvious
 
 Recursive decomposition is useful when a task is too large, vague, or intimidating.
 
@@ -93,7 +111,7 @@ The rule is:
 
 > Break work down until the action has a clear definition of done and low startup friction. Then stop planning and do it.
 
-### 4. Eight is a thinking constraint, not a law of nature
+### 5. Eight is a thinking constraint, not a law of nature
 
 Mandala borrows the classic one-center/eight-around structure because constraints can improve thinking and coverage.
 
@@ -101,7 +119,7 @@ The product must not pretend every real-world goal naturally contains exactly ei
 
 Where useful, future versions may allow fewer children, free-form decomposition, or AI-proposed counts while preserving Mandala mode.
 
-### 5. Prefer controllable actions over uncontrollable outcomes
+### 6. Prefer controllable actions over uncontrollable outcomes
 
 "Get 100 customers" is an outcome.
 
@@ -109,7 +127,7 @@ Where useful, future versions may allow fewer children, free-form decomposition,
 
 The product should help users detect this difference.
 
-### 6. AI is a critic and assistant, not an autopilot
+### 7. AI is a critic and assistant, not an autopilot
 
 AI should help users:
 
@@ -123,7 +141,7 @@ AI should help users:
 
 AI should not silently replace the user's plan or flood the map with generic tasks.
 
-### 7. Local-first by default
+### 8. Local-first by default
 
 The core product should remain useful without:
 
@@ -135,7 +153,7 @@ The core product should remain useful without:
 
 Cloud sync and AI can be optional extensions, not prerequisites.
 
-### 8. Fast, small, understandable software
+### 9. Fast, small, understandable software
 
 The product should remain lightweight.
 
@@ -147,7 +165,7 @@ Do not turn a small execution tool into a large project-management platform unle
 
 The default structure is:
 
-**Goal → Drivers → Actions → Smaller Steps → Next Action**
+**Goal → Drivers → Actions → Triage → Next Moves → Execute → Review → Revise**
 
 ### Goal
 
@@ -191,16 +209,39 @@ Examples:
 
 A further decomposition used only when an action is still too broad.
 
+### Triage
+
+The decomposed plan is an option space, not a checklist.
+
+Every meaningful action can be evaluated using:
+
+- **Impact / Effort**
+- **Important / Urgent**
+- **Dependency state:** Ready or Blocked
+- **Delegatability:** No / Partly / Yes
+- **4D decision:** Do / Defer / Delegate / Delete
+
+The 4D decision does not destroy information. In particular, **Delete means "decide not to execute this"**, not "erase the node." The node remains visible as a record of the decision.
+
 ### Next action
 
-An unfinished executable leaf node selected using practical signals such as:
+An unfinished executable leaf is eligible for Next Move when it is:
+
+- marked **DO**,
+- not completed,
+- not blocked by a dependency,
+- not suppressed by a deferred/delegated/deleted ancestor,
+- concrete enough to execute.
+
+Among eligible actions, Mandala uses practical signals such as:
 
 - impact,
 - effort,
-- urgency,
-- dependency state,
+- Important / Urgent flags,
 - estimated duration,
 - current status.
+
+The ranking is a sorting aid, not objective truth.
 
 ---
 
@@ -335,14 +376,21 @@ Nodes may carry:
 
 - impact,
 - effort,
-- urgency,
+- Important / Urgent flags,
+- 4D decision,
+- delegatability,
+- dependency,
+- optional delegate target,
+- optional defer date,
 - duration,
 - status,
 - notes.
 
 ### Execution
 
-A next-action mode surfaces an unfinished executable leaf rather than showing the user the entire tree all the time.
+A Next Move mode surfaces a **ready DO** leaf rather than treating all unfinished work as equally executable.
+
+A Review mode periodically asks whether the original plan is still true: which drivers were wrong, what produced progress, what should be deleted, what new information changed priorities, and what the next bottleneck is.
 
 ---
 
@@ -364,10 +412,16 @@ The current front-end prototype supports:
 - manual node repositioning,
 - minimap navigation,
 - node details inspector,
-- impact / effort / urgency metadata,
+- impact / effort metadata,
+- Eisenhower-style Important / Urgent flags,
+- 4D triage: Do / Defer / Delegate / Delete,
+- delegatability and optional delegate target,
+- dependency-aware Ready / Blocked state,
+- optional defer date,
 - duration and status,
 - notes,
-- simple next-action selection,
+- dependency-aware Next Move selection from ready DO actions,
+- plan Review mode with execution-state summary,
 - local demo suggestions,
 - localStorage persistence,
 - JSON export,
@@ -564,3 +618,10 @@ Use Mandala to execute an actual project with a measurable outcome.
 The product earns further development only if it measurably reduces planning friction and causes real actions to happen.
 
 The product should help ship other work, not become an elaborate way to avoid that work.
+
+
+---
+
+## Framework reference
+
+The detailed decomposition, triage, execution, and review model is maintained in [ExecutionFramework.md](ExecutionFramework.md).
