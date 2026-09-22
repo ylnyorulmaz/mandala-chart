@@ -208,6 +208,17 @@
     startPromptRotation();
     initialRender = false;
 
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") {
+        persistCurrentMapNow();
+        createAutosaveSnapshot("Background autosave", false);
+      }
+    });
+
+    window.addEventListener("pagehide", function () {
+      persistCurrentMapNow();
+    });
+
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
         navigator.serviceWorker.register("sw.js").catch(function () {});
@@ -266,9 +277,10 @@
     });
 
     $("#newMapButton").on("click", async function () {
+      await createAutosaveSnapshot("Before new map", true);
       await persistCurrentMapNow();
       closeMapsModal();
-      startNewMap();
+      startNewMap(true);
     });
 
     $("#mapsList").on("click", ".map-open-button", function () {
@@ -3107,6 +3119,7 @@
   async function openStoredMap(mapId) {
     if (!storageReady || !mapId) return;
 
+    await createAutosaveSnapshot("Before switching maps", true);
     await persistCurrentMapNow();
     var record = await window.MandalaStorage.getMap(mapId);
     if (!record || !record.state) return;
@@ -3150,6 +3163,10 @@
     await window.MandalaStorage.deleteMap(mapId);
 
     if (mapId === currentMapId) {
+      currentMapId = null;
+      currentMapCreatedAt = null;
+      state = defaultState();
+
       var remaining = await window.MandalaStorage.listMaps();
 
       if (remaining.length) {
@@ -3157,7 +3174,7 @@
         await openMapsModal();
       } else {
         closeMapsModal();
-        startNewMap();
+        startNewMap(true);
       }
       return;
     }
@@ -3273,8 +3290,11 @@
     }
   }
 
-  async function startNewMap() {
-    await persistCurrentMapNow();
+  async function startNewMap(skipPersist) {
+    if (!skipPersist) {
+      await createAutosaveSnapshot("Before new map", true);
+      await persistCurrentMapNow();
+    }
 
     clearTimeout(stateSaveTimer);
     clearTimeout(snapshotTimer);
