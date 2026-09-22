@@ -389,6 +389,21 @@ Nodes may carry:
 - status,
 - notes.
 
+### Spatial map navigation
+
+The map should feel navigable as a physical space, not only clickable UI.
+
+Desktop behavior:
+
+- Arrow keys move selection to the nearest visible node in the pressed direction.
+- With no active node, directional navigation begins from the viewport center.
+- Shift + Arrow pans the camera while preserving selection.
+- Clicking empty canvas clears selection.
+- Manual pointer/wheel/pinch input immediately cancels camera animations.
+- Camera updates from continuous pointer input are coalesced to animation frames to prevent jitter.
+
+Directional navigation should use actual node positions, including manual node offsets, rather than tree order. A user looking at a node to the upper-right should be able to reach it with spatial key presses that match what they see.
+
 ### Flow, ritual, and lightness
 
 The interface should carry a sense of calm practice rather than productivity pressure.
