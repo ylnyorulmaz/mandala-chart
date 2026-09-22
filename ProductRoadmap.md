@@ -318,7 +318,12 @@ Build on the now-shipped local multi-map + snapshot foundation and turn it into 
 - local map library,
 - IndexedDB persistence via `idb`,
 - bounded autosave snapshots,
-- restore earlier versions.
+- restore earlier versions,
+- optional map groups,
+- horizontal Related links,
+- directional Before/After links,
+- vertical Parent/Child links,
+- cycle protection for hierarchical and sequential map structure.
 
 ## Remaining features
 
