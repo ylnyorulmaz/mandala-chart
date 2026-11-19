@@ -7422,3 +7422,17 @@ body.dark .blog-sources a {
 /* Header alignment invariant:
    keep the primary nav centered in the viewport regardless of how wide the
    left brand or page-specific right-side controls are. */
+
+/* Link from the 2D view switcher into the 3D Space view. */
+.view-button.space-view-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.floating-view-switcher .view-button.space-view-link {
+  min-width: 0;
+  padding: 0 12px;
+  color: #ffd98a;
+}

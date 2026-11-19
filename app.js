@@ -637,6 +637,15 @@
       switchView("table");
     });
 
+    $("#spaceViewButton").on("click", async function (e) {
+      e.preventDefault();
+      var href = "space.html" + (currentMapId ? "?map=" + encodeURIComponent(currentMapId) : "");
+      try {
+        await persistCurrentMapNow();
+      } catch (error) { /* navigate anyway */ }
+      window.location.href = href;
+    });
+
     $("#gridViewButton").on("click", function () {
       switchView("grid");
     });

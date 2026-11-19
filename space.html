@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#05060f">
+  <meta name="description" content="Explore your Mandala map as a 3D solar system: the goal is the sun, drivers are planets, actions are moons.">
+  <title>Mandala · Space</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="space.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.min.js",
+        "three/addons/": "./vendor/three/",
+        "postprocessing": "./vendor/postprocessing/postprocessing.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="spaceCanvas" aria-label="3D view of your Mandala map as a solar system"></canvas>
+  <div class="space-labels" id="spaceLabels" aria-hidden="true"></div>
+
+  <header class="space-top">
+    <a class="space-brand" href="index.html" title="Back to the 2D planner">
+      <span class="space-brand-grid" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+      <span>mandala</span>
+      <em>space</em>
+    </a>
+
+    <div class="space-map-picker">
+      <label class="sr-only" for="mapSelect">Map</label>
+      <select id="mapSelect" aria-label="Choose map"></select>
+    </div>
+
+    <nav class="space-tools" aria-label="Space controls">
+      <button class="space-btn" id="overviewButton" type="button" title="Back to the whole system (Esc)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><ellipse cx="12" cy="12" rx="10" ry="4.2"/></svg>
+        <span>Overview</span>
+      </button>
+      <button class="space-btn" id="pauseButton" type="button" aria-pressed="false" title="Pause orbits (Space)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+        <span>Pause</span>
+      </button>
+      <button class="space-btn" id="labelsButton" type="button" aria-pressed="true" title="Show or hide labels (L)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h13"/></svg>
+        <span>Labels</span>
+      </button>
+      <a class="space-btn primary" id="flatLink" href="index.html" title="Edit in the 2D planner">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>
+        <span>2D map</span>
+      </a>
+    </nav>
+  </header>
+
+  <nav class="system-index" id="systemIndex" aria-label="Planets"></nav>
+
+  <aside class="planet-panel" id="planetPanel" aria-live="polite" hidden>
+    <button class="panel-close" id="panelClose" type="button" aria-label="Close and return to overview">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+    </button>
+    <div class="panel-eyebrow">
+      <i id="panelDot"></i>
+      <span id="panelKind">DRIVER</span>
+      <span class="panel-status" id="panelStatus">Open</span>
+    </div>
+    <h1 id="panelTitle">Planet</h1>
+    <p class="panel-breadcrumb" id="panelPath"></p>
+
+    <div class="panel-progress" id="panelProgress">
+      <div class="panel-progress-copy"><span>Orbit cleared</span><strong id="panelProgressValue">0%</strong></div>
+      <div class="panel-progress-track"><i id="panelProgressFill"></i></div>
+    </div>
+
+    <dl class="panel-meta" id="panelMeta"></dl>
+    <p class="panel-notes" id="panelNotes" hidden></p>
+
+    <div class="panel-children" id="panelChildrenWrap">
+      <span class="panel-subhead" id="panelChildrenHead">Moons</span>
+      <div class="panel-children-list" id="panelChildren"></div>
+    </div>
+
+    <div class="panel-actions">
+      <button class="space-btn" id="parentButton" type="button">↑ Parent</button>
+      <button class="space-btn done-btn" id="doneButton" type="button">Clear it ✓</button>
+    </div>
+  </aside>
+
+  <div class="space-hint" id="spaceHint">
+    Drag to rotate · scroll or pinch to zoom · click a planet to travel · ← → hop siblings · Esc to return
+  </div>
+
+  <div class="space-toast" id="spaceToast" role="status"></div>
+
+  <div class="space-loader" id="spaceLoader">
+    <div class="loader-orbit"><i></i></div>
+    <p id="loaderText">Charting your system…</p>
+  </div>
+
+  <div class="space-fallback" id="spaceFallback" hidden>
+    <h1>Space needs WebGL</h1>
+    <p>Your browser or device could not start 3D graphics. Your map is safe — open it in the 2D planner.</p>
+    <a class="space-btn primary" href="index.html">Open the 2D planner</a>
+  </div>
+
+  <script src="vendor/idb-6.1.5.min.js"></script>
+  <script src="storage.js"></script>
+  <script src="vendor/gsap/gsap.min.js"></script>
+  <script type="module" src="space.js"></script>
+</body>
+</html>

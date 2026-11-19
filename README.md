@@ -140,6 +140,7 @@ AI should assist the plan, not silently replace it.
 - SVG
 - IndexedDB
 - `idb` 6.1.5 (vendored locally)
+- Three.js 0.180.0, pmndrs `postprocessing` 6.39.6 and GSAP 3.13.0 for the 3D Space view (vendored locally, loaded only by `space.html`)
 - localStorage for lightweight preferences / migration fallback
 - Service Worker
 - Web App Manifest
@@ -313,6 +314,29 @@ The third view is a classic Mandala / Mandalart matrix. **Grid view is available
 - deeper descendants are represented with a small count instead of trying to force recursive steps into the fixed 9×9 matrix.
 
 The Grid view is a structured overview, not a replacement for the recursive Map view. It is deliberately hidden below **1024px**; phones and narrow tablets use Map and Table only.
+
+
+### Space view (3D)
+
+`space.html` renders the active map as a solar system you can fly around:
+
+- the **goal is the sun** at the center,
+- each **driver is a planet** on its own orbit, with a procedurally generated surface (gas giant, terra, ice, rock),
+- **actions are moons** circling their planet, **steps are moonlets** circling their moon,
+- empty slots appear as faint wireframe "unformed" bodies,
+- cleared (done) nodes get a glowing golden ring; nodes marked *Doing* pulse.
+
+Interaction:
+
+- drag to rotate, scroll / pinch to zoom, right-drag / two-finger drag to pan,
+- click a planet, moon, label, or list item to fly there with a smooth GSAP camera flight; the camera then follows it along its orbit while time slows down,
+- the side panel shows path, progress, impact / effort / decision, notes, and the child bodies; **Clear it ✓** marks the node done and saves it to IndexedDB,
+- **Esc** goes up a level, **← / →** hop between siblings, **↑ / ↓** go to the parent / first child, **Space** pauses orbits, **L** toggles labels, **D** toggles done,
+- the map picker switches between saved maps (and sets the active map for the 2D planner).
+
+Open it from the **Space ✦** button in the view switcher; the current map is saved first. Without WebGL 2 the page shows a link back to the 2D planner. Bloom, AgX tone mapping, vignette, and subtle chromatic aberration come from `postprocessing`. `prefers-reduced-motion` shortens flights and stops auto-rotation.
+
+The Space view is a viewer and check-off surface; titles and structure are still edited in the 2D planner.
 
 
 ### Color palettes
