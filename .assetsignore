@@ -9,3 +9,9 @@ wrangler.jsonc
 .github
 docs
 LICENSE
+package.json
+package-lock.json
+playwright.config.js
+tests
+test-results
+playwright-report

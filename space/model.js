@@ -47,20 +47,22 @@ export function isActionableLeaf(state, node) {
     decisionValue(node) === "do" && !hasSuppressedAncestor(state, node));
 }
 
-/** Done / total of the actionable leaves below `node` (same rule as the 2D quest progress). */
+/**
+ * Done / total of the actionable leaves below `node` (same rule as the 2D
+ * quest progress). Walks every descendant — also through emptied slots, whose
+ * titled children the planner still counts.
+ */
 export function leafStats(state, node) {
   let total = 0;
   let done = 0;
   const walk = (n) => {
-    const kids = filledChildren(state, n);
-    if (!kids.length) {
-      if (n !== node && isActionableLeaf(state, n)) {
-        total++;
-        if (n.status === "done") done++;
-      }
-      return;
+    if (n !== node && isActionableLeaf(state, n)) {
+      total++;
+      if (n.status === "done") done++;
     }
-    kids.forEach(walk);
+    (n.children || []).forEach((id) => {
+      if (state.nodes[id]) walk(state.nodes[id]);
+    });
   };
   walk(node);
   return { total, done };

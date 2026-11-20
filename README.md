@@ -230,6 +230,9 @@ manifest.webmanifest  PWA manifest
 icon.svg              App icon
 
 vendor/               Pinned third-party libraries (no CDN at runtime)
+tests/                Playwright tests: unit/ (no browser), e2e/ (browser), fixtures/ (test maps)
+package.json          Dev-only tools: @playwright/test, wrangler (the app has no build step)
+playwright.config.js  Test projects (unit, e2e) and browser settings
 docs/                 README images (not published)
 .github/              Issue forms (not published)
 
@@ -343,7 +346,7 @@ npx wrangler deploy
 ```
 
 - `wrangler.jsonc` serves the repository folder as-is. `html_handling: "none"` keeps `/space.html` and the other paths exactly as `sw.js` caches them.
-- `.assetsignore` keeps Markdown, `docs/`, `.github/`, `LICENSE` and config out of the published site.
+- `.assetsignore` keeps Markdown, `docs/`, `.github/`, `tests/`, `package.json`, `LICENSE` and config out of the published site.
 - `_headers` makes browsers revalidate `sw.js` and adds `nosniff` / referrer-policy headers.
 
 **Automatic deploys:** connect the Worker to this repository in the Cloudflare dashboard (Workers & Pages → `mandala-chart` → Settings → Builds → Connect; branch `main`, no build command, deploy command `npx wrangler deploy`). Every push to `main` then publishes.
@@ -354,27 +357,37 @@ Live: https://mandala-chart.yorulmazyln.workers.dev
 
 ## Testing
 
-There is no automated test suite in the repository yet. Before merging, check at least:
+The test suite uses [Playwright](https://playwright.dev) and needs Node 18+. The app itself still has no build step — `package.json` only holds dev tools.
 
-**Planner**
-- first run, goal creation, driver / action / step branching, inline edit, inspector fields,
-- pan, zoom, fit, focus, minimap, arrow-key navigation, node drag, collapse,
-- decisions, blockers, Next move, Review, quest progress,
-- Map / Table / Grid stay in sync; Grid hidden below 1024 px,
-- multiple maps, autosave history and restore, groups and map relationships (cycle guards),
-- **Save** then **Import map** round trip; a broken file shows an error and changes nothing,
-- all four palettes, reduced motion, a narrow phone viewport.
+```sh
+npm install                          # once
+npx playwright install chromium      # once, if Chromium for Playwright is not installed yet
+npm test                             # everything (~1.5 min)
+npm run test:unit                    # fast checks without a browser (< 1 s)
+npm run test:e2e                     # browser tests
+npx playwright test tests/e2e/space.spec.js -g "Clear"   # one file / one test
+npm run test:headed                  # watch the browser
+```
 
-**Space**
-- overview, flights, follow, search, Next, keyboard shortcuts, labels,
-- every edit type (rename, name an empty slot, details, + Branch, Clear),
-- with a planner tab open: edits appear in the planner and survive its autosave,
-- phone layout, WebGL-less and import-map-less fallbacks.
+No web server is needed: the tests answer every request to `http://mandala.test/` straight from the repository files (`tests/e2e/fixtures.js`). Space renders with software WebGL (SwiftShader), so no GPU is needed either.
 
-**Everywhere**
-- no network requests to CDNs, offline reload after one visit, no console errors.
+| File | What it protects |
+|---|---|
+| `tests/unit/model.spec.js` | `space/model.js`: decisions, suppressed branches, blockers, progress, next move, structure signature |
+| `tests/unit/map-ops.spec.js` | `map-ops.js`: every op, validation, no-op on bad input, id format, blank node fields |
+| `tests/unit/release.spec.js` | `CACHE_NAME` = `APP_VERSION`, precache list complete, no CDNs, private files unpublished, licenses present |
+| `tests/e2e/parity.spec.js` | **planner and Space agree** on progress and next move for nine seeded random maps (chosen so changing any part of the score formula is caught) |
+| `tests/e2e/planner.spec.js` | first run, naming / branching / clearing, Map–Table–Grid, Save → Import, hostile import files, deep links |
+| `tests/e2e/layout.spec.js` | the view switcher never covers planner actions or the zoom toolbar (1600 → 390 px) |
+| `tests/e2e/space.spec.js` | demo system, Next / search / keyboard, every edit type, camera grab during a flight, full-motion run, import-map fallback, phone layout |
+| `tests/e2e/sync.spec.js` | Space edits reach an open planner tab and survive its autosave; planner saves update Space |
+| `tests/e2e/feedback.spec.js` | Feedback links on every page, no map contents in reports, one "Report it" notice per page |
 
-Browser automation with Playwright works well for this (serve the folder, use Chromium with SwiftShader for WebGL).
+Shared helpers: `tests/e2e/fixtures.js` (routing, error tracking — every browser test fails on a console error — `seedMap`, `openPlanner`, `openSpace`, `focusInSpace`, `clickNode`) and `tests/fixtures/maps.js` (`buildMap`, `marathonMap`, seeded `randomMap`).
+
+**CI:** `.github/workflows/test.yml` runs `npm test` on every push to `main` and on pull requests, and uploads the report when something fails.
+
+Still checked by hand: real phones and GPUs (iPhone Safari, Android Chrome), offline reload after a visit, and how it *feels*.
 
 ---
 
@@ -386,7 +399,7 @@ Mandala is in beta, and feedback is the most useful contribution right now:
 - If something crashes, a small **Report it** notice opens the bug form with the error attached.
 - Or go straight to [Issues](https://github.com/ylnyorulmaz/mandala-chart/issues/new/choose).
 
-Code changes are welcome too. Please read [Agents.md](Agents.md) first — it lists the hard rules (no CDNs, no framework rewrite, local-first, keep `map-ops.js` / `space/model.js` in step with `app.js`, bump the cache version) and the checks a change must pass.
+Code changes are welcome too. Run `npm test` before opening a pull request, and please read [Agents.md](Agents.md) first — it lists the hard rules (no CDNs, no framework rewrite, local-first, keep `map-ops.js` / `space/model.js` in step with `app.js`, bump the cache version) and the checks a change must pass.
 
 ---
 
@@ -412,7 +425,6 @@ Intentionally not here yet:
 - live AI — the **Ideas** button uses local demo suggestions; a future AI layer should critique and assist with structured, confirmable changes,
 - collaboration, notifications, integrations, payments, native apps,
 - a visual "map of maps" (relationships are managed in the Maps library),
-- an automated test suite,
 - real-device QA across all phones and GPUs is still in progress.
 
 Mandala should prove repeated usefulness before it grows. See [ProductRoadmap.md](ProductRoadmap.md).

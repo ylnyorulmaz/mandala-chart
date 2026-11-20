@@ -81,7 +81,11 @@ Some rules exist in more than one file on purpose (the planner is a classic scri
 | "Blocked by" candidates | `populateDependencyOptions` | `map-ops.js` → `dependencyCandidates` |
 | Import field validation | `sanitizeImportedMap` | `map-ops.js` → `cleanField` (same limits) |
 
-### 3.6 Versioning the cache
+### 3.6 Tests guard the mirrors
+
+`tests/e2e/parity.spec.js` compares planner and Space on seeded random maps; `tests/unit/model.spec.js` and `tests/unit/map-ops.spec.js` pin the shared rules. When you change a mirrored rule, change both sides **and** add a case that would have caught a one-sided change (a unit example, or a seed in `parity.spec.js`).
+
+### 3.7 Versioning the cache
 
 `CACHE_NAME` in `sw.js` and `APP_VERSION` in `feedback.js` share one value (e.g. `mandala-v30`). Bump **both** whenever a cached file changes, and add any new runtime file to `LOCAL_ASSETS` (and to the network-first pattern if it is app code).
 
@@ -240,15 +244,17 @@ There is no live AI provider; **Ideas** uses local demo suggestions. When AI is 
 
 ## 15. Git and deploy workflow
 
-- Work on a branch; merge to `main` when the checks below pass. `main` is the production branch.
+- Work on a branch; merge to `main` when `npm test` and the checks below pass. `main` is the production branch; the **Tests** workflow runs on every push to it and on pull requests.
 - With Cloudflare Builds connected, every push to `main` deploys (`npx wrangler deploy`, config in `wrangler.jsonc`). Without it, deploy manually with the same command.
 - Anything that must not be public on the site goes into `.assetsignore` (Markdown, `docs/`, `.github/`, `LICENSE`, config already are).
 - Keep commits focused, with messages that explain *why*.
-- Never commit `.wrangler/`, `node_modules/`, credentials or local test artefacts.
+- Never commit `.wrangler/`, `node_modules/`, `test-results/`, `playwright-report/`, credentials or other local artefacts.
 
 ---
 
 ## 16. Before and after editing
+
+`npm test` must pass before a merge (CI runs it on pushes to `main` and on pull requests). Add or update tests for the behavior you change. The list below is what the suite covers plus what still needs a human.
 
 Before:
 
@@ -287,6 +293,7 @@ Do not let building Mandala become a sophisticated way of avoiding the work it i
 
 A change is done when:
 
+- `npm test` passes, with tests added for the new behavior,
 - the interaction works on desktop and phone,
 - existing map data remains safe,
 - planner and Space still agree,

@@ -167,17 +167,21 @@ Warm, friendly, personal, playful without being childish, spatial, readable, smo
 
 ## 7. Testing
 
-There is no automated suite in the repo. Use the checklist in Agents.md §16 and the README "Testing" section. Playwright with Chromium (SwiftShader handles WebGL) is a good way to drive both pages; serve the folder over HTTP or route requests to the files on disk.
+`npm test` runs everything (Playwright, ~1.5 min); `npm run test:unit` takes under a second. Structure:
 
-Most valuable end-to-end checks:
+- `tests/unit/` — no browser: `space/model.js` is imported directly, `map-ops.js` is loaded in a Node `vm` with a fake `window`, `release.spec.js` reads files (versions, precache list, CDNs, `.assetsignore`, licenses).
+- `tests/e2e/` — Chromium with SwiftShader. `fixtures.js` routes `http://mandala.test/**` to the repository files (no server), fails a test on any console error (`page.allowErrors()` opts out), and provides `seedMap`, `readMap`, `listMaps`, `openPlanner`, `openSpace`, `focusInSpace`, `clickNode`, `domClick`, `labelTexts`, `labelTag`.
+- `tests/fixtures/maps.js` — `buildMap(spec)` from a nested spec (ids `n0`, `n1`, …; `blockedBy` by title), `marathonMap()`, and seeded `randomMap(seed)`.
 
-1. Same map: 2D progress = Space progress; 2D Next move = Space Next.
-2. Planner tab open + edit in Space (rename, details, + Branch, Clear) → visible in the planner and still in IndexedDB after the planner's autosave.
-3. Save → clear storage → Import → identical map; a broken file changes nothing.
-4. View switcher vs planner actions at several widths.
-5. Phone viewport for planner and Space; no console errors.
+Writing tests that stay green:
 
----
+- Wait on state, not time: `expect(locator).toHaveText(...)`, `expect.poll(...)`; avoid `waitForTimeout`.
+- Click map nodes with `clickNode` (dispatches the DOM event) — nodes outside the visible canvas make `force` clicks miss. Moving Space labels: `domClick`.
+- Space tests use `reducedMotion: "reduce"` (shorter flights); keep one full-motion check.
+- The Maps dialog opens asynchronously: wait for it to be visible before interacting.
+- Device presets like `iPhone 13` ask for WebKit; drop `defaultBrowserType` to stay on Chromium.
+
+The suite already caught a real divergence: Space ignored titled nodes under an emptied slot when counting progress, the planner did not. Keep adding cases like that.
 
 ## 8. Roadmap notes
 
