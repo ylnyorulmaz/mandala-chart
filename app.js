@@ -355,6 +355,15 @@
       renderMapsLibrary();
     });
 
+    $("#importMapButton").on("click", function () {
+      $("#importMapInput").val("").trigger("click");
+    });
+
+    $("#importMapInput").on("change", function () {
+      var file = this.files && this.files[0];
+      if (file) importMapFile(file);
+    });
+
     $("#newMapButton").on("click", async function () {
       await createAutosaveSnapshot("Before new map", true);
       await persistCurrentMapNow();
@@ -3763,6 +3772,130 @@
     link.remove();
     URL.revokeObjectURL(url);
     showToast("Map exported.");
+  }
+
+  var IMPORT_MAX_BYTES = 5 * 1024 * 1024;
+  var IMPORT_MAX_NODES = 5000;
+
+  function importError(message) {
+    var error = new Error(message);
+    error.userFacing = true;
+    return error;
+  }
+
+  // Accepts the file written by exportState (and a bare { rootId, nodes } state).
+  // Rebuilds parentId / depth from the tree, drops orphaned or malformed nodes,
+  // and only keeps known fields with valid values.
+  function sanitizeImportedMap(data) {
+    var source = data && data.state && data.state.nodes ? data.state : data;
+    var nodes = source && source.nodes;
+    var rootId = source && source.rootId;
+
+    if (!nodes || typeof nodes !== "object" || Array.isArray(nodes) ||
+        typeof rootId !== "string" || !nodes[rootId] || typeof nodes[rootId] !== "object") {
+      throw importError("This file is not a Mandala map.");
+    }
+    if (Object.keys(nodes).length > IMPORT_MAX_NODES) {
+      throw importError("This map is too large to import.");
+    }
+
+    var out = {};
+    var text = function (value, max) { return typeof value === "string" ? value.slice(0, max) : ""; };
+    var score = function (value) {
+      var n = parseInt(value, 10);
+      return n >= 1 && n <= 5 ? n : 3;
+    };
+    var stack = [{ id: rootId, parentId: null, depth: 0 }];
+
+    while (stack.length) {
+      var item = stack.pop();
+      var raw = nodes[item.id];
+      if (out[item.id] || !raw || typeof raw !== "object") continue;
+
+      var duration = parseInt(raw.duration, 10);
+      var node = {
+        id: item.id,
+        title: text(raw.title, 180),
+        parentId: item.parentId,
+        depth: item.depth,
+        children: [],
+        status: ["open", "doing", "done"].indexOf(raw.status) !== -1 ? raw.status : "open",
+        impact: score(raw.impact),
+        effort: score(raw.effort),
+        decision: ["do", "defer", "delegate", "delete"].indexOf(raw.decision) !== -1 ? raw.decision : "do",
+        dependencyId: typeof raw.dependencyId === "string" ? raw.dependencyId : null,
+        delegatedTo: text(raw.delegatedTo, 120),
+        deferUntil: /^\d{4}-\d{2}-\d{2}$/.test(raw.deferUntil || "") ? raw.deferUntil : "",
+        duration: duration >= 0 && duration <= 1440 ? String(duration) : "",
+        notes: text(raw.notes, 1200),
+        collapsed: raw.collapsed === true,
+        tableCollapsed: raw.tableCollapsed === true,
+        offsetX: isFinite(raw.offsetX) ? Number(raw.offsetX) : 0,
+        offsetY: isFinite(raw.offsetY) ? Number(raw.offsetY) : 0,
+        createdAt: isFinite(raw.createdAt) ? Number(raw.createdAt) : Date.now()
+      };
+      out[item.id] = node;
+
+      var children = Array.isArray(raw.children) ? raw.children : [];
+      for (var i = children.length - 1; i >= 0; i--) {
+        var childId = children[i];
+        if (typeof childId === "string" && !out[childId] && nodes[childId]) {
+          stack.push({ id: childId, parentId: item.id, depth: item.depth + 1 });
+        }
+      }
+    }
+
+    // children lists only reference nodes that survived, in their original order
+    Object.keys(out).forEach(function (id) {
+      var raw = nodes[id];
+      (Array.isArray(raw.children) ? raw.children : []).forEach(function (childId) {
+        if (out[childId] && out[childId].parentId === id && out[id].children.indexOf(childId) === -1) {
+          out[id].children.push(childId);
+        }
+      });
+      if (out[id].dependencyId && (!out[out[id].dependencyId] || out[id].dependencyId === id)) {
+        out[id].dependencyId = null;
+      }
+    });
+
+    return { rootId: rootId, nodes: out, version: 5 };
+  }
+
+  async function importMapFile(file) {
+    if (!storageReady) {
+      showToast("Import needs IndexedDB in this browser.");
+      return;
+    }
+
+    try {
+      if (file.size > IMPORT_MAX_BYTES) throw importError("This file is too large to import.");
+
+      var data;
+      try {
+        data = JSON.parse(await file.text());
+      } catch (error) {
+        throw importError("This file is not valid JSON.");
+      }
+
+      var imported = sanitizeImportedMap(data);
+      var id = mapUid();
+      var now = Date.now();
+      var title = currentMapTitle(imported);
+
+      await window.MandalaStorage.saveMap({
+        id: id,
+        title: title,
+        createdAt: now,
+        updatedAt: now,
+        group: "",
+        state: imported
+      });
+      await window.MandalaStorage.createSnapshot(id, title, cloneState(imported), "Imported");
+      await openStoredMap(id);
+      showToast("Imported “" + title + "” as a new map.");
+    } catch (error) {
+      showToast(error && error.userFacing ? error.message : "Could not import this file.");
+    }
   }
 
   function availableThemes() {

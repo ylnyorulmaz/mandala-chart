@@ -2396,4 +2396,5 @@ function toast(message) {
 boot().catch((error) => {
   console.error(error);
   showFallback();
+  if (window.MandalaFeedback) window.MandalaFeedback.report(error);
 });

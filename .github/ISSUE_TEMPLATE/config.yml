@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Try the live beta
+    url: https://mandala-chart.yorulmazyln.workers.dev
+    about: Open Mandala in your browser.

@@ -1,0 +1,34 @@
+name: Bug report
+description: Something broke or behaved unexpectedly in Mandala.
+labels: ["bug", "beta"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing the Mandala beta! Please don't paste private map contents — describe the steps instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, and what went wrong?
+      placeholder: "1. Opened Space\n2. Clicked a planet\n3. …"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+  - type: textarea
+    id: error
+    attributes:
+      label: Error details
+      description: Filled in automatically when you use the "Report it" link.
+      render: text
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Filled in automatically by the Feedback / Report links. Add your device if it is missing.
+      render: text
+    validations:
+      required: true

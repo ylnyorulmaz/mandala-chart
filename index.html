@@ -23,6 +23,7 @@
             <span></span><span></span><span></span><span></span>
           </span>
           <span class="brand-name">mandala</span>
+          <span class="beta-chip">beta</span>
         </a>
 
         <nav class="main-nav" aria-label="Primary">
@@ -30,6 +31,7 @@
           <a href="about.html">About</a>
           <a href="blog.html">Blog</a>
           <a href="https://github.com/ylnyorulmaz/mandala-chart" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://github.com/ylnyorulmaz/mandala-chart/issues/new/choose" target="_blank" rel="noreferrer" data-feedback="feedback">Feedback</a>
         </nav>
 
         <div class="nav-actions">
@@ -365,8 +367,13 @@
             <h2 id="mapsTitle">Your maps</h2>
             <p>Maps can stay independent, join a group, or connect as related, sequential, or parent/child work.</p>
           </div>
-          <button class="primary-button" id="newMapButton" type="button">+ New map</button>
+          <div class="maps-head-actions">
+            <button class="soft-button" id="importMapButton" type="button">Import map</button>
+            <button class="primary-button" id="newMapButton" type="button">+ New map</button>
+          </div>
+          <input id="importMapInput" type="file" accept=".json,application/json" hidden>
         </div>
+        <p class="maps-storage-note">Maps are stored only in this browser. Use <b>Save</b> to download a backup and <b>Import map</b> to bring one back.</p>
         <div class="maps-list" id="mapsList" aria-live="polite"></div>
       </div>
 
@@ -460,6 +467,7 @@
     <div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
   </div>
 
+  <script src="feedback.js"></script>
   <script src="vendor/jquery-3.7.1.min.js"></script>
   <script src="vendor/idb-6.1.5.min.js"></script>
   <script src="storage.js"></script>

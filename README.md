@@ -8,6 +8,12 @@ The product starts with one goal in the center, expands into the major drivers r
 
 Mandala is not trying to be another generic to-do list. The core problem is the gap between **knowing what you want** and **knowing what to do next**.
 
+**Try the beta:** https://mandala-chart.yorulmazyln.workers.dev — no account, nothing to install; maps stay in your browser.
+
+![Space view: the goal as a sun, drivers as planets, actions as moons](docs/space-planet.jpg)
+
+> **Beta.** Things may still break. Use **Save** to keep a backup of maps you care about, and **Feedback** in the top bar to report bugs or ideas ([GitHub Issues](https://github.com/ylnyorulmaz/mandala-chart/issues/new/choose)).
+
 ---
 
 ## Current prototype
@@ -20,6 +26,8 @@ It supports:
 - eight driver nodes,
 - recursive actions and smaller steps,
 - switchable Map, Table, and classic 9×9 Grid views,
+- a 3D **Space** view where the goal is a sun, drivers are planets and actions are moons — explorable, editable, and in sync with the planner,
+- map backup and restore: **Save** downloads a JSON file, **Import map** (in Maps) brings it back as a new map,
 - responsive mobile touch layout with safe-area support,
 - phone-friendly table cards instead of forced desktop-width scrolling,
 - simple decisions: Do / Later / Hand off / Drop,
@@ -273,9 +281,26 @@ Repeated use, completed actions, requests for history/sync, and users returning 
 
 ---
 
+## Feedback
+
+Mandala is in beta. The **Feedback** link (top bar on every page) opens a GitHub issue form with your browser, screen and app version filled in; if something crashes, a small **Report it** notice does the same with the error attached. Map contents are never included.
+
+The app version lives in `feedback.js` (`APP_VERSION`) and matches `CACHE_NAME` in `sw.js` — bump both together.
+
+
 ## License
 
-No explicit open-source license has been added yet. Until one exists, the repository is publicly visible but reuse rights are not automatically granted.
+Mandala is released under the [MIT License](LICENSE).
+
+Third-party libraries in `vendor/` keep their own licenses:
+
+| Library | Version | License |
+|---|---|---|
+| [jQuery](https://jquery.com) | 3.7.1 | MIT — `vendor/jquery-LICENSE.txt` |
+| [idb](https://github.com/jakearchibald/idb) | 6.1.5 | ISC — `vendor/idb-LICENSE.txt` |
+| [three.js](https://threejs.org) | 0.180.0 | MIT — `vendor/three/LICENSE.txt` |
+| [postprocessing](https://github.com/pmndrs/postprocessing) | 6.39.6 | Zlib — `vendor/postprocessing/LICENSE.txt` |
+| [GSAP](https://gsap.com) | 3.13.0 | GSAP Standard "No Charge" License — `vendor/gsap/LICENSE.txt` |
 
 
 ## Execution framework

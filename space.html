@@ -56,6 +56,10 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h13"/></svg>
         <span>Labels</span>
       </button>
+      <a class="space-btn" id="feedbackLink" href="https://github.com/ylnyorulmaz/mandala-chart/issues/new/choose" target="_blank" rel="noreferrer" data-feedback="feedback" title="Send feedback (beta)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>
+        <span>Feedback</span>
+      </a>
       <a class="space-btn primary" id="flatLink" href="index.html" title="Edit in the 2D planner">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>
         <span>2D map</span>
@@ -184,6 +188,20 @@
     <a class="space-btn primary" href="index.html">Open the 2D planner</a>
   </div>
 
+  <script>
+    // Browsers without import maps (Safari < 16.4) never run space.js:
+    // show the fallback instead of an endless loader.
+    (function () {
+      var ok = typeof HTMLScriptElement !== "undefined" && HTMLScriptElement.supports && HTMLScriptElement.supports("importmap");
+      if (ok) return;
+      document.getElementById("spaceLoader").style.display = "none";
+      var fallback = document.getElementById("spaceFallback");
+      fallback.hidden = false;
+      fallback.querySelector("h1").textContent = "Space needs a newer browser";
+      fallback.querySelector("p").textContent = "Try the latest Chrome, Edge, Firefox or Safari 16.4+. Your map is safe — open it in the 2D planner.";
+    })();
+  </script>
+  <script src="feedback.js"></script>
   <script src="vendor/idb-6.1.5.min.js"></script>
   <script src="storage.js"></script>
   <script src="map-ops.js"></script>

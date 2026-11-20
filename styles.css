@@ -7482,3 +7482,37 @@ body.dark .blog-sources a {
   .minimal-planner > .planner-actions::-webkit-scrollbar { display: none; }
   .minimal-planner > .planner-actions .soft-button { flex: 0 0 auto; }
 }
+
+/* Beta label next to the logo, and the Maps library import/backup row. */
+.beta-chip {
+  align-self: center;
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #6a4b00;
+  background: #ffe2a3;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+body.dark .beta-chip {
+  color: #2b1d00;
+  background: #ffd166;
+}
+
+.maps-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.maps-storage-note {
+  margin: 10px 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
