@@ -326,17 +326,31 @@ The Grid view is a structured overview, not a replacement for the recursive Map 
 - empty slots appear as faint wireframe "unformed" bodies,
 - cleared (done) nodes get a glowing golden ring; nodes marked *Doing* pulse.
 
+Decisions are visible too, using the same rules as the planner:
+
+- **Later** bodies are faded, **Drop** bodies are grey ghosts, **Hand off** bodies get a small blue courier, and anything under a parked parent is dimmed,
+- a node that is **blocked** by another gets a dashed red line to its blocker and a "Blocked" tag,
+- the planner's **Next move** (same filter and score as the 2D modal) carries a pulsing cyan beacon; **Next ✦** or `N` flies there.
+
 Interaction:
 
-- drag to rotate, scroll / pinch to zoom, right-drag / two-finger drag to pan,
-- click a planet, moon, label, or list item to fly there with a smooth GSAP camera flight; the camera then follows it along its orbit while time slows down,
-- the side panel shows path, progress, impact / effort / decision, notes, and the child bodies; **Clear it ✓** marks the node done and saves it to IndexedDB,
-- **Esc** goes up a level, **← / →** hop between siblings, **↑ / ↓** go to the parent / first child, **Space** pauses orbits, **L** toggles labels, **D** toggles done,
-- the map picker switches between saved maps (and sets the active map for the 2D planner).
+- drag to rotate, scroll / pinch to zoom, right-drag / two-finger drag to pan; grabbing the camera during a flight cancels the flight,
+- click a planet, moon, label, search result, or list item to fly there; the camera then follows it along its orbit while time slows down,
+- the side panel shows path, progress (same numbers as the 2D quest progress), impact / effort / decision, blocker (clickable), notes, and child bodies, plus an **Open / Doing / Done** switch that saves to IndexedDB,
+- `/` searches node titles, **Esc** goes up a level, **← / →** hop between siblings, **↑ / ↓** go to the parent / first child, **Space** pauses orbits, **L** toggles labels, **D** toggles done,
+- labels are placed by priority and hidden when they would overlap.
 
-Open it from the **Space ✦** button in the view switcher; the current map is saved first. Without WebGL 2 the page shows a link back to the 2D planner. Bloom, AgX tone mapping, vignette, and subtle chromatic aberration come from `postprocessing`. `prefers-reduced-motion` shortens flights and stops auto-rotation.
+Working with the planner:
 
-The Space view is a viewer and check-off surface; titles and structure are still edited in the 2D planner.
+- **Space ✦** in the view switcher saves the map and opens Space on the selected node (`space.html?map=…&node=…`); **2D map** in Space opens the planner on the focused node (`index.html?node=…`),
+- an open planner tab and Space stay in sync through a `BroadcastChannel` (`mandala-sync`): a status set in Space updates the planner instead of being overwritten, and planner saves (renames, new branches) update or rebuild the system live,
+- the map picker switches between saved maps and sets the active map for the planner.
+
+Performance: planet textures are painted in small time slices after the first frame, phones and low-core devices use a lower pixel ratio and no MSAA, and the pixel ratio steps down automatically when the frame rate stays under ~40 fps. `prefers-reduced-motion` shortens flights, stops auto-rotation, and turns off chromatic aberration. Without WebGL 2 the page links back to the planner.
+
+Code: `space.js` (scene and interaction), `space/model.js` (progress / decision / next-move rules mirrored from `app.js` — change both together), `space/textures.js`, `space/shaders.js`. The 3D libraries are cached by the service worker on first use rather than at install.
+
+Titles and structure are still edited in the 2D planner.
 
 
 ### Color palettes

@@ -38,6 +38,7 @@
   var pinchState = null;
   var renderPositions = {};
   var activeView = "map";
+  var syncChannel = null;
 
   var PROMPTS = [
     "achieve",
@@ -208,6 +209,8 @@
     showEmptyMap();
     startPromptRotation();
     initialRender = false;
+    bindSyncChannel();
+    openDeepLinkedNode();
 
     document.addEventListener("visibilitychange", function () {
       if (document.visibilityState === "hidden") {
@@ -225,6 +228,65 @@
         navigator.serviceWorker.register("sw.js").catch(function () {});
       });
     }
+  }
+
+  // Space (space.html) and the planner talk over a BroadcastChannel so a node
+  // cleared in 3D is not overwritten by a planner tab that is still open.
+  function bindSyncChannel() {
+    if (!("BroadcastChannel" in window)) return;
+
+    try {
+      syncChannel = new BroadcastChannel("mandala-sync");
+    } catch (error) {
+      syncChannel = null;
+      return;
+    }
+
+    syncChannel.onmessage = function (event) {
+      var message = event.data || {};
+      if (message.type !== "status" || message.mapId !== currentMapId) return;
+
+      var node = state.nodes[message.nodeId];
+      if (!node || ["open", "doing", "done"].indexOf(message.status) === -1) return;
+      if (node.status === message.status) return;
+
+      node.status = message.status;
+      saveState();
+      if (!$("body").hasClass("empty-start")) renderAll(false);
+    };
+  }
+
+  function broadcastMapSaved() {
+    if (!syncChannel || !currentMapId) return;
+    try {
+      syncChannel.postMessage({ type: "map-saved", mapId: currentMapId });
+    } catch (error) { /* ignore */ }
+  }
+
+  // index.html?node=<id> (sent by Space's "2D map" link) opens the planner on that node.
+  function openDeepLinkedNode() {
+    var params = new URLSearchParams(window.location.search);
+    var id = params.get("node");
+    if (!id) return;
+
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+
+    if (!state.rootId || !state.nodes[state.rootId] || !state.nodes[id]) return;
+
+    var cursor = state.nodes[id].parentId ? state.nodes[state.nodes[id].parentId] : null;
+    while (cursor) {
+      cursor.collapsed = false;
+      cursor = cursor.parentId ? state.nodes[cursor.parentId] : null;
+    }
+
+    stopPromptRotation();
+    showMap();
+    selectNode(id, false);
+    setTimeout(function () {
+      selectNode(id, true);
+    }, 40);
   }
 
   function bindGlobalEvents() {
@@ -639,7 +701,12 @@
 
     $("#spaceViewButton").on("click", async function (e) {
       e.preventDefault();
-      var href = "space.html" + (currentMapId ? "?map=" + encodeURIComponent(currentMapId) : "");
+      var params = [];
+      if (currentMapId) params.push("map=" + encodeURIComponent(currentMapId));
+      if (selectedId && state.nodes[selectedId] && selectedId !== state.rootId) {
+        params.push("node=" + encodeURIComponent(selectedId));
+      }
+      var href = "space.html" + (params.length ? "?" + params.join("&") : "");
       try {
         await persistCurrentMapNow();
       } catch (error) { /* navigate anyway */ }
@@ -1160,6 +1227,7 @@
         group: existingRecord && existingRecord.group ? existingRecord.group : "",
         state: snapshot
       }));
+      broadcastMapSaved();
     } catch (error) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }

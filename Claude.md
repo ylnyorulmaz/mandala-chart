@@ -41,7 +41,9 @@ Main files:
 - `sw.js` — offline caching
 - `vendor/jquery-3.7.1.min.js` — local jQuery
 - `vendor/idb-6.1.5.min.js` — local idb wrapper
-- `space.html`, `space.css`, `space.js` — optional 3D "Space" view (goal = sun, drivers = planets, actions = moons) built as an ES module
+- `space.html`, `space.css`, `space.js` — optional 3D "Space" view (goal = sun, drivers = planets, actions = moons) built as ES modules
+- `space/model.js` — Space's copy of the progress, decision, blocker and next-move rules; keep it in step with the matching functions in `app.js`
+- `space/textures.js`, `space/shaders.js` — procedural textures and GLSL materials for Space
 - `vendor/three/` (Three.js 0.180.0 + OrbitControls), `vendor/postprocessing/` (pmndrs postprocessing 6.39.6), `vendor/gsap/` (GSAP 3.13.0) — loaded only by `space.html` through an import map; keep them out of `index.html` so the 2D planner stays light
 
 No framework.

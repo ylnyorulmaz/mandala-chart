@@ -9,6 +9,11 @@
  * Three.js renders the scene, pmndrs/postprocessing adds bloom, tone mapping,
  * vignette and a whisper of chromatic aberration, GSAP drives every camera
  * flight and appearance animation. All three are vendored locally (no CDN).
+ *
+ * Modules:
+ *   space/model.js     — progress / decision / next-move rules (mirrors app.js)
+ *   space/textures.js  — procedural planet, glow and nebula textures
+ *   space/shaders.js   — sun, atmosphere, ring and point-sprite materials
  */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/OrbitControls.js";
@@ -22,13 +27,18 @@ import {
   ToneMappingMode,
   ChromaticAberrationEffect
 } from "postprocessing";
+import { makePlanetTexture, makeGlowTexture, makeNebulaTexture, hashString } from "./space/textures.js";
+import { sunMaterial, atmosphereMaterial, ringMaterial, pointsMaterial } from "./space/shaders.js";
+import * as model from "./space/model.js";
 
 const gsap = window.gsap;
 const Storage = window.MandalaStorage;
 
 const STORAGE_KEY = "mandala-chart-state-v2";
-const REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const REDUCED_MOTION = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 const MOTION = REDUCED_MOTION ? 0.35 : 1;
+const LOW_POWER = !!(window.matchMedia && window.matchMedia("(max-width: 700px)").matches) ||
+  (navigator.hardwareConcurrency || 8) <= 4;
 
 const KIND = {
   0: ["GOAL", "SUN"],
@@ -38,10 +48,21 @@ const KIND = {
 };
 const CHILD_NOUN = { 0: "Planets", 1: "Moons", 2: "Moonlets", 3: "Moonlets" };
 const DECISION_LABEL = { do: "Do", defer: "Later", delegate: "Hand off", delete: "Drop" };
+const STATUS_LABEL = { open: "Open", doing: "Doing", done: "Cleared", empty: "Empty" };
 const PALETTE = ["#ff8a5b", "#5ec8ff", "#b68bff", "#6ee7a8", "#ffd166", "#ff6fae", "#7aa2ff", "#4fd1c5"];
 const PLANET_TYPES = ["gas", "terra", "ice", "gas", "rock", "terra", "gas", "ice"];
 
+/* How decisions read in space: dropped work is a grey ghost, deferred work is
+ * faded, handed-off work keeps its colour but gains a small blue courier. */
+const LOOK = {
+  drop: { opacity: 0.28, tint: "#6f6f7a", tag: "Dropped", atmo: 0 },
+  later: { opacity: 0.6, tint: "#a9a9bd", tag: "Later", atmo: 0.4 },
+  handoff: { opacity: 1, tint: "#ffffff", tag: "Handed off", atmo: 1 },
+  inherited: { opacity: 0.55, tint: "#a0a0b4", tag: "", atmo: 0.4 }
+};
+
 const $ = (id) => document.getElementById(id);
+const title = (node) => model.nodeTitle(node);
 
 /* ------------------------------------------------------------------ */
 /* State                                                              */
@@ -54,11 +75,18 @@ let bodyById = new Map();
 let hitMeshes = [];
 let sunBody = null;
 let systemRadius = 80;
+let buildGen = 0;
+let textureQueue = [];
+let depLinks = [];
+let beacon = null;
+let nextBody = null;
 
 let mapState = null;
 let mapRecord = null;
 let mode = "demo"; // "db" | "legacy" | "demo"
 let mapsList = [];
+let deepNodeId = null;
+let syncChannel = null;
 
 let focused = null;
 let hovered = null;
@@ -71,14 +99,28 @@ let paused = false;
 let labelsOn = true;
 let lastInteraction = performance.now();
 const view = { offsetX: 0, offsetY: 0 };
+let dpr = 1;
+const perf = { frames: 0, since: performance.now(), settledAt: performance.now() + 7000 };
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2(-10, -10);
 let pointerDirty = false;
 let pointerDown = null;
+let lastPointerType = "mouse";
 
 const tmpV = new THREE.Vector3();
 const tmpV2 = new THREE.Vector3();
+
+let starMat = null;
+
+const sharedGeo = {
+  sphereHi: new THREE.SphereGeometry(1, 96, 64),
+  sphereMid: new THREE.SphereGeometry(1, 48, 32),
+  sphereLo: new THREE.SphereGeometry(1, 24, 16),
+  ghost: new THREE.IcosahedronGeometry(1, 2),
+  hit: new THREE.SphereGeometry(1, 12, 8)
+};
+const hitMaterial = new THREE.MeshBasicMaterial({ visible: false });
 
 /* ------------------------------------------------------------------ */
 /* Boot                                                               */
@@ -93,6 +135,7 @@ async function boot() {
   setupRenderer();
   setupBackdrop();
   bindEvents();
+  bindSync();
 
   await loadMaps();
   buildSystem();
@@ -112,28 +155,27 @@ function webglAvailable() {
 }
 
 function showFallback() {
-  $("spaceLoader").hidden = true;
   $("spaceLoader").style.display = "none";
   $("spaceFallback").hidden = false;
 }
 
 /* ------------------------------------------------------------------ */
-/* Data                                                               */
+/* Data + sync with the 2D planner                                    */
 /* ------------------------------------------------------------------ */
 
 async function loadMaps() {
   const params = new URLSearchParams(location.search);
   const wanted = params.get("map");
+  deepNodeId = params.get("node");
 
   try {
     if (!Storage) throw new Error("no storage");
     await Storage.init();
-    mapsList = (await Storage.listMaps()).filter((m) => m.state && m.state.rootId && m.state.nodes && m.state.nodes[m.state.rootId]);
+    mapsList = (await Storage.listMaps()).filter(isUsableRecord);
 
     if (mapsList.length) {
-      let id = wanted && mapsList.some((m) => m.id === wanted) ? wanted : await Storage.getActiveMapId();
-      let record = mapsList.find((m) => m.id === id) || mapsList[0];
-      useRecord(record);
+      const id = wanted && mapsList.some((m) => m.id === wanted) ? wanted : await Storage.getActiveMapId();
+      useRecord(mapsList.find((m) => m.id === id) || mapsList[0]);
       return;
     }
   } catch (e) {
@@ -151,80 +193,132 @@ async function loadMaps() {
   } catch (e) { /* fall through to demo */ }
 
   mode = "demo";
-  mapState = demoState();
+  mapState = model.demoState();
   setTimeout(() => toast("Demo system — create a map in the 2D planner to see your own."), 3400 * MOTION);
+}
+
+function isUsableRecord(record) {
+  return !!(record && record.state && record.state.rootId && record.state.nodes && record.state.nodes[record.state.rootId]);
 }
 
 function useRecord(record) {
   mode = "db";
   mapRecord = record;
   mapState = JSON.parse(JSON.stringify(record.state));
-  $("flatLink").href = "index.html";
+  // keep the planner on the same map when the user goes back to 2D
+  Storage.setActiveMapId(record.id).catch(() => {});
 }
 
-function demoState() {
-  const nodes = {};
-  let n = 0;
-  const make = (title, parentId, depth, status) => {
-    const id = "demo_" + (n++);
-    nodes[id] = { id, title, parentId, depth, children: [], status: status || "open", impact: 3, effort: 3, decision: "do", notes: "", duration: "" };
-    if (parentId) nodes[parentId].children.push(id);
-    return id;
+function bindSync() {
+  if (!("BroadcastChannel" in window)) return;
+  try {
+    syncChannel = new BroadcastChannel("mandala-sync");
+  } catch (e) {
+    syncChannel = null;
+    return;
+  }
+  syncChannel.onmessage = (event) => {
+    const message = event.data || {};
+    if (message.type === "map-saved" && mode === "db" && mapRecord && message.mapId === mapRecord.id) {
+      scheduleRefresh();
+    }
   };
+}
 
-  const root = make("Launch my first product", null, 0);
-  const drivers = {
-    "Product readiness": ["List launch blockers", "Test the main user flow", "Fix mobile issues", "Check performance"],
-    "Offer & positioning": ["Write one clear promise", "Create one proof example", "Choose one target audience"],
-    "Pricing & payment": ["Choose one simple price", "Set up payment link", "Run one real payment test"],
-    "Ideal customer": ["Write ICP in one sentence", "Find 10 matching prospects", "Rank by relevance"],
-    "Outreach": ["Write one short message", "Send to 5 prospects", "Follow up after 3 days", "Track replies"],
-    "Launch content": ["Publish one demo", "Post in one relevant community"],
-    "Measurement": ["Track clicks and replies", "Review what worked"],
-    "": []
-  };
+let refreshTimer = null;
+function scheduleRefresh() {
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(async () => {
+    try {
+      const record = await Storage.getMap(mapRecord.id);
+      if (isUsableRecord(record)) applyExternalRecord(record);
+    } catch (e) { /* keep what we have */ }
+  }, 250);
+}
 
-  let k = 0;
-  Object.keys(drivers).forEach((title) => {
-    const d = make(title, root, 1, k === 2 ? "done" : "open");
-    drivers[title].forEach((a, i) => {
-      const id = make(a, d, 2, (i + k) % 3 === 0 ? "done" : (i === 1 ? "doing" : "open"));
-      if (k === 0 && i === 1) {
-        make("Sign up as a new user", id, 3, "done");
-        make("Create first project", id, 3);
-        make("Export the result", id, 3);
-      }
-    });
-    k++;
+/** The planner saved this map: update in place when possible, rebuild otherwise. */
+function applyExternalRecord(record) {
+  const next = JSON.parse(JSON.stringify(record.state));
+  mapRecord = record;
+  const index = mapsList.findIndex((m) => m.id === record.id);
+  if (index >= 0) mapsList[index] = record;
+  renderMapPicker();
+
+  if (model.structureSignature(next) !== model.structureSignature(mapState)) {
+    rebuildPreservingFocus(next);
+    return;
+  }
+
+  Object.keys(next.nodes).forEach((id) => {
+    if (mapState.nodes[id]) Object.assign(mapState.nodes[id], next.nodes[id]);
   });
 
-  return { rootId: root, nodes };
-}
-
-function nodeTitle(node) {
-  return node && node.title && node.title.trim() ? node.title.trim() : "";
-}
-
-function filledChildren(node) {
-  return (node.children || []).map((id) => mapState.nodes[id]).filter((c) => c && nodeTitle(c));
-}
-
-function leafStats(node) {
-  let total = 0;
-  let done = 0;
-  const walk = (n) => {
-    const kids = filledChildren(n);
-    if (!kids.length) {
-      if (n !== node && nodeTitle(n) && n.decision !== "delete") {
-        total++;
-        if (n.status === "done") done++;
-      }
-      return;
+  for (const body of bodies) {
+    applyLook(body);
+    if (body.depth > 0 && !body.empty) {
+      if (body.node.status === "done") addRing(body, true);
+      else removeRing(body);
     }
-    kids.forEach(walk);
-  };
-  walk(node);
-  return { total, done };
+  }
+  afterDataChange();
+  if (focused) showPanel(focused, { quiet: true });
+}
+
+function rebuildPreservingFocus(nextState) {
+  const focusId = focused ? focused.node.id : null;
+  const panelOpen = !!focused;
+  cancelFlight();
+
+  mapState = nextState;
+  disposeSystem();
+  buildSystem();
+  updateOrbits();
+  systemRoot.updateMatrixWorld(true);
+
+  const body = focusId ? bodyById.get(focusId) : null;
+  if (body && body !== sunBody) {
+    focused = body;
+    following = true;
+    body.anchor.getWorldPosition(lastFollowPos);
+    showPanel(body, { quiet: true });
+  } else if (body === sunBody && panelOpen) {
+    focused = sunBody;
+    showPanel(sunBody, { quiet: true });
+  } else {
+    focused = null;
+    hidePanel();
+  }
+  syncControlLimits();
+}
+
+function broadcastStatus(node) {
+  if (!syncChannel || mode !== "db" || !mapRecord) return;
+  try {
+    syncChannel.postMessage({ type: "status", mapId: mapRecord.id, nodeId: node.id, status: node.status });
+  } catch (e) { /* ignore */ }
+}
+
+async function persistStatus(node) {
+  if (mode === "demo") return;
+
+  if (mode === "legacy") {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(mapState));
+    } catch (e) { toast("Could not save on this device."); }
+    return;
+  }
+
+  try {
+    const record = await Storage.getMap(mapRecord.id);
+    if (!record || !record.state || !record.state.nodes[node.id]) throw new Error("missing");
+    record.state.nodes[node.id].status = node.status;
+    record.updatedAt = Date.now();
+    await Storage.saveMap(record);
+    mapRecord = record;
+    broadcastStatus(node);
+  } catch (e) {
+    toast("Could not save — open the 2D planner and try again.");
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -240,7 +334,8 @@ function setupRenderer() {
     depth: true,
     powerPreference: "high-performance"
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  dpr = Math.min(window.devicePixelRatio || 1, LOW_POWER ? 1.5 : 2);
+  renderer.setPixelRatio(dpr);
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   renderer.toneMapping = THREE.NoToneMapping;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -257,7 +352,7 @@ function setupRenderer() {
   controls.rotateSpeed = 0.55;
   controls.zoomSpeed = 0.9;
   controls.panSpeed = 0.6;
-  controls.minDistance = 1.2;
+  controls.minDistance = 9;
   controls.maxDistance = 900;
   controls.autoRotateSpeed = 0.18;
   controls.enabled = false;
@@ -269,7 +364,7 @@ function setupRenderer() {
 
   composer = new EffectComposer(renderer, {
     frameBufferType: THREE.HalfFloatType,
-    multisampling: Math.min(4, renderer.capabilities.maxSamples || 0)
+    multisampling: LOW_POWER ? 0 : Math.min(4, renderer.capabilities.maxSamples || 0)
   });
   composer.addPass(new RenderPass(scene, camera));
 
@@ -284,20 +379,20 @@ function setupRenderer() {
     mode: ToneMappingMode.AGX !== undefined ? ToneMappingMode.AGX : ToneMappingMode.ACES_FILMIC
   });
   const vignette = new VignetteEffect({ offset: 0.28, darkness: 0.62 });
-  const chroma = new ChromaticAberrationEffect({
-    offset: new THREE.Vector2(0.00055, 0.00055),
-    radialModulation: true,
-    modulationOffset: 0.35
-  });
-
   composer.addPass(new EffectPass(camera, bloom, tone, vignette));
-  composer.addPass(new EffectPass(camera, chroma));
+
+  if (!REDUCED_MOTION) {
+    composer.addPass(new EffectPass(camera, new ChromaticAberrationEffect({
+      offset: new THREE.Vector2(0.00055, 0.00055),
+      radialModulation: true,
+      modulationOffset: 0.35
+    })));
+  }
 
   clock = new THREE.Clock();
 
   scene.add(new THREE.AmbientLight("#7d86c8", 0.32));
-  const fill = new THREE.HemisphereLight("#9fb4ff", "#1b1030", 0.18);
-  scene.add(fill);
+  scene.add(new THREE.HemisphereLight("#9fb4ff", "#1b1030", 0.18));
 }
 
 function onResize() {
@@ -306,7 +401,26 @@ function onResize() {
   camera.aspect = w / h;
   renderer.setSize(w, h, false);
   composer.setSize(w, h);
+  if (starMat) starMat.uniforms.uPixelRatio.value = renderer.getPixelRatio();
   applyViewOffset();
+}
+
+/** Drop the pixel ratio in steps when the GPU cannot keep ~40 fps. */
+function monitorPerformance(now) {
+  perf.frames++;
+  const span = now - perf.since;
+  if (span < 2000) return;
+  const fps = (perf.frames * 1000) / span;
+  perf.frames = 0;
+  perf.since = now;
+  if (flight || document.hidden || now < perf.settledAt) return;
+  if (fps < 40 && dpr > 1) {
+    dpr = Math.max(1, Math.round((dpr - 0.25) * 100) / 100);
+    renderer.setPixelRatio(dpr);
+    composer.setSize(window.innerWidth, window.innerHeight);
+    starMat.uniforms.uPixelRatio.value = dpr;
+    perf.settledAt = now + 1500;
+  }
 }
 
 function applyViewOffset() {
@@ -340,326 +454,31 @@ function tweenViewOffset(panelOpen) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Procedural textures                                                */
-/* ------------------------------------------------------------------ */
-
-function hash3(x, y, z, seed) {
-  let h = seed ^ Math.imul(x, 0x27d4eb2d) ^ Math.imul(y, 0x165667b1) ^ Math.imul(z, 0x1b873593);
-  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
-
-function vnoise(x, y, z, seed) {
-  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
-  const xf = x - xi, yf = y - yi, zf = z - zi;
-  const u = xf * xf * (3 - 2 * xf);
-  const v = yf * yf * (3 - 2 * yf);
-  const w = zf * zf * (3 - 2 * zf);
-  const a = hash3(xi, yi, zi, seed), b = hash3(xi + 1, yi, zi, seed);
-  const c = hash3(xi, yi + 1, zi, seed), d = hash3(xi + 1, yi + 1, zi, seed);
-  const e = hash3(xi, yi, zi + 1, seed), f = hash3(xi + 1, yi, zi + 1, seed);
-  const g = hash3(xi, yi + 1, zi + 1, seed), h = hash3(xi + 1, yi + 1, zi + 1, seed);
-  const x1 = a + (b - a) * u, x2 = c + (d - c) * u, x3 = e + (f - e) * u, x4 = g + (h - g) * u;
-  const y1 = x1 + (x2 - x1) * v, y2 = x3 + (x4 - x3) * v;
-  return y1 + (y2 - y1) * w;
-}
-
-function fbm(x, y, z, seed, octaves) {
-  let amp = 0.5, freq = 1, sum = 0, norm = 0;
-  for (let i = 0; i < octaves; i++) {
-    sum += amp * vnoise(x * freq, y * freq, z * freq, seed + i * 131);
-    norm += amp;
-    freq *= 2.03;
-    amp *= 0.5;
-  }
-  return sum / norm;
-}
-
-function mixc(a, b, t) {
-  t = Math.max(0, Math.min(1, t));
-  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-}
-
-function shade(hex, dh, ds, dl) {
-  const c = new THREE.Color(hex);
-  c.offsetHSL(dh, ds, dl);
-  return [c.r, c.g, c.b];
-}
-
-function smoothstep(a, b, x) {
-  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
-  return t * t * (3 - 2 * t);
-}
-
-function makePlanetTexture(type, hex, seed, w, h) {
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  const img = ctx.createImageData(w, h);
-  const data = img.data;
-
-  const base = shade(hex, 0, 0, 0);
-  const dark = shade(hex, 0.02, -0.1, -0.28);
-  const light = shade(hex, -0.03, -0.05, 0.22);
-  const deep = shade(hex, 0.05, 0.05, -0.38);
-  const landA = shade(hex, 0.28, -0.25, -0.18);
-  const landB = shade(hex, 0.12, -0.35, 0.05);
-  const snow = [0.94, 0.95, 1.0];
-  const bandFreq = 7 + (seed % 5) * 2;
-
-  for (let y = 0; y < h; y++) {
-    const lat = (y / (h - 1) - 0.5) * Math.PI;
-    const cl = Math.cos(lat), py = Math.sin(lat);
-    for (let x = 0; x < w; x++) {
-      const lon = (x / w) * Math.PI * 2;
-      const px = cl * Math.cos(lon), pz = cl * Math.sin(lon);
-      let c;
-
-      if (type === "gas") {
-        const warp = fbm(px * 1.6 + 3, py * 1.6, pz * 1.6, seed, 4);
-        const band = Math.sin(py * bandFreq + warp * 5.5) * 0.5 + 0.5;
-        const fine = fbm(px * 5, py * 22, pz * 5, seed + 7, 3);
-        c = band < 0.5 ? mixc(dark, base, band * 2) : mixc(base, light, (band - 0.5) * 2);
-        c = mixc(c, light, (fine - 0.5) * 0.45);
-        const storm = fbm(px * 3, py * 3, pz * 3, seed + 99, 3);
-        if (storm > 0.72) c = mixc(c, snow, smoothstep(0.72, 0.85, storm) * 0.55);
-      } else if (type === "terra") {
-        const n = fbm(px * 2.1, py * 2.1, pz * 2.1, seed, 5);
-        const sea = 0.5;
-        if (n > sea) {
-          c = mixc(landA, landB, (n - sea) / (1 - sea) * 1.6);
-        } else {
-          c = mixc(deep, base, smoothstep(0.25, sea, n));
-        }
-        const pole = Math.abs(py);
-        if (pole > 0.82) c = mixc(c, snow, smoothstep(0.82, 0.9, pole + (n - 0.5) * 0.12));
-        const cloud = fbm(px * 3.2 + 9, py * 4.5, pz * 3.2, seed + 41, 4);
-        c = mixc(c, snow, smoothstep(0.58, 0.78, cloud) * 0.7);
-      } else if (type === "ice") {
-        const n = fbm(px * 2.6, py * 2.6, pz * 2.6, seed, 5);
-        const ridge = 1 - Math.abs(fbm(px * 6, py * 6, pz * 6, seed + 5, 3) * 2 - 1);
-        c = mixc(light, snow, n * 0.9);
-        c = mixc(c, base, smoothstep(0.86, 0.97, ridge) * 0.75);
-      } else {
-        const n = fbm(px * 3.2, py * 3.2, pz * 3.2, seed, 5);
-        const ridge = 1 - Math.abs(fbm(px * 7, py * 7, pz * 7, seed + 3, 3) * 2 - 1);
-        c = mixc(dark, light, n * 1.15 - 0.05);
-        c = mixc(c, deep, smoothstep(0.9, 0.98, ridge) * 0.6);
-        const crater = vnoise(px * 9, py * 9, pz * 9, seed + 77);
-        if (crater > 0.84) c = mixc(c, deep, (crater - 0.84) * 3);
-      }
-
-      const i = (y * w + x) * 4;
-      data[i] = Math.min(255, c[0] * 255);
-      data[i + 1] = Math.min(255, c[1] * 255);
-      data[i + 2] = Math.min(255, c[2] * 255);
-      data[i + 3] = 255;
-    }
-  }
-
-  ctx.putImageData(img, 0, 0);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  return tex;
-}
-
-function makeGlowTexture(stops) {
-  const size = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  stops.forEach(([o, c]) => g.addColorStop(o, c));
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, size, size);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
-function makeNebulaTexture(seed) {
-  const size = 256;
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  const img = ctx.createImageData(size, size);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const dx = x / size - 0.5, dy = y / size - 0.5;
-      const r = Math.sqrt(dx * dx + dy * dy) * 2;
-      const n = fbm(x / 48, y / 48, seed * 0.37, seed, 5);
-      const a = Math.max(0, 1 - r) ** 1.6 * smoothstep(0.35, 0.75, n);
-      const i = (y * size + x) * 4;
-      img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
-      img.data[i + 3] = a * 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-}
-
-/* ------------------------------------------------------------------ */
-/* Shaders                                                            */
-/* ------------------------------------------------------------------ */
-
-const NOISE_GLSL = /* glsl */`
-  float h31(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
-  float vn(vec3 p) {
-    vec3 i = floor(p); vec3 f = fract(p); f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(mix(h31(i), h31(i + vec3(1,0,0)), f.x), mix(h31(i + vec3(0,1,0)), h31(i + vec3(1,1,0)), f.x), f.y),
-               mix(mix(h31(i + vec3(0,0,1)), h31(i + vec3(1,0,1)), f.x), mix(h31(i + vec3(0,1,1)), h31(i + vec3(1,1,1)), f.x), f.y), f.z);
-  }
-  float fbm(vec3 p) { float s = 0.0; float a = 0.5; for (int i = 0; i < 5; i++) { s += a * vn(p); p = p * 2.02 + 17.1; a *= 0.5; } return s / 0.97; }
-`;
-
-function sunMaterial() {
-  return new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 } },
-    vertexShader: /* glsl */`
-      varying vec3 vPos; varying vec3 vNormal; varying vec3 vView;
-      void main() {
-        vPos = position;
-        vNormal = normalize(normalMatrix * normal);
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        vView = normalize(-mv.xyz);
-        gl_Position = projectionMatrix * mv;
-      }`,
-    fragmentShader: /* glsl */`
-      uniform float uTime;
-      varying vec3 vPos; varying vec3 vNormal; varying vec3 vView;
-      ${NOISE_GLSL}
-      void main() {
-        vec3 p = normalize(vPos) * 2.4;
-        float n1 = fbm(p + vec3(uTime * 0.04, uTime * 0.02, 0.0));
-        float n2 = fbm(p * 2.6 - vec3(0.0, uTime * 0.07, uTime * 0.03) + n1 * 1.6);
-        float t = clamp(n1 * 0.55 + n2 * 0.75 - 0.18, 0.0, 1.0);
-        vec3 c = mix(vec3(0.95, 0.28, 0.04), vec3(1.0, 0.62, 0.16), t);
-        c = mix(c, vec3(1.0, 0.92, 0.62), pow(t, 3.0) * 1.3);
-        float rim = pow(1.0 - max(dot(vNormal, vView), 0.0), 2.2);
-        c += vec3(1.0, 0.55, 0.18) * rim * 1.6;
-        gl_FragColor = vec4(c * 2.6, 1.0);
-      }`
-  });
-}
-
-function atmosphereMaterial(hex, intensity) {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uColor: { value: new THREE.Color(hex) },
-      uIntensity: { value: intensity },
-      uSun: { value: new THREE.Vector3() }
-    },
-    vertexShader: /* glsl */`
-      varying vec3 vNormal; varying vec3 vView; varying vec3 vWorldN; varying vec3 vWorldP;
-      void main() {
-        vNormal = normalize(normalMatrix * normal);
-        vWorldN = normalize(mat3(modelMatrix) * normal);
-        vec4 wp = modelMatrix * vec4(position, 1.0);
-        vWorldP = wp.xyz;
-        vec4 mv = viewMatrix * wp;
-        vView = normalize(-mv.xyz);
-        gl_Position = projectionMatrix * mv;
-      }`,
-    fragmentShader: /* glsl */`
-      uniform vec3 uColor; uniform float uIntensity; uniform vec3 uSun;
-      varying vec3 vNormal; varying vec3 vView; varying vec3 vWorldN; varying vec3 vWorldP;
-      void main() {
-        float rim = pow(1.0 - max(dot(vNormal, vView), 0.0), 3.0);
-        float lit = 0.35 + 0.65 * smoothstep(-0.4, 0.6, dot(vWorldN, normalize(uSun - vWorldP)));
-        gl_FragColor = vec4(uColor * rim * uIntensity * lit, rim * lit);
-      }`,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false
-  });
-}
-
-function ringMaterial(inner, outer) {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uInner: { value: inner },
-      uOuter: { value: outer },
-      uColor: { value: new THREE.Color("#ffd166") },
-      uOpacity: { value: 1 }
-    },
-    vertexShader: /* glsl */`
-      varying vec3 vP;
-      void main() { vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: /* glsl */`
-      uniform float uInner; uniform float uOuter; uniform vec3 uColor; uniform float uOpacity;
-      varying vec3 vP;
-      void main() {
-        float r = (length(vP.xy) - uInner) / (uOuter - uInner);
-        float bands = 0.55 + 0.45 * sin(r * 46.0) * sin(r * 13.0 + 1.3);
-        float edge = smoothstep(0.0, 0.12, r) * smoothstep(1.0, 0.75, r);
-        float a = edge * (0.35 + 0.65 * bands) * uOpacity;
-        gl_FragColor = vec4(uColor * (1.1 + bands * 0.9), a * 0.85);
-      }`,
-    transparent: true,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-  });
-}
-
-function starMaterial() {
-  return new THREE.ShaderMaterial({
-    uniforms: {
-      uTime: { value: 0 },
-      uPixelRatio: { value: renderer.getPixelRatio() }
-    },
-    vertexShader: /* glsl */`
-      attribute float aSize; attribute float aPhase; attribute vec3 aColor;
-      uniform float uTime; uniform float uPixelRatio;
-      varying vec3 vColor; varying float vTw;
-      void main() {
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        gl_Position = projectionMatrix * mv;
-        gl_PointSize = clamp(aSize * uPixelRatio * (520.0 / -mv.z), 0.0, 24.0);
-        vTw = 0.62 + 0.38 * sin(uTime * (0.6 + fract(aPhase) * 2.2) + aPhase * 6.28);
-        vColor = aColor;
-      }`,
-    fragmentShader: /* glsl */`
-      varying vec3 vColor; varying float vTw;
-      void main() {
-        float d = length(gl_PointCoord - 0.5);
-        float a = pow(smoothstep(0.5, 0.0, d), 1.8);
-        gl_FragColor = vec4(vColor * vTw * 1.5, a);
-      }`,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-  });
-}
-
-/* ------------------------------------------------------------------ */
 /* Backdrop: stars + nebulae                                          */
 /* ------------------------------------------------------------------ */
 
-let starMat = null;
-
-function setupBackdrop() {
-  const count = window.innerWidth < 700 ? 4500 : 8000;
+function pointCloud(count, fill) {
   const pos = new Float32Array(count * 3);
   const size = new Float32Array(count);
   const phase = new Float32Array(count);
   const color = new Float32Array(count * 3);
-  const tints = [new THREE.Color("#ffffff"), new THREE.Color("#cfe0ff"), new THREE.Color("#ffe6c4"), new THREE.Color("#ffd0e6"), new THREE.Color("#b9c8ff")];
+  for (let i = 0; i < count; i++) fill(i, pos, size, phase, color);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
+  geo.setAttribute("aPhase", new THREE.BufferAttribute(phase, 1));
+  geo.setAttribute("aColor", new THREE.BufferAttribute(color, 3));
+  return geo;
+}
 
-  for (let i = 0; i < count; i++) {
+function setupBackdrop() {
+  const tints = ["#ffffff", "#cfe0ff", "#ffe6c4", "#ffd0e6", "#b9c8ff"].map((c) => new THREE.Color(c));
+  const geo = pointCloud(LOW_POWER ? 4500 : 8000, (i, pos, size, phase, color) => {
     const r = 1300 + Math.random() * 1800;
     const u = Math.random() * 2 - 1;
     const th = Math.random() * Math.PI * 2;
     const s = Math.sqrt(1 - u * u);
-    // a faint galactic band: squash a share of stars toward a tilted plane
-    let y = u;
-    if (i % 3 === 0) y *= 0.18;
+    const y = i % 3 === 0 ? u * 0.18 : u; // a faint galactic band
     pos[i * 3] = r * s * Math.cos(th);
     pos[i * 3 + 1] = r * y;
     pos[i * 3 + 2] = r * s * Math.sin(th);
@@ -670,14 +489,9 @@ function setupBackdrop() {
     color[i * 3] = t.r * b;
     color[i * 3 + 1] = t.g * b;
     color[i * 3 + 2] = t.b * b;
-  }
+  });
 
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
-  geo.setAttribute("aPhase", new THREE.BufferAttribute(phase, 1));
-  geo.setAttribute("aColor", new THREE.BufferAttribute(color, 3));
-  starMat = starMaterial();
+  starMat = pointsMaterial(renderer.getPixelRatio());
   const stars = new THREE.Points(geo, starMat);
   stars.rotation.z = 0.35;
   stars.frustumCulled = false;
@@ -691,15 +505,14 @@ function setupBackdrop() {
     ["#3cffc8", [1400, 600, 1500], 1100, 0.14]
   ];
   nebulae.forEach(([hex, p, s, o], i) => {
-    const mat = new THREE.SpriteMaterial({
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
       map: makeNebulaTexture(11 + i * 7),
       color: new THREE.Color(hex),
       transparent: true,
       opacity: o,
       depthWrite: false,
       blending: THREE.AdditiveBlending
-    });
-    const sprite = new THREE.Sprite(mat);
+    }));
     sprite.position.set(p[0], p[1], p[2]);
     sprite.scale.set(s, s, 1);
     sprite.material.rotation = i * 1.3;
@@ -711,18 +524,9 @@ function setupBackdrop() {
 /* System construction                                                */
 /* ------------------------------------------------------------------ */
 
-const sharedGeo = {
-  sphereHi: new THREE.SphereGeometry(1, 96, 64),
-  sphereMid: new THREE.SphereGeometry(1, 48, 32),
-  sphereLo: new THREE.SphereGeometry(1, 24, 16),
-  ghost: new THREE.IcosahedronGeometry(1, 2),
-  hit: new THREE.SphereGeometry(1, 12, 8)
-};
-const hitMaterial = new THREE.MeshBasicMaterial({ visible: false });
-
 function bodyRadius(node, depth) {
-  const kids = filledChildren(node).length;
-  const empty = !nodeTitle(node);
+  const kids = model.filledChildren(mapState, node).length;
+  const empty = !title(node);
   if (depth === 0) return 6;
   if (depth === 1) return empty ? 1.1 : 1.45 + Math.min(kids, 10) * 0.11;
   if (depth === 2) return empty ? 0.32 : 0.46 + Math.min(kids, 8) * 0.025;
@@ -751,11 +555,16 @@ function circleLine(radius, hex, opacity, segments) {
 }
 
 function buildSystem() {
+  buildGen++;
+  textureQueue = [];
   systemRoot = new THREE.Group();
   scene.add(systemRoot);
   bodies = [];
   bodyById = new Map();
   hitMeshes = [];
+  depLinks = [];
+  beacon = null;
+  nextBody = null;
   $("spaceLabels").innerHTML = "";
 
   const root = mapState.nodes[mapState.rootId];
@@ -774,7 +583,7 @@ function buildSystem() {
     orbit.rotation.z = (hashString(node.id + "z") - 0.5) * 0.12;
     sunBody.anchor.add(orbit);
 
-    const line = circleLine(R, hex, nodeTitle(node) ? 0.2 : 0.08);
+    const line = circleLine(R, hex, title(node) ? 0.2 : 0.08);
     orbit.add(line);
 
     const body = makeBody(node, 1, sunBody, orbit, {
@@ -790,7 +599,13 @@ function buildSystem() {
 
   systemRadius = startR + Math.max(drivers.length - 1, 0) * gap + 6;
   addDustBelt(systemRadius + 12);
-  renderSystemIndex();
+
+  for (const body of bodies) applyLook(body);
+  afterDataChange();
+
+  // textures are painted after the first frames, planets first, so nothing stalls
+  textureQueue.sort((a, b) => a.body.depth - b.body.depth);
+  setTimeout(pumpTextures, 60);
 }
 
 function buildChildren(parent) {
@@ -802,7 +617,6 @@ function buildChildren(parent) {
   orbit.rotation.x = 0.18 + (hashString(parent.node.id) - 0.5) * 0.3;
   orbit.rotation.z = (hashString(parent.node.id + "r") - 0.5) * 0.4;
   parent.anchor.add(orbit);
-  parent.childOrbit = orbit;
 
   const line = circleLine(ringR, parent.hex, 0.07, parent.depth === 1 ? 128 : 64);
   orbit.add(line);
@@ -840,8 +654,7 @@ function makeSun(node) {
   corona.scale.setScalar(6 * 4.6);
   anchor.add(corona);
 
-  const light = new THREE.PointLight("#fff2de", 5.2, 0, 0);
-  anchor.add(light);
+  anchor.add(new THREE.PointLight("#fff2de", 5.2, 0, 0));
 
   const hit = new THREE.Mesh(sharedGeo.hit, hitMaterial);
   hit.scale.setScalar(6.4);
@@ -850,18 +663,14 @@ function makeSun(node) {
   const body = {
     node, depth: 0, radius: 6, anchor, mesh, hit, corona,
     hex: "#ffb347", children: [], parent: null,
-    pivot: null, phase: 0, speed: 0, spin: 0.02
+    pivot: null, phase: 0, speed: 0, spin: 0.02, empty: false, atmoFactor: 1
   };
-  hit.userData.body = body;
-  hitMeshes.push(hit);
-  bodies.push(body);
-  bodyById.set(node.id, body);
-  body.label = makeLabel(body);
+  registerBody(body);
   return body;
 }
 
 function makeBody(node, depth, parent, orbitGroup, opts) {
-  const empty = !nodeTitle(node);
+  const empty = !title(node);
   const radius = bodyRadius(node, depth);
   const pivot = new THREE.Group();
   orbitGroup.add(pivot);
@@ -869,56 +678,10 @@ function makeBody(node, depth, parent, orbitGroup, opts) {
   anchor.position.x = opts.orbitRadius;
   pivot.add(anchor);
 
-  let mesh;
-  if (empty) {
-    mesh = new THREE.Mesh(sharedGeo.ghost, new THREE.MeshBasicMaterial({
-      color: new THREE.Color(opts.hex),
-      wireframe: true,
-      transparent: true,
-      opacity: 0.22,
-      depthWrite: false
-    }));
-  } else {
-    const seed = Math.floor(hashString(node.id) * 100000);
-    let type, w, h;
-    if (depth === 1) {
-      type = PLANET_TYPES[opts.typeIndex % PLANET_TYPES.length];
-      w = 384; h = 192;
-    } else if (depth === 2) {
-      type = opts.typeIndex % 3 === 2 ? "ice" : "rock";
-      w = 160; h = 80;
-    } else {
-      type = "rock";
-      w = 64; h = 32;
-    }
-    const map = makePlanetTexture(type, opts.hex, seed, w, h);
-    mesh = new THREE.Mesh(depth === 1 ? sharedGeo.sphereHi : depth === 2 ? sharedGeo.sphereMid : sharedGeo.sphereLo,
-      new THREE.MeshStandardMaterial({
-        map,
-        roughness: type === "ice" ? 0.55 : 0.88,
-        metalness: 0,
-        emissive: new THREE.Color(opts.hex),
-        emissiveIntensity: 0.04
-      }));
-  }
-  mesh.scale.setScalar(radius);
-  mesh.rotation.z = (hashString(node.id + "t") - 0.5) * 0.6;
-  anchor.add(mesh);
-
-  let atmo = null;
-  if (!empty && depth <= 2) {
-    atmo = new THREE.Mesh(depth === 1 ? sharedGeo.sphereMid : sharedGeo.sphereLo, atmosphereMaterial(opts.hex, depth === 1 ? 1.9 : 1.3));
-    atmo.scale.setScalar(radius * (depth === 1 ? 1.07 : 1.1));
-    anchor.add(atmo);
-  }
-
-  const hit = new THREE.Mesh(sharedGeo.hit, hitMaterial);
-  hit.scale.setScalar(Math.max(radius * 1.35, depth >= 3 ? 0.3 : 0.55));
-  anchor.add(hit);
-
   const body = {
-    node, depth, radius, anchor, mesh, atmo, hit, pivot,
+    node, depth, radius, anchor, pivot,
     hex: opts.hex,
+    tint: new THREE.Color("#ffffff"),
     parent,
     children: [],
     phase: opts.phase,
@@ -927,19 +690,121 @@ function makeBody(node, depth, parent, orbitGroup, opts) {
     orbitRadius: opts.orbitRadius,
     line: opts.line || null,
     ring: null,
+    handoff: null,
+    atmoFactor: 1,
     empty
   };
-  pivot.rotation.y = body.phase;
 
-  hit.userData.body = body;
-  hitMeshes.push(hit);
+  if (empty) {
+    body.mesh = new THREE.Mesh(sharedGeo.ghost, new THREE.MeshBasicMaterial({
+      color: new THREE.Color(opts.hex),
+      wireframe: true,
+      transparent: true,
+      opacity: 0.22,
+      depthWrite: false
+    }));
+  } else {
+    let type, w;
+    if (depth === 1) {
+      type = PLANET_TYPES[opts.typeIndex % PLANET_TYPES.length];
+      w = LOW_POWER ? 256 : 384;
+    } else if (depth === 2) {
+      type = opts.typeIndex % 3 === 2 ? "ice" : "rock";
+      w = LOW_POWER ? 112 : 160;
+    } else {
+      type = "rock";
+      w = 64;
+    }
+    body.mesh = new THREE.Mesh(depth === 1 ? sharedGeo.sphereHi : depth === 2 ? sharedGeo.sphereMid : sharedGeo.sphereLo,
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color(opts.hex),
+        roughness: type === "ice" ? 0.55 : 0.88,
+        metalness: 0,
+        emissive: new THREE.Color(opts.hex),
+        emissiveIntensity: 0.04
+      }));
+    textureQueue.push({ gen: buildGen, body, type, w, h: w / 2, seed: Math.floor(hashString(node.id) * 100000) });
+  }
+  body.mesh.scale.setScalar(radius);
+  body.mesh.rotation.z = (hashString(node.id + "t") - 0.5) * 0.6;
+  anchor.add(body.mesh);
+
+  if (!empty && depth <= 2) {
+    body.atmo = new THREE.Mesh(depth === 1 ? sharedGeo.sphereMid : sharedGeo.sphereLo, atmosphereMaterial(opts.hex, depth === 1 ? 1.9 : 1.3));
+    body.atmo.scale.setScalar(radius * (depth === 1 ? 1.07 : 1.1));
+    anchor.add(body.atmo);
+  }
+
+  body.hit = new THREE.Mesh(sharedGeo.hit, hitMaterial);
+  body.hit.scale.setScalar(Math.max(radius * 1.35, depth >= 3 ? 0.3 : 0.55));
+  anchor.add(body.hit);
+
+  pivot.rotation.y = body.phase;
   parent.children.push(body);
-  bodies.push(body);
-  bodyById.set(node.id, body);
+  registerBody(body);
 
   if (node.status === "done" && !empty) addRing(body, false);
-  body.label = makeLabel(body);
   return body;
+}
+
+function registerBody(body) {
+  body.hit.userData.body = body;
+  hitMeshes.push(body.hit);
+  bodies.push(body);
+  bodyById.set(body.node.id, body);
+  makeLabel(body);
+}
+
+function pumpTextures() {
+  const start = performance.now();
+  while (textureQueue.length && performance.now() - start < 10) {
+    const job = textureQueue.shift();
+    if (job.gen !== buildGen) continue;
+    const material = job.body.mesh.material;
+    material.map = makePlanetTexture(job.type, job.body.hex, job.seed, job.w, job.h);
+    material.color.copy(job.body.tint);
+    material.needsUpdate = true;
+  }
+  if (textureQueue.length) setTimeout(pumpTextures, 16);
+}
+
+/** Dim / tag a body according to its decision (Later, Hand off, Drop) or a suppressed ancestor. */
+function applyLook(body) {
+  if (body.depth === 0 || body.empty) return;
+  const kind = model.suppressionOf(mapState, body.node);
+  const look = kind ? LOOK[kind] : null;
+  body.lookKind = kind;
+  body.tint.set(look ? look.tint : "#ffffff");
+
+  const material = body.mesh.material;
+  if (material.map) material.color.copy(body.tint);
+  else material.color.set(body.hex).multiply(body.tint);
+  const opacity = look ? look.opacity : 1;
+  material.transparent = opacity < 1;
+  material.opacity = opacity;
+  material.depthWrite = opacity >= 1;
+  material.needsUpdate = true;
+  body.atmoFactor = look ? look.atmo : 1;
+
+  if (body.line) body.line.userData.baseOpacity = kind === "drop" ? 0.05 : (kind ? 0.12 : 0.2);
+
+  if (kind === "handoff" && !body.handoff) addHandoff(body);
+  if (kind !== "handoff" && body.handoff) {
+    body.anchor.remove(body.handoff);
+    body.handoff.traverse((o) => { if (o.material) o.material.dispose(); });
+    body.handoff = null;
+  }
+}
+
+function addHandoff(body) {
+  const group = new THREE.Group();
+  group.rotation.x = 0.7;
+  const courier = new THREE.Mesh(sharedGeo.sphereLo, new THREE.MeshBasicMaterial({ color: new THREE.Color(0.55, 1.3, 2.6) }));
+  courier.scale.setScalar(Math.max(body.radius * 0.16, 0.05));
+  courier.position.x = body.radius * 1.75;
+  group.add(courier);
+  body.anchor.add(group);
+  body.handoff = group;
 }
 
 function addRing(body, animate) {
@@ -966,7 +831,7 @@ function removeRing(body) {
     duration: 0.5 * MOTION,
     ease: "power2.in",
     onComplete: () => {
-      ring.parent && ring.parent.remove(ring);
+      if (ring.parent) ring.parent.remove(ring);
       ring.geometry.dispose();
       ring.material.dispose();
     }
@@ -974,12 +839,7 @@ function removeRing(body) {
 }
 
 function addDustBelt(radius) {
-  const count = 2600;
-  const pos = new Float32Array(count * 3);
-  const size = new Float32Array(count);
-  const phase = new Float32Array(count);
-  const color = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) {
+  const geo = pointCloud(2600, (i, pos, size, phase, color) => {
     const a = Math.random() * Math.PI * 2;
     const r = radius + (Math.random() - 0.5) * 12 + (Math.random() - 0.5) * 6;
     pos[i * 3] = Math.cos(a) * r;
@@ -991,14 +851,8 @@ function addDustBelt(radius) {
     color[i * 3] = 0.75 * b;
     color[i * 3 + 1] = 0.8 * b;
     color[i * 3 + 2] = 1.0 * b;
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
-  geo.setAttribute("aPhase", new THREE.BufferAttribute(phase, 1));
-  geo.setAttribute("aColor", new THREE.BufferAttribute(color, 3));
+  });
   const belt = new THREE.Points(geo, starMat);
-  belt.userData.belt = true;
   belt.rotation.x = 0.04;
   systemRoot.add(belt);
   systemRoot.userData.belt = belt;
@@ -1006,27 +860,116 @@ function addDustBelt(radius) {
 
 function disposeSystem() {
   if (!systemRoot) return;
+  textureQueue = [];
   const sharedGeos = new Set(Object.values(sharedGeo));
   systemRoot.traverse((obj) => {
     if (obj.geometry && !sharedGeos.has(obj.geometry)) obj.geometry.dispose();
     if (obj.material && obj.material !== hitMaterial && obj.material !== starMat) {
-      const m = obj.material;
-      if (m.map) m.map.dispose();
-      m.dispose();
+      if (obj.material.map) obj.material.map.dispose();
+      obj.material.dispose();
     }
   });
   scene.remove(systemRoot);
   systemRoot = null;
+  depLinks = [];
+  beacon = null;
+  nextBody = null;
   $("spaceLabels").innerHTML = "";
 }
 
-function hashString(str) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
+/* ---------- derived overlays: blocked links + next-move beacon ---------- */
+
+/** Re-derive everything that depends on statuses and decisions. */
+function afterDataChange() {
+  rebuildDependencyLinks();
+  updateNextBeacon();
+  for (const body of bodies) updateLabelText(body);
+  renderSystemIndex();
+}
+
+function rebuildDependencyLinks() {
+  for (const link of depLinks) {
+    if (link.line.parent) link.line.parent.remove(link.line);
+    link.line.geometry.dispose();
+    link.line.material.dispose();
   }
-  return (h >>> 0) / 4294967296;
+  depLinks = [];
+
+  for (const body of bodies) {
+    const node = body.node;
+    if (body.empty || !node.dependencyId || node.status === "done" || !model.isNodeBlocked(mapState, node)) continue;
+    const blocker = bodyById.get(node.dependencyId);
+    if (!blocker) continue;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
+    const line = new THREE.Line(geo, new THREE.LineDashedMaterial({
+      color: new THREE.Color("#ff6b6b"),
+      dashSize: 0.5,
+      gapSize: 0.35,
+      transparent: true,
+      opacity: 0.3,
+      depthWrite: false
+    }));
+    line.frustumCulled = false;
+    systemRoot.add(line);
+    depLinks.push({ line, from: body, to: blocker });
+  }
+}
+
+function updateDependencyLinks() {
+  for (const link of depLinks) {
+    const arr = link.line.geometry.attributes.position.array;
+    link.from.anchor.getWorldPosition(tmpV);
+    link.to.anchor.getWorldPosition(tmpV2);
+    arr[0] = tmpV.x; arr[1] = tmpV.y; arr[2] = tmpV.z;
+    arr[3] = tmpV2.x; arr[4] = tmpV2.y; arr[5] = tmpV2.z;
+    link.line.geometry.attributes.position.needsUpdate = true;
+    link.line.computeLineDistances();
+    const on = [focused, hovered].some((b) => b && (b === link.from || b === link.to));
+    const m = link.line.material;
+    m.opacity += ((on ? 0.95 : 0.28) - m.opacity) * 0.12;
+  }
+}
+
+function makeBeacon() {
+  const group = new THREE.Group();
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: makeGlowTexture([[0, "rgba(220,255,255,1)"], [0.2, "rgba(120,230,255,.55)"], [0.5, "rgba(80,170,255,.12)"], [1, "rgba(60,120,255,0)"]]),
+    color: new THREE.Color(1.4, 2.2, 2.6),
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  }));
+  const halo = new THREE.Mesh(new THREE.TorusGeometry(1, 0.03, 8, 96), new THREE.MeshBasicMaterial({
+    color: new THREE.Color(0.7, 2.2, 2.6),
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  }));
+  group.add(glow, halo);
+  group.userData = { glow, halo, radius: 1 };
+  return group;
+}
+
+function updateNextBeacon() {
+  const node = model.nextActionNode(mapState);
+  const body = node ? bodyById.get(node.id) || null : null;
+  nextBody = body;
+  for (const b of bodies) b.label.classList.toggle("is-next", b === body);
+
+  const button = $("nextButton");
+  button.classList.toggle("has-next", !!body);
+  button.title = body ? "Next move: " + title(body.node) + " (N)" : "No ready action yet (N)";
+
+  if (!body) {
+    if (beacon) beacon.visible = false;
+    return;
+  }
+  if (!beacon) beacon = makeBeacon();
+  body.anchor.add(beacon);
+  beacon.visible = true;
+  beacon.userData.radius = body.radius;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1038,12 +981,11 @@ function makeLabel(body) {
   el.type = "button";
   el.className = "label-chip depth-" + Math.min(body.depth, 3) + (body.depth === 0 ? " sun" : "");
   el.style.setProperty("--dot", body.hex);
-  el.dataset.id = body.node.id;
   el.tabIndex = -1;
-  el.innerHTML = "<i></i><span></span>";
+  el.innerHTML = "<i></i><span></span><em></em>";
   el.style.opacity = "0";
+  el.style.visibility = "hidden";
   el._opacity = 0;
-  updateLabelText(body, el);
   el.addEventListener("click", (e) => {
     e.stopPropagation();
     focusBody(body);
@@ -1051,16 +993,33 @@ function makeLabel(body) {
   el.addEventListener("pointerenter", () => setHovered(body));
   el.addEventListener("pointerleave", () => { if (hovered === body) setHovered(null); });
   $("spaceLabels").appendChild(el);
+  body.label = el;
+  updateLabelText(body);
   return el;
 }
 
-function updateLabelText(body, el) {
-  el = el || body.label;
-  const title = nodeTitle(body.node);
-  el.querySelector("span").textContent = title || (body.depth === 0 ? "Untitled goal" : "Empty slot");
-  el.classList.toggle("empty", !title);
-  el.classList.toggle("done", body.node.status === "done" && !!title);
-  el.title = title || "";
+function bodyTag(body) {
+  if (body.empty || body.depth === 0) return "";
+  if (body === nextBody) return "Next ✦";
+  if (body.lookKind && LOOK[body.lookKind].tag) return LOOK[body.lookKind].tag;
+  if (body.node.status !== "done" && model.isNodeBlocked(mapState, body.node)) return "Blocked";
+  return "";
+}
+
+function updateLabelText(body) {
+  const el = body.label;
+  const name = title(body.node);
+  el.querySelector("span").textContent = name || (body.depth === 0 ? "Untitled goal" : "Empty slot");
+  const tag = bodyTag(body);
+  const em = el.querySelector("em");
+  em.textContent = tag;
+  em.hidden = !tag;
+  el.classList.toggle("empty", !name);
+  el.classList.toggle("done", body.node.status === "done" && !!name);
+  el.classList.toggle("suppressed", !!body.lookKind && body.lookKind !== "handoff");
+  el.classList.toggle("blocked", tag === "Blocked");
+  el.title = name || "";
+  el._w = undefined;
 }
 
 function isAncestor(a, b) {
@@ -1076,6 +1035,7 @@ function isAncestor(a, b) {
 function labelVisibility(body, camDist) {
   if (body === hovered || body === focused) return 1;
   if (!labelsOn) return 0;
+  if (body === nextBody) return focused ? 0.85 : 0.95;
   if (body.depth === 0) return focused && focused.depth >= 2 ? 0 : 1;
 
   if (body.depth === 1) {
@@ -1092,13 +1052,23 @@ function labelVisibility(body, camDist) {
   return 0;
 }
 
+function labelPriority(body) {
+  if (body === focused || body === hovered) return 0;
+  if (body.depth === 0 || body === nextBody) return 1;
+  return Math.min(body.depth, 3) + 1;
+}
+
+/**
+ * Place labels in priority order (focus/hover > sun & next > planets > moons)
+ * and hide the lower-priority ones that would overlap something already placed.
+ */
 function updateLabels() {
   const w = window.innerWidth;
   const h = window.innerHeight;
   const camPos = camera.position;
+  const items = [];
 
   for (const body of bodies) {
-    const el = body.label;
     body.anchor.getWorldPosition(tmpV);
     const dist = tmpV.distanceTo(camPos);
     let target = labelVisibility(body, dist) * (body._appear === undefined ? 1 : body._appear);
@@ -1106,26 +1076,57 @@ function updateLabels() {
     tmpV2.copy(tmpV);
     tmpV2.y += body.radius * (body.depth === 0 ? 1.15 : 1.35);
     tmpV2.project(camera);
-
     if (tmpV2.z > 1 || tmpV2.z < -1) target = 0;
+    if (body.depth >= 2 && dist > 60 && body !== hovered && body !== focused && body !== nextBody) target = 0;
 
-    // keep labels from piling up at the sun when far away
-    if (body.depth >= 2 && dist > 60) target = Math.min(target, body === hovered || body === focused ? 1 : 0);
+    items.push({ body, el: body.label, dist, target, x: (tmpV2.x * 0.5 + 0.5) * w, y: (-tmpV2.y * 0.5 + 0.5) * h, prio: labelPriority(body) });
+  }
 
-    el._opacity += (target - el._opacity) * 0.18;
-    if (Math.abs(el._opacity - target) < 0.01) el._opacity = target;
+  // measure (reads only, before any writes this frame)
+  for (const item of items) {
+    if (item.target > 0 && item.el._w === undefined) {
+      item.el._w = item.el.offsetWidth || 80;
+      item.el._h = item.el.offsetHeight || 22;
+    }
+  }
+
+  const placed = [];
+  items.slice().sort((a, b) => a.prio - b.prio || a.dist - b.dist).forEach((item) => {
+    if (item.target <= 0.02) return;
+    const hw = item.el._w / 2 + 3;
+    const rect = { l: item.x - hw, r: item.x + hw, t: item.y - item.el._h - 3, b: item.y + 3 };
+    if (item.prio > 1 && placed.some((p) => rect.l < p.r && rect.r > p.l && rect.t < p.b && rect.b > p.t)) {
+      item.target = 0;
+      return;
+    }
+    placed.push(rect);
+  });
+
+  for (const item of items) {
+    const el = item.el;
+    el._opacity += (item.target - el._opacity) * 0.18;
+    if (Math.abs(el._opacity - item.target) < 0.01) el._opacity = item.target;
 
     if (el._opacity <= 0.01) {
       if (el.style.visibility !== "hidden") el.style.visibility = "hidden";
       continue;
     }
-
-    const x = (tmpV2.x * 0.5 + 0.5) * w;
-    const y = (-tmpV2.y * 0.5 + 0.5) * h;
     if (el.style.visibility !== "visible") el.style.visibility = "visible";
-    el.style.opacity = el._opacity.toFixed(3);
-    el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -100%)`;
-    el.style.zIndex = String(1000 - Math.round(dist));
+    const opacity = el._opacity.toFixed(2);
+    if (el._o !== opacity) {
+      el.style.opacity = opacity;
+      el._o = opacity;
+    }
+    const transform = `translate3d(${item.x.toFixed(1)}px, ${item.y.toFixed(1)}px, 0) translate(-50%, -100%)`;
+    if (el._t !== transform) {
+      el.style.transform = transform;
+      el._t = transform;
+    }
+    const z = String(1000 - Math.round(item.dist));
+    if (el._z !== z) {
+      el.style.zIndex = z;
+      el._z = z;
+    }
   }
 }
 
@@ -1133,32 +1134,46 @@ function updateLabels() {
 /* Animation loop                                                     */
 /* ------------------------------------------------------------------ */
 
+function updateOrbits() {
+  for (const body of bodies) {
+    if (body.pivot) body.pivot.rotation.y = body.phase + sim.time * body.speed;
+  }
+}
+
 function tick() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const elapsed = clock.elapsedTime;
+  const now = performance.now();
 
-  const rate = paused ? 0 : sim.scale;
-  sim.time += dt * rate;
+  sim.time += dt * (paused ? 0 : sim.scale);
+  updateOrbits();
 
   for (const body of bodies) {
-    if (body.pivot) body.pivot.rotation.y = body.phase + sim.time * body.speed;
     body.mesh.rotation.y += dt * body.spin * (paused ? 0.15 : 1);
     if (body.atmo) {
       const u = body.atmo.material.uniforms;
       sunBody.anchor.getWorldPosition(u.uSun.value);
-      let target = body.depth === 1 ? 1.9 : 1.3;
+      let target = (body.depth === 1 ? 1.9 : 1.3) * body.atmoFactor;
       if (body.node.status === "doing") target *= 1.25 + Math.sin(elapsed * 3) * 0.35;
       if (body === hovered || body === focused) target *= 1.6;
       u.uIntensity.value += (target - u.uIntensity.value) * 0.12;
     }
     if (body.ring) body.ring.rotation.z += dt * 0.05;
+    if (body.handoff) body.handoff.rotation.y += dt * 1.4;
   }
 
   if (sunBody) {
     sunBody.mesh.material.uniforms.uTime.value = elapsed;
     sunBody.corona.material.rotation = elapsed * 0.01;
-    const pulse = 1 + Math.sin(elapsed * 0.9) * 0.025;
-    sunBody.corona.scale.setScalar(6 * 4.6 * pulse);
+    sunBody.corona.scale.setScalar(6 * 4.6 * (1 + Math.sin(elapsed * 0.9) * 0.025));
+  }
+  if (beacon && beacon.visible) {
+    const r = beacon.userData.radius;
+    const pulse = REDUCED_MOTION ? 1 : 1 + Math.sin(elapsed * 3.2) * 0.14;
+    beacon.userData.glow.scale.setScalar(r * 4.4 * pulse);
+    beacon.userData.halo.scale.setScalar(r * 1.95 * (2 - pulse * 0.92));
+    beacon.userData.halo.rotation.x = Math.PI / 2 + Math.sin(elapsed * 0.7) * 0.3;
+    beacon.userData.halo.rotation.y += dt * 0.6;
   }
   if (systemRoot && systemRoot.userData.belt) systemRoot.userData.belt.rotation.y += dt * 0.004 * (paused ? 0 : sim.scale);
   if (starMat) starMat.uniforms.uTime.value = elapsed;
@@ -1175,11 +1190,11 @@ function tick() {
       controls.target.add(tmpV2);
       lastFollowPos.copy(tmpV);
     }
-    if (!focused && !REDUCED_MOTION && performance.now() - lastInteraction > 7000) {
-      controls.autoRotate = true;
-    }
+    if (!focused && !REDUCED_MOTION && now - lastInteraction > 7000) controls.autoRotate = true;
     controls.update();
   }
+
+  updateDependencyLinks();
 
   if (pointerDirty) {
     pointerDirty = false;
@@ -1188,21 +1203,20 @@ function tick() {
 
   composer.render(dt);
   updateLabels();
+  monitorPerformance(now);
 }
 
 function updateLineHighlights() {
   for (const body of bodies) {
     if (body.line) {
       const on = body === hovered || (focused && isAncestor(body, focused));
-      const target = on ? 0.6 : body.line.userData.baseOpacity;
       const m = body.line.material;
-      m.opacity += (target - m.opacity) * 0.1;
+      m.opacity += ((on ? 0.6 : body.line.userData.baseOpacity) - m.opacity) * 0.1;
     }
     if (body.childLine) {
       const on = focused && (focused === body || focused.parent === body);
-      const target = on ? 0.35 : body.childLine.userData.baseOpacity;
       const m = body.childLine.material;
-      m.opacity += (target - m.opacity) * 0.1;
+      m.opacity += ((on ? 0.35 : body.childLine.userData.baseOpacity) - m.opacity) * 0.1;
     }
   }
 }
@@ -1218,6 +1232,7 @@ function viewDistance(body) {
     extent = childRingRadius(body) + maxChild * 1.6;
   }
   if (body.ring) extent = Math.max(extent, body.radius * 2.4);
+  if (body.depth >= 3 && !body.children.length) extent = Math.max(extent, body.radius * 4);
   const fov = THREE.MathUtils.degToRad(camera.fov);
   let dist = extent / Math.tan(fov / 2);
   if (camera.aspect < 1) dist /= Math.max(camera.aspect, 0.5) * 1.05;
@@ -1236,28 +1251,45 @@ function overviewOffset() {
   return new THREE.Vector3(dir.x * 0.86, portrait ? 1.35 : 0.5, dir.z * 0.86).normalize().multiplyScalar(dist);
 }
 
+function syncControlLimits() {
+  controls.minDistance = focused && focused !== sunBody ? Math.max(focused.radius * 1.5, 0.3) : 9;
+}
+
+/**
+ * Fly the camera. The path is interpolated in spherical coordinates around the
+ * sun, so the camera swings around the system instead of cutting through it.
+ * Any drag, pinch or wheel input cancels the flight (see cancelFlight).
+ */
 function startFlight(getTarget, getCamera, duration, onDone) {
   if (flight && flight.tween) flight.tween.kill();
   controls.enabled = false;
   controls.autoRotate = false;
   following = false;
 
-  const startCam = camera.position.clone();
+  const startCam = new THREE.Spherical().setFromVector3(camera.position);
   const startTarget = controls.target.clone();
   const proxy = { t: 0 };
   const endTarget = new THREE.Vector3();
-  const endCam = new THREE.Vector3();
+  const endCamV = new THREE.Vector3();
+  const endCam = new THREE.Spherical();
+  const current = new THREE.Spherical();
 
   const f = {
     update() {
       const t = proxy.t;
       getTarget(endTarget);
-      getCamera(endCam, endTarget);
+      getCamera(endCamV, endTarget);
+      endCam.setFromVector3(endCamV);
+      let dTheta = endCam.theta - startCam.theta;
+      if (dTheta > Math.PI) dTheta -= Math.PI * 2;
+      if (dTheta < -Math.PI) dTheta += Math.PI * 2;
+      current.set(
+        THREE.MathUtils.lerp(startCam.radius, endCam.radius, t),
+        THREE.MathUtils.lerp(startCam.phi, endCam.phi, t),
+        startCam.theta + dTheta * t
+      );
+      camera.position.setFromSpherical(current);
       controls.target.lerpVectors(startTarget, endTarget, t);
-      camera.position.lerpVectors(startCam, endCam, t);
-      // swoop: lift the path so it never cuts through the sun
-      const lift = Math.sin(Math.PI * t) * Math.min(startCam.distanceTo(endCam) * 0.22, 60);
-      camera.position.y += lift;
       camera.lookAt(controls.target);
     }
   };
@@ -1269,6 +1301,7 @@ function startFlight(getTarget, getCamera, duration, onDone) {
       f.update();
       flight = null;
       controls.enabled = true;
+      syncControlLimits();
       controls.update();
       if (onDone) onDone();
     }
@@ -1276,10 +1309,24 @@ function startFlight(getTarget, getCamera, duration, onDone) {
   flight = f;
 }
 
+/** The user grabbed the camera mid-flight: hand control back immediately. */
+function cancelFlight() {
+  if (!flight) return;
+  flight.tween.kill();
+  flight = null;
+  controls.enabled = true;
+  if (focused && focused !== sunBody) {
+    following = true;
+    focused.anchor.getWorldPosition(lastFollowPos);
+  }
+  syncControlLimits();
+}
+
 function focusBody(body) {
   if (!body) return goOverview();
   lastInteraction = performance.now();
   fadeHint();
+  closeSearch();
 
   if (body.depth === 0) {
     goOverview(true);
@@ -1288,26 +1335,36 @@ function focusBody(body) {
 
   focused = body;
   showPanel(body);
+  announceBody(body);
   gsap.to(sim, { scale: 0.12, duration: 1.2 * MOTION, ease: "power2.out" });
 
   const dist = viewDistance(body);
   const viewDir = new THREE.Vector3();
-  {
-    body.anchor.getWorldPosition(tmpV);
-    const outward = tmpV.clone().setY(0);
+  const bodyPos = body.anchor.getWorldPosition(new THREE.Vector3());
+  if (body.depth >= 3) {
+    // moonlets sit right next to their moon: look from the far side of the
+    // moon, slightly above, so the moon stays behind the target instead of
+    // filling the lens
+    const parentPos = body.parent.anchor.getWorldPosition(new THREE.Vector3());
+    viewDir.subVectors(bodyPos, parentPos);
+    if (viewDir.lengthSq() < 1e-6) viewDir.set(1, 0, 0);
+    viewDir.normalize();
+    viewDir.y += 0.6;
+    viewDir.normalize();
+  } else {
+    const outward = bodyPos.clone().setY(0);
     if (outward.lengthSq() < 1e-4) outward.set(0, 0, 1);
     outward.normalize();
     // three-quarter view from the sunlit side: tangent to the orbit, a bit
     // sunward and above, on whichever side the camera already is
     const tangent = new THREE.Vector3(-outward.z, 0, outward.x);
-    const current = camera.position.clone().sub(tmpV);
-    if (current.dot(tangent) < 0) tangent.negate();
+    if (camera.position.clone().sub(bodyPos).dot(tangent) < 0) tangent.negate();
     viewDir.copy(tangent).multiplyScalar(0.85).addScaledVector(outward, -0.4);
     viewDir.y = 0.55;
     viewDir.normalize();
   }
 
-  const travel = camera.position.distanceTo(body.anchor.getWorldPosition(tmpV));
+  const travel = camera.position.distanceTo(bodyPos);
   const duration = THREE.MathUtils.clamp(1.1 + travel / 140, 1.3, 2.6);
 
   startFlight(
@@ -1325,8 +1382,12 @@ function goOverview(withSunPanel) {
   lastInteraction = performance.now();
   const off = overviewOffset();
   focused = withSunPanel ? sunBody : null;
-  if (withSunPanel) showPanel(sunBody);
-  else hidePanel();
+  if (withSunPanel) {
+    showPanel(sunBody);
+    announceBody(sunBody);
+  } else {
+    hidePanel();
+  }
   gsap.to(sim, { scale: withSunPanel ? 0.5 : 1, duration: 1.4 * MOTION, ease: "power2.inOut" });
 
   startFlight(
@@ -1352,7 +1413,17 @@ function intro() {
   camera.position.set(off.x * 4.5, off.y * 5 + 260, off.z * 4.5);
   controls.target.set(0, 0, 0);
   camera.lookAt(0, 0, 0);
-  startFlight((o) => o.set(0, 0, 0), (o) => o.copy(off), 3.6, () => {});
+
+  const deep = deepNodeId ? bodyById.get(deepNodeId) : null;
+  if (deepNodeId) {
+    const url = new URL(location.href);
+    url.searchParams.delete("node");
+    history.replaceState(null, "", url);
+    deepNodeId = null;
+  }
+  startFlight((o) => o.set(0, 0, 0), (o) => o.copy(off), deep ? 2.8 : 3.6, () => {
+    if (deep && deep !== sunBody) focusBody(deep);
+  });
 
   setTimeout(fadeHint, 9000);
 }
@@ -1365,20 +1436,15 @@ function appear(totalDelay) {
   gsap.fromTo(sunBody.corona.material, { opacity: 0 }, { opacity: 1, duration: 2 * d });
   gsap.to(sunBody, { _appear: 1, duration: 0.8, delay: 1.2 * d });
 
-  const planets = bodies.filter((b) => b.depth === 1);
-  planets.forEach((body, i) => {
+  bodies.filter((b) => b.depth === 1).forEach((body, i) => {
     const delay = (0.6 + i * 0.16) * d;
-    const finalScale = body.mesh.scale.x;
     body.anchor.scale.setScalar(0.001);
     gsap.to(body.anchor.scale, { x: 1, y: 1, z: 1, duration: 1.3 * d, delay, ease: "back.out(1.8)" });
     gsap.to(body, { _appear: 1, duration: 0.6, delay: delay + 0.8 * d });
     if (body.line) {
-      const m = body.line.material;
-      const base = body.line.userData.baseOpacity;
-      m.opacity = 0;
-      gsap.to(m, { opacity: base, duration: 1.4 * d, delay });
+      body.line.material.opacity = 0;
+      gsap.to(body.line.material, { opacity: body.line.userData.baseOpacity, duration: 1.4 * d, delay });
     }
-    void finalScale;
   });
 
   for (const body of bodies) {
@@ -1401,18 +1467,16 @@ function pick() {
   for (const hit of hits) {
     const body = hit.object.userData.body;
     if (!body) continue;
-    if (body.depth >= 2 && !labelEligible(body)) continue;
-    // prefer the smallest body along the ray when hits overlap (moons in front of planets)
-    if (!best || body.depth > best.depth && hit.distance - hits[0].distance < body.radius * 4) best = body;
+    if (body.depth >= 2 && !closeEnoughToPick(body)) continue;
+    // prefer the smaller body when hits overlap (moons in front of planets)
+    if (!best || (body.depth > best.depth && hit.distance - hits[0].distance < body.radius * 4)) best = body;
   }
   setHovered(best);
 }
 
-function labelEligible(body) {
-  // tiny bodies only become clickable when the camera is close enough to see them
+function closeEnoughToPick(body) {
   body.anchor.getWorldPosition(tmpV);
-  const d = tmpV.distanceTo(camera.position);
-  return d < (body.depth === 2 ? 70 : 18);
+  return tmpV.distanceTo(camera.position) < (body.depth === 2 ? 70 : 18);
 }
 
 function setHovered(body) {
@@ -1424,38 +1488,43 @@ function setHovered(body) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Panel + index                                                      */
+/* Panel, index, announcements                                        */
 /* ------------------------------------------------------------------ */
+
+function nameOf(body) {
+  return title(body.node) || (body.depth === 0 ? "Untitled goal" : "Empty slot");
+}
 
 function pathOf(body) {
   const parts = [];
   let cur = body.parent;
   while (cur) {
-    parts.unshift(nodeTitle(cur.node) || (cur.depth === 0 ? "Untitled goal" : "Empty slot"));
+    parts.unshift(nameOf(cur));
     cur = cur.parent;
   }
   return parts.join("  ›  ");
 }
 
-function showPanel(body) {
+function showPanel(body, opts) {
+  const quiet = opts && opts.quiet;
   const panel = $("planetPanel");
   const node = body.node;
-  const title = nodeTitle(node);
+  const name = title(node);
   const kind = KIND[Math.min(body.depth, 3)];
 
   panel.style.setProperty("--dot", body.hex);
   $("panelKind").textContent = kind[0] + " · " + kind[1];
-  const status = title ? (node.status || "open") : "empty";
+  const status = name ? (node.status || "open") : "empty";
   const statusEl = $("panelStatus");
-  statusEl.textContent = { open: "Open", doing: "Doing", done: "Cleared", empty: "Empty" }[status] || status;
+  statusEl.textContent = STATUS_LABEL[status] || status;
   statusEl.className = "panel-status " + status;
 
   const h1 = $("panelTitle");
-  h1.textContent = title || (body.depth === 0 ? "Untitled goal" : "Empty slot — name it in the 2D map");
-  h1.classList.toggle("empty", !title);
+  h1.textContent = name || (body.depth === 0 ? "Untitled goal" : "Empty slot — name it in the 2D map");
+  h1.classList.toggle("empty", !name);
   $("panelPath").textContent = pathOf(body);
 
-  const stats = leafStats(node);
+  const stats = model.leafStats(mapState, node);
   const progress = $("panelProgress");
   if (stats.total) {
     const pct = Math.round((stats.done / stats.total) * 100);
@@ -1466,68 +1535,25 @@ function showPanel(body) {
     progress.hidden = true;
   }
 
-  const meta = $("panelMeta");
-  meta.innerHTML = "";
-  if (title) {
-    const cells = [
-      ["Impact", (node.impact || 3) + "/5"],
-      ["Effort", (node.effort || 3) + "/5"],
-      ["Decision", DECISION_LABEL[node.decision] || "Do"]
-    ];
-    if (node.duration) cells.push(["Estimate", node.duration + " min"]);
-    if (node.decision === "delegate" && node.delegatedTo) cells.push(["Hand off to", node.delegatedTo]);
-    if (node.decision === "defer" && node.deferUntil) cells.push(["Back on", node.deferUntil]);
-    if (node.dependencyId && mapState.nodes[node.dependencyId]) cells.push(["Blocked by", nodeTitle(mapState.nodes[node.dependencyId]) || "—"]);
-    cells.forEach(([k, v]) => {
-      const div = document.createElement("div");
-      const dt = document.createElement("dt");
-      const dd = document.createElement("dd");
-      dt.textContent = k;
-      dd.textContent = v;
-      div.append(dt, dd);
-      meta.appendChild(div);
-    });
-  }
+  renderMeta(body);
 
   const notes = $("panelNotes");
-  if (node.notes && node.notes.trim()) {
-    notes.hidden = false;
-    notes.textContent = node.notes.trim();
-  } else {
-    notes.hidden = true;
-  }
+  const noteText = typeof node.notes === "string" ? node.notes.trim() : "";
+  notes.hidden = !noteText;
+  notes.textContent = noteText;
 
-  const list = $("panelChildren");
-  list.innerHTML = "";
-  const filled = body.children.filter((c) => !c.empty);
-  const emptyCount = body.children.length - filled.length;
-  $("panelChildrenWrap").hidden = !body.children.length;
-  $("panelChildrenHead").textContent = CHILD_NOUN[Math.min(body.depth, 3)] + " · " + filled.length + (emptyCount ? "  (+" + emptyCount + " empty)" : "");
-  filled.forEach((child) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "moon-chip" + (child.node.status === "done" ? " done" : "");
-    btn.style.setProperty("--dot", child.hex);
-    const i = document.createElement("i");
-    const span = document.createElement("span");
-    span.textContent = nodeTitle(child.node);
-    btn.append(i, span);
-    const s = leafStats(child.node);
-    if (s.total) {
-      const small = document.createElement("small");
-      small.textContent = s.done + "/" + s.total;
-      btn.appendChild(small);
-    }
-    btn.addEventListener("click", () => focusBody(child));
-    list.appendChild(btn);
+  renderChildList(body);
+
+  const statusSwitch = $("statusSwitch");
+  statusSwitch.hidden = !name;
+  statusSwitch.querySelectorAll("button").forEach((btn) => {
+    const on = btn.dataset.status === (node.status || "open");
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+    btn.tabIndex = on ? 0 : -1;
   });
 
   $("parentButton").disabled = !body.parent;
-  const doneBtn = $("doneButton");
-  doneBtn.disabled = !title;
-  const isDone = node.status === "done";
-  doneBtn.textContent = isDone ? "Reopen" : "Clear it ✓";
-  doneBtn.classList.toggle("is-done", isDone);
+  updateFlatLink();
 
   for (const b of bodies) b.label.classList.toggle("is-focus", b === body);
   renderSystemIndex();
@@ -1539,17 +1565,89 @@ function showPanel(body) {
       { autoAlpha: 0, x: window.innerWidth <= 640 ? 0 : 40, y: window.innerWidth <= 640 ? 40 : 0 },
       { autoAlpha: 1, x: 0, y: 0, duration: 0.7 * MOTION, ease: "power3.out", delay: 0.15 * MOTION });
     tweenViewOffset(true);
-  } else {
+  } else if (!quiet) {
     gsap.fromTo(panel.querySelectorAll("h1, .panel-breadcrumb, .panel-meta, .panel-children, .panel-progress"),
       { autoAlpha: 0, y: 8 },
       { autoAlpha: 1, y: 0, duration: 0.45 * MOTION, stagger: 0.04, ease: "power2.out" });
   }
 }
 
+function renderMeta(body) {
+  const node = body.node;
+  const meta = $("panelMeta");
+  meta.innerHTML = "";
+  if (!title(node)) return;
+
+  const decision = model.decisionValue(node);
+  const cells = [
+    ["Impact", (node.impact || 3) + "/5"],
+    ["Effort", (node.effort || 3) + "/5"],
+    ["Decision", DECISION_LABEL[decision] || "Do"]
+  ];
+  if (node.duration) cells.push(["Estimate", node.duration + " min"]);
+  if (decision === "delegate" && node.delegatedTo) cells.push(["Hand off to", node.delegatedTo]);
+  if (decision === "defer" && node.deferUntil) cells.push(["Back on", node.deferUntil]);
+  if (node.dependencyId && mapState.nodes[node.dependencyId]) {
+    const blocked = model.isNodeBlocked(mapState, node);
+    cells.push([blocked ? "Blocked by" : "Was blocked by", title(mapState.nodes[node.dependencyId]) || "—", bodyById.get(node.dependencyId)]);
+  }
+  if (body.lookKind === "inherited") cells.push(["Parked", "A parent is not on Do"]);
+
+  cells.forEach(([k, v, target]) => {
+    const div = document.createElement("div");
+    const dt = document.createElement("dt");
+    const dd = document.createElement("dd");
+    dt.textContent = k;
+    if (target) {
+      const link = document.createElement("button");
+      link.type = "button";
+      link.className = "meta-link";
+      link.textContent = v;
+      link.addEventListener("click", () => focusBody(target));
+      dd.appendChild(link);
+    } else {
+      dd.textContent = v;
+    }
+    if (String(v).length > 14 || target) div.classList.add("wide");
+    div.append(dt, dd);
+    meta.appendChild(div);
+  });
+}
+
+function renderChildList(body) {
+  const list = $("panelChildren");
+  list.innerHTML = "";
+  const filled = body.children.filter((c) => !c.empty);
+  const emptyCount = body.children.length - filled.length;
+  $("panelChildrenWrap").hidden = !body.children.length;
+  $("panelChildrenHead").textContent = CHILD_NOUN[Math.min(body.depth, 3)] + " · " + filled.length + (emptyCount ? "  (+" + emptyCount + " empty)" : "");
+  filled.forEach((child) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "moon-chip" + (child.node.status === "done" ? " done" : "") +
+      (child.lookKind && child.lookKind !== "handoff" ? " suppressed" : "") + (child === nextBody ? " is-next" : "");
+    btn.style.setProperty("--dot", child.hex);
+    const i = document.createElement("i");
+    const span = document.createElement("span");
+    span.textContent = title(child.node);
+    btn.append(i, span);
+    const tag = bodyTag(child);
+    const s = model.leafStats(mapState, child.node);
+    if (tag || s.total) {
+      const small = document.createElement("small");
+      small.textContent = tag || (s.done + "/" + s.total);
+      btn.appendChild(small);
+    }
+    btn.addEventListener("click", () => focusBody(child));
+    list.appendChild(btn);
+  });
+}
+
 function hidePanel() {
   const panel = $("planetPanel");
   for (const b of bodies) b.label.classList.remove("is-focus");
   renderSystemIndex();
+  updateFlatLink();
   if (panel.hidden) return;
   gsap.to(panel, {
     autoAlpha: 0,
@@ -1562,20 +1660,32 @@ function hidePanel() {
   tweenViewOffset(false);
 }
 
+function updateFlatLink() {
+  const link = $("flatLink");
+  const target = focused && focused !== sunBody && mode === "db" ? focused.node.id : null;
+  link.href = target ? "index.html?node=" + encodeURIComponent(target) : "index.html";
+  link.title = target ? "Open “" + nameOf(focused) + "” in the 2D planner" : "Edit in the 2D planner";
+}
+
 function renderSystemIndex() {
   const nav = $("systemIndex");
   if (!sunBody) return;
   nav.innerHTML = "";
   const activeDriver = focused ? (focused.depth === 0 ? sunBody : ancestorAtDepth(focused, 1)) : null;
+  const nextDriver = nextBody ? ancestorAtDepth(nextBody, 1) : null;
 
-  const chip = (body) => {
+  const chip = (body, sub) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "index-chip" + (body.depth === 0 ? " sun" : "") + (body === activeDriver ? " active" : "") + (body.node.status === "done" && !body.empty ? " done" : "");
+    btn.className = "index-chip" + (sub ? " sub" : "") + (body.depth === 0 ? " sun" : "") +
+      ((sub ? isAncestor(body, focused) : body === activeDriver) ? " active" : "") +
+      (body.node.status === "done" && !body.empty ? " done" : "") +
+      (body.lookKind && body.lookKind !== "handoff" ? " suppressed" : "") +
+      (body === nextDriver || body === nextBody ? " has-next" : "");
     btn.style.setProperty("--dot", body.hex);
     const i = document.createElement("i");
     const span = document.createElement("span");
-    span.textContent = nodeTitle(body.node) || (body.depth === 0 ? "Untitled goal" : "Empty slot");
+    span.textContent = nameOf(body);
     btn.append(i, span);
     btn.addEventListener("click", () => focusBody(body));
     btn.addEventListener("pointerenter", () => setHovered(body));
@@ -1583,8 +1693,12 @@ function renderSystemIndex() {
     nav.appendChild(btn);
   };
 
-  chip(sunBody);
-  sunBody.children.filter((b) => !b.empty).forEach(chip);
+  chip(sunBody, false);
+  sunBody.children.filter((b) => !b.empty).forEach((driver) => {
+    chip(driver, false);
+    // the focused planet's moons, so the whole tree is reachable from the keyboard
+    if (driver === activeDriver) driver.children.filter((m) => !m.empty).forEach((moon) => chip(moon, true));
+  });
 }
 
 function ancestorAtDepth(body, depth) {
@@ -1593,74 +1707,53 @@ function ancestorAtDepth(body, depth) {
   return cur;
 }
 
+function announceBody(body) {
+  const kind = KIND[Math.min(body.depth, 3)][1].toLowerCase();
+  const stats = model.leafStats(mapState, body.node);
+  const progress = stats.total ? `, ${stats.done} of ${stats.total} cleared` : "";
+  const status = title(body.node) ? `, ${STATUS_LABEL[body.node.status || "open"]}` : "";
+  $("spaceAnnouncer").textContent = `${nameOf(body)} — ${kind}${status}${progress}.`;
+}
+
 /* ------------------------------------------------------------------ */
-/* Done / reopen                                                      */
+/* Status changes                                                     */
 /* ------------------------------------------------------------------ */
 
-async function toggleDone() {
-  const body = focused;
-  if (!body || !nodeTitle(body.node)) return;
+async function setStatus(body, status) {
+  if (!body || body.empty || !title(body.node)) return;
   const node = body.node;
-  node.status = node.status === "done" ? "open" : "done";
+  const previous = node.status || "open";
+  if (previous === status) return;
+  node.status = status;
 
-  if (node.status === "done") {
+  if (status === "done") {
     if (body.depth > 0) addRing(body, true);
     burst(body);
     toast(body.depth === 0 ? "Goal reached ✦" : "Orbit cleared ✓");
-  } else {
+  } else if (previous === "done") {
     removeRing(body);
   }
 
-  updateLabelText(body);
-  showPanel(body);
+  afterDataChange();
+  showPanel(body, { quiet: true });
+  announceBody(body);
   await persistStatus(node);
-}
-
-async function persistStatus(node) {
-  if (mode === "demo") return;
-
-  if (mode === "legacy") {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(mapState));
-    } catch (e) { toast("Could not save on this device."); }
-    return;
-  }
-
-  try {
-    const record = await Storage.getMap(mapRecord.id);
-    if (!record || !record.state || !record.state.nodes[node.id]) throw new Error("missing");
-    record.state.nodes[node.id].status = node.status;
-    record.updatedAt = Date.now();
-    await Storage.saveMap(record);
-    mapRecord = record;
-  } catch (e) {
-    toast("Could not save — open the 2D planner and try again.");
-  }
 }
 
 function burst(body) {
   const count = 160;
-  const pos = new Float32Array(count * 3);
-  const vel = [];
-  const size = new Float32Array(count);
-  const phase = new Float32Array(count);
-  const color = new Float32Array(count * 3);
   const palette = [new THREE.Color("#ffd166"), new THREE.Color(body.hex), new THREE.Color("#ffffff"), new THREE.Color("#ff8a5b")];
-  for (let i = 0; i < count; i++) {
-    const v = new THREE.Vector3().randomDirection().multiplyScalar(0.6 + Math.random() * 1.4);
-    vel.push(v);
+  const vel = [];
+  const geo = pointCloud(count, (i, pos, size, phase, color) => {
+    vel.push(new THREE.Vector3().randomDirection().multiplyScalar(0.6 + Math.random() * 1.4));
     size[i] = 0.25 + Math.random() * 0.5;
     phase[i] = Math.random() * 10;
     const c = palette[i % palette.length];
     color[i * 3] = c.r * 2;
     color[i * 3 + 1] = c.g * 2;
     color[i * 3 + 2] = c.b * 2;
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute("aSize", new THREE.BufferAttribute(size, 1));
-  geo.setAttribute("aPhase", new THREE.BufferAttribute(phase, 1));
-  geo.setAttribute("aColor", new THREE.BufferAttribute(color, 3));
+  });
+  const size = geo.attributes.aSize.array;
   const points = new THREE.Points(geo, starMat);
   points.frustumCulled = false;
   body.anchor.add(points);
@@ -1683,7 +1776,7 @@ function burst(body) {
       geo.attributes.aSize.needsUpdate = true;
     },
     onComplete() {
-      body.anchor.remove(points);
+      if (points.parent) points.parent.remove(points);
       geo.dispose();
     }
   });
@@ -1691,6 +1784,90 @@ function burst(body) {
   gsap.fromTo(body.mesh.scale,
     { x: body.radius * 1.25, y: body.radius * 1.25, z: body.radius * 1.25 },
     { x: body.radius, y: body.radius, z: body.radius, duration: 0.9 * MOTION, ease: "elastic.out(1, 0.4)" });
+}
+
+function goToNext() {
+  if (nextBody) {
+    focusBody(nextBody);
+    toast("Next move: " + title(nextBody.node));
+  } else {
+    toast("No ready action — choose Do, clear a blocker, or split broad work in 2D.");
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Search                                                             */
+/* ------------------------------------------------------------------ */
+
+let searchIndex = 0;
+
+function openSearch() {
+  const box = $("spaceSearch");
+  box.hidden = false;
+  const input = $("searchInput");
+  input.value = "";
+  renderSearch("");
+  // opacity only: autoAlpha would set visibility:hidden and the focus() below would fail
+  gsap.fromTo(box, { opacity: 0, y: -8 }, { opacity: 1, y: 0, duration: 0.25 * MOTION, ease: "power2.out" });
+  input.focus();
+}
+
+function closeSearch() {
+  const box = $("spaceSearch");
+  if (!box.hidden) box.hidden = true;
+}
+
+function searchMatches(query) {
+  const q = query.trim().toLocaleLowerCase();
+  const filled = bodies.filter((b) => !b.empty);
+  if (!q) return filled.filter((b) => b.depth <= 1 || b === nextBody).slice(0, 9);
+  const pos = (b) => title(b.node).toLocaleLowerCase().indexOf(q);
+  return filled
+    .filter((b) => pos(b) !== -1)
+    .sort((a, b) => pos(a) - pos(b) || a.depth - b.depth)
+    .slice(0, 9);
+}
+
+function renderSearch(query) {
+  const results = $("searchResults");
+  results.innerHTML = "";
+  const matches = searchMatches(query);
+  searchIndex = 0;
+  if (!matches.length) {
+    const empty = document.createElement("p");
+    empty.className = "search-empty";
+    empty.textContent = "Nothing in this system matches.";
+    results.appendChild(empty);
+    return;
+  }
+  matches.forEach((body, i) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "search-result" + (i === 0 ? " active" : "");
+    btn.setAttribute("role", "option");
+    btn.setAttribute("aria-selected", i === 0 ? "true" : "false");
+    btn.style.setProperty("--dot", body.hex);
+    const dot = document.createElement("i");
+    const span = document.createElement("span");
+    span.textContent = title(body.node);
+    const small = document.createElement("small");
+    small.textContent = KIND[Math.min(body.depth, 3)][1].toLowerCase() + (body.parent ? " · " + nameOf(body.parent) : "");
+    btn.append(dot, span, small);
+    btn.addEventListener("click", () => focusBody(body));
+    btn._body = body;
+    results.appendChild(btn);
+  });
+}
+
+function moveSearch(delta) {
+  const items = Array.from($("searchResults").querySelectorAll(".search-result"));
+  if (!items.length) return;
+  searchIndex = (searchIndex + delta + items.length) % items.length;
+  items.forEach((el, i) => {
+    el.classList.toggle("active", i === searchIndex);
+    el.setAttribute("aria-selected", i === searchIndex ? "true" : "false");
+  });
+  items[searchIndex].scrollIntoView({ block: "nearest" });
 }
 
 /* ------------------------------------------------------------------ */
@@ -1702,7 +1879,7 @@ function renderMapPicker() {
   select.innerHTML = "";
   if (mode !== "db" || !mapsList.length) {
     const opt = document.createElement("option");
-    opt.textContent = mode === "demo" ? "Demo system" : (nodeTitle(mapState.nodes[mapState.rootId]) || "This map");
+    opt.textContent = mode === "demo" ? "Demo system" : (title(mapState.nodes[mapState.rootId]) || "This map");
     select.appendChild(opt);
     select.disabled = true;
     return;
@@ -1710,8 +1887,8 @@ function renderMapPicker() {
   mapsList.forEach((m) => {
     const opt = document.createElement("option");
     opt.value = m.id;
-    opt.textContent = m.title || nodeTitle(m.state.nodes[m.state.rootId]) || "Untitled map";
-    opt.selected = mapRecord && m.id === mapRecord.id;
+    opt.textContent = m.title || title(m.state.nodes[m.state.rootId]) || "Untitled map";
+    opt.selected = !!mapRecord && m.id === mapRecord.id;
     select.appendChild(opt);
   });
   select.disabled = mapsList.length < 2;
@@ -1722,8 +1899,7 @@ async function switchMap(id) {
   if (!record) return;
   try {
     const fresh = await Storage.getMap(id);
-    useRecord(fresh || record);
-    await Storage.setActiveMapId(id);
+    useRecord(isUsableRecord(fresh) ? fresh : record);
   } catch (e) {
     useRecord(record);
   }
@@ -1731,6 +1907,7 @@ async function switchMap(id) {
   url.searchParams.set("map", id);
   history.replaceState(null, "", url);
 
+  cancelFlight();
   focused = null;
   hovered = null;
   hidePanel();
@@ -1748,6 +1925,14 @@ function bindEvents() {
   window.addEventListener("resize", onResize);
   const canvas = renderer.domElement;
 
+  // capture phase: runs before OrbitControls, so a grab during a flight
+  // cancels it and the same gesture already moves the camera
+  canvas.addEventListener("pointerdown", (e) => {
+    lastPointerType = e.pointerType || "mouse";
+    cancelFlight();
+  }, { capture: true });
+  canvas.addEventListener("wheel", cancelFlight, { capture: true, passive: true });
+
   canvas.addEventListener("pointermove", (e) => {
     pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
     pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
@@ -1760,6 +1945,7 @@ function bindEvents() {
   canvas.addEventListener("pointerdown", (e) => {
     pointerDown = { x: e.clientX, y: e.clientY, t: performance.now() };
     lastInteraction = performance.now();
+    closeSearch();
   });
   canvas.addEventListener("pointerup", (e) => {
     if (!pointerDown) return;
@@ -1774,7 +1960,8 @@ function bindEvents() {
     if (e.pointerType !== "mouse") setTimeout(() => setHovered(null), 400);
   });
   canvas.addEventListener("dblclick", () => {
-    if (!hovered) goOverview(false);
+    // touch double-taps are zoom attempts, not "take me back"
+    if (lastPointerType === "mouse" && !hovered) goOverview(false);
   });
 
   $("overviewButton").addEventListener("click", () => goOverview(false));
@@ -1782,17 +1969,57 @@ function bindEvents() {
   $("parentButton").addEventListener("click", () => {
     if (focused && focused.parent) focusBody(focused.parent);
   });
-  $("doneButton").addEventListener("click", toggleDone);
+  $("statusSwitch").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-status]");
+    if (btn && focused) setStatus(focused, btn.dataset.status);
+  });
+  $("statusSwitch").addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!focused) return;
+    const order = ["open", "doing", "done"];
+    const current = order.indexOf(focused.node.status || "open");
+    const next = order[(current + (e.key === "ArrowRight" ? 1 : 2)) % 3];
+    setStatus(focused, next).then(() => {
+      const target = $("statusSwitch").querySelector(`[data-status="${next}"]`);
+      if (target) target.focus();
+    });
+  });
+  $("nextButton").addEventListener("click", goToNext);
+  $("searchButton").addEventListener("click", () => ($("spaceSearch").hidden ? openSearch() : closeSearch()));
   $("pauseButton").addEventListener("click", togglePause);
   $("labelsButton").addEventListener("click", toggleLabels);
   $("mapSelect").addEventListener("change", (e) => switchMap(e.target.value));
 
+  const input = $("searchInput");
+  input.addEventListener("input", () => renderSearch(input.value));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") {
+      moveSearch(1);
+      e.preventDefault();
+    } else if (e.key === "ArrowUp") {
+      moveSearch(-1);
+      e.preventDefault();
+    } else if (e.key === "Enter") {
+      const active = $("searchResults").querySelectorAll(".search-result")[searchIndex];
+      if (active) focusBody(active._body);
+      e.preventDefault();
+    } else if (e.key === "Escape") {
+      closeSearch();
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
+
   document.addEventListener("keydown", (e) => {
     const tag = (e.target && e.target.tagName) || "";
     if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
 
     if (e.key === "Escape") {
-      if (focused && focused.parent && focused.parent !== sunBody) focusBody(focused.parent);
+      if (!$("spaceSearch").hidden) closeSearch();
+      else if (focused && focused.parent && focused.parent !== sunBody) focusBody(focused.parent);
       else goOverview(false);
     } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       hopSibling(e.key === "ArrowRight" ? 1 : -1);
@@ -1805,13 +2032,18 @@ function bindEvents() {
       const child = base.children.find((c) => !c.empty);
       if (child) focusBody(child);
       e.preventDefault();
-    } else if (e.key === " ") {
+    } else if (e.key === " " && tag !== "BUTTON" && tag !== "A") {
       togglePause();
       e.preventDefault();
     } else if (e.key === "l" || e.key === "L") {
       toggleLabels();
     } else if ((e.key === "d" || e.key === "D") && focused) {
-      toggleDone();
+      setStatus(focused, focused.node.status === "done" ? "open" : "done");
+    } else if (e.key === "n" || e.key === "N") {
+      goToNext();
+    } else if (e.key === "/") {
+      openSearch();
+      e.preventDefault();
     }
   });
 }
@@ -1821,8 +2053,7 @@ function hopSibling(dir) {
   const siblings = base ? base.parent.children.filter((c) => !c.empty || c === base) : sunBody.children.filter((c) => !c.empty);
   if (!siblings.length) return;
   const idx = base ? siblings.indexOf(base) : (dir > 0 ? -1 : 0);
-  const next = siblings[(idx + dir + siblings.length) % siblings.length];
-  focusBody(next);
+  focusBody(siblings[(idx + dir + siblings.length) % siblings.length]);
 }
 
 function togglePause() {
