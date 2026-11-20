@@ -1,6 +1,6 @@
 // The 2D planner: first run, editing, views, backup/restore, deep links.
 import fs from "node:fs";
-import { test, expect, BASE, seedMap, openPlanner, readMap, listMaps, clickNode } from "./fixtures.js";
+import { test, expect, BASE, seedMap, openPlanner, readMap, listMaps, clickNode, clearAllMaps, openMapsLibrary } from "./fixtures.js";
 import { marathonMap } from "../fixtures/maps.js";
 
 const nodeById = (page, id) => page.locator(`.map-node[data-id="${id}"]`);
@@ -103,10 +103,11 @@ test("Save then Import restores the map as a new map", async ({ page }, testInfo
   expect(exported.rootId).toBe(state.rootId);
   expect(Object.keys(exported.nodes)).toHaveLength(Object.keys(state.nodes).length);
 
-  await page.evaluate(async () => window.MandalaStorage.deleteMap("m1"));
-  await page.reload();
-  await page.locator("#mapsButton").click();
-  await expect(page.locator("#mapsModal")).toBeVisible();
+  await clearAllMaps(page);
+  expect(await listMaps(page)).toHaveLength(0);
+  await page.goto(BASE + "/index.html");
+  await expect(page.locator("body")).toHaveClass(/empty-start/);
+  await openMapsLibrary(page);
   await expect(page.locator(".maps-storage-note")).toContainText("stored only in this browser");
   await page.setInputFiles("#importMapInput", file);
   await expect(page.locator("#toast")).toContainText("Imported “Run a marathon” as a new map.");
@@ -139,9 +140,8 @@ test("broken or hostile import files are rejected or cleaned, never destructive"
     }), "Imported “Root” as a new map."]
   ];
 
-  // the Maps dialog opens asynchronously; a failed import leaves it open
-  await page.locator("#mapsButton").click();
-  await expect(page.locator("#mapsModal")).toBeVisible();
+  // a failed import leaves the Maps dialog open
+  await openMapsLibrary(page);
 
   for (const [name, body, message] of cases) {
     const file = testInfo.outputPath(name);

@@ -83,6 +83,21 @@ export async function seedMap(page, state, { id = "map_test", title } = {}) {
   return id;
 }
 
+/**
+ * Delete every stored map, like a user clearing site data. Done from another
+ * page: the planner saves its in-memory map when it is left (pagehide), so
+ * deleting while it is open would just bring the map back.
+ */
+export async function clearAllMaps(page) {
+  await page.goto(BASE + "/about.html");
+  await page.addScriptTag({ url: BASE + "/vendor/idb-6.1.5.min.js" });
+  await page.addScriptTag({ url: BASE + "/storage.js" });
+  await page.evaluate(async () => {
+    await window.MandalaStorage.init();
+    for (const map of await window.MandalaStorage.listMaps()) await window.MandalaStorage.deleteMap(map.id);
+  });
+}
+
 /** Read a stored map (the page must have storage.js loaded: planner or Space). */
 export async function readMap(page, id = "map_test") {
   return page.evaluate(async (mapId) => {
@@ -105,6 +120,14 @@ export async function openPlanner(page, query = "") {
     await page.locator("#continueButton").click();
   }
   await expect(page.locator(".map-node").first()).toBeVisible();
+}
+
+/** Open the Maps library (retries: it only opens once storage has finished loading). */
+export async function openMapsLibrary(page) {
+  await expect(async () => {
+    if (!(await page.locator("#mapsModal").isVisible())) await page.locator("#mapsButton").click();
+    await expect(page.locator("#mapsModal")).toBeVisible({ timeout: 1000 });
+  }).toPass();
 }
 
 /** Open Space and wait for the intro loader to go away. */
