@@ -167,6 +167,22 @@ Then open:
 
 ---
 
+## Deploy (Cloudflare)
+
+Mandala has no backend, so it is deployed as a static site with Cloudflare **Workers Static Assets**:
+
+    npx wrangler deploy
+
+- `wrangler.jsonc` serves this folder as-is (`html_handling: "none"` keeps `/space.html` and the other paths exactly as `sw.js` caches them),
+- `.assetsignore` keeps the Markdown docs and config out of the published site,
+- `_headers` makes the browser revalidate `sw.js` so service-worker updates arrive immediately.
+
+Live: https://mandala-chart.yorulmazyln.workers.dev
+
+Maps live in each browser's IndexedDB, per origin, so a new domain starts with an empty library. Use **Save** to export a map and bring it over.
+
+---
+
 ## Data
 
 Mandala is local-first.

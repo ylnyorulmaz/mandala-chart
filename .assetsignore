@@ -1,0 +1,8 @@
+# Files that are part of the repo but must not be published
+.git
+.gitignore
+.assetsignore
+.wrangler
+node_modules
+wrangler.jsonc
+*.md

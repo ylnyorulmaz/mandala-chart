@@ -1,0 +1,14 @@
+// Cloudflare Workers Static Assets: Mandala is a static, local-first app
+// (no backend), so this Worker only serves the files in this folder.
+// Deploy: npx wrangler deploy
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mandala-chart",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": ".",
+    // keep /space.html, /about.html … exactly as linked and cached by sw.js
+    "html_handling": "none",
+    "not_found_handling": "none"
+  }
+}
