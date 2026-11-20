@@ -12,7 +12,7 @@
 (function (global) {
   "use strict";
 
-  var APP_VERSION = "mandala-v32";
+  var APP_VERSION = "mandala-v33";
   var REPO = "https://github.com/ylnyorulmaz/mandala-chart";
   var reported = false;
 

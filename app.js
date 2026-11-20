@@ -206,8 +206,9 @@
       normalizeState();
     }
 
-    showEmptyMap();
-    startPromptRotation();
+    var goalEditorOpen = !$("#rootInput").prop("hidden");
+    showEmptyMap(true);
+    if (!goalEditorOpen) startPromptRotation();
     initialRender = false;
     bindSyncChannel();
     openDeepLinkedNode();
@@ -1350,15 +1351,20 @@
     saveState();
   }
 
-  function showEmptyMap() {
+  // keepGoalEditor: used at startup, where a quick user may already have opened
+  // the goal input before storage finished loading — don't close it on them.
+  function showEmptyMap(keepGoalEditor) {
+    var editorOpen = keepGoalEditor && !$("#rootInput").prop("hidden");
     $("body").addClass("empty-start");
     $("#continueButton").attr("hidden", !(state.rootId && state.nodes[state.rootId]));
     $("#plannerActions, #viewSwitcher, #selectionBar, #minimap, #tableView, #gridView").attr("hidden", true);
     $("#mapViewport").removeAttr("hidden");
     $("#emptyMap").removeAttr("hidden");
     $("#mapNodes, #mapEdges, #minimapWorld").empty();
-    $("#rootInput").attr("hidden", true).val("");
-    $("#starterCopy").removeAttr("hidden");
+    if (!editorOpen) {
+      $("#rootInput").attr("hidden", true).val("");
+      $("#starterCopy").removeAttr("hidden");
+    }
     camera = { x: viewportWidth() / 2, y: viewportHeight() / 2, scale: 1 };
     applyCamera();
   }

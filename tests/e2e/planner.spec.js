@@ -20,6 +20,31 @@ test("first run: a goal grows eight driver slots", async ({ page }) => {
   await expect.poll(async () => (await listMaps(page)).map((m) => m.title)).toEqual(["Write a book"]);
 });
 
+test("typing a goal while storage is still loading is not interrupted", async ({ page }) => {
+  // make MandalaStorage.init() take 1.5 s, as on a slow phone
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "MandalaStorage", {
+      configurable: true,
+      set(storage) {
+        const init = storage.init;
+        storage.init = () => new Promise((resolve) => setTimeout(resolve, 1500)).then(() => init());
+        Object.defineProperty(window, "MandalaStorage", { value: storage, writable: true, configurable: true });
+      }
+    });
+  });
+  await page.goto(BASE + "/index.html");
+  await expect(async () => {
+    await page.evaluate(() => document.getElementById("rootStarter").click());
+    await expect(page.locator("#rootInput")).toBeVisible({ timeout: 200 });
+  }).toPass();
+  await page.locator("#rootInput").pressSequentially("Learn to sail");
+  await page.waitForTimeout(1800); // storage finishes loading meanwhile
+  await expect(page.locator("#rootInput")).toBeVisible();
+  await expect(page.locator("#rootInput")).toHaveValue("Learn to sail");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".map-node")).toHaveCount(9);
+});
+
 test("name a slot, branch it, then clear it", async ({ page }) => {
   const { state, ids } = marathonMap();
   await seedMap(page, state);
