@@ -7437,22 +7437,32 @@ body.dark .blog-sources a {
   color: #ffd98a;
 }
 
-/* The planner actions (top right) and the view switcher used to share the
-   top row and overlap: Ideas / Inspect / + Branch sat under the switcher.
-   Wide screens: switcher right after the zoom toolbar. Medium screens: the
-   switcher gets its own second row and the HUD / views move down with it. */
-@media (min-width: 1240px) and (min-height: 561px), (min-width: 1240px) and (pointer: fine) {
-  .floating-view-switcher {
-    left: 256px;
-    transform: none;
-  }
-}
-
-@media (min-width: 761px) and (max-width: 1239px) and (min-height: 561px),
-       (min-width: 761px) and (max-width: 1239px) and (pointer: fine) {
+/* Planner top controls on screens wider than 760px.
+   The view switcher used to share the top row with the planner actions and
+   covered Ideas / Inspect / + Branch. Button widths depend on the fonts a
+   device has, so nothing here relies on exact pixel breakpoints:
+   - the switcher always gets its own row below the toolbar row,
+   - the actions stay right-aligned but never grow into the zoom toolbar;
+     if they do not fit they scroll sideways. */
+@media (min-width: 761px) and (min-height: 561px), (min-width: 761px) and (pointer: fine) {
   .floating-view-switcher {
     top: 72px;
+    left: 50%;
+    transform: translateX(-50%);
   }
+
+  .minimal-planner > .planner-actions {
+    left: auto;
+    right: 18px;
+    max-width: calc(100% - 310px);
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .minimal-planner > .planner-actions::-webkit-scrollbar { display: none; }
+  .minimal-planner > .planner-actions .soft-button { flex: 0 0 auto; }
 
   .quest-progress {
     top: 132px;
@@ -7465,22 +7475,6 @@ body.dark .blog-sources a {
   .grid-view {
     padding-top: 136px;
   }
-}
-
-/* 761–899px: the actions row is wider than the space beside the zoom
-   toolbar, so it scrolls sideways instead of covering Fit / Focus. */
-@media (min-width: 761px) and (max-width: 899px) and (min-height: 561px),
-       (min-width: 761px) and (max-width: 899px) and (pointer: fine) {
-  .minimal-planner > .planner-actions {
-    left: 252px;
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .minimal-planner > .planner-actions::-webkit-scrollbar { display: none; }
-  .minimal-planner > .planner-actions .soft-button { flex: 0 0 auto; }
 }
 
 /* Beta label next to the logo, and the Maps library import/backup row. */

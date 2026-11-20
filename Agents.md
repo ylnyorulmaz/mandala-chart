@@ -183,7 +183,7 @@ Nodes are plain JSON. Known fields: `id`, `title`, `parentId`, `depth`, `childre
 
 ### Layout
 
-- The view switcher and the planner actions must never overlap (wide: switcher beside the zoom toolbar; 761–1239 px: switcher on its own row; phones: dock layout). Re-check this when adding buttons.
+- The view switcher and the planner actions must never overlap, on any device's fonts. Above 760 px the switcher sits on its own row and the actions are capped so they never reach the zoom toolbar (they scroll sideways if needed); phones use the dock layout. Don't reintroduce pixel-exact breakpoints — `tests/e2e/layout.spec.js` checks every width with normal and wide fonts.
 
 ### Palettes
 
@@ -270,7 +270,7 @@ After — verify at least:
 4. multiple maps, snapshot restore, groups and links with cycle guards,
 5. Save → Import round trip; a broken file changes nothing,
 6. Map / Table / Grid sync and the 1024 px Grid breakpoint,
-7. the view switcher does not cover planner actions at 1600, 1240, 1100, 900, 761 px,
+7. the view switcher does not cover planner actions at any width (layout tests, normal and wide fonts),
 8. pan / zoom / focus / arrow navigation and editing,
 9. decisions, blockers, Next move and progress agree between planner and Space,
 10. Space: flights, search, Next, every edit type, sync with an open planner tab (edits survive its autosave), fallbacks,

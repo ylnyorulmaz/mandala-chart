@@ -306,7 +306,7 @@ Flow on the `mandala-sync` channel:
 
 - App files are precached; HTML/CSS/JS of the app are served **network-first** so updates arrive, other files cache-first.
 - The 3D libraries are cached on first use, not at install, so planner-only users never download them.
-- `CACHE_NAME` in `sw.js` and `APP_VERSION` in `feedback.js` share one value (currently `mandala-v30`); bump both whenever a cached file changes.
+- `CACHE_NAME` in `sw.js` and `APP_VERSION` in `feedback.js` share one value (currently `mandala-v32`); bump both whenever a cached file changes.
 
 ---
 

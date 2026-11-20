@@ -129,7 +129,7 @@ Vendor it under `vendor/<name>/` with its license, add a README license-table ro
 
 ### Add a planner button
 
-Add it to `#plannerActions` in `index.html` and bind it in `bindPlannerEvents`. Then check that the view switcher still does not cover it at 1600 / 1240 / 1100 / 900 / 761 px (rules at the end of `styles.css`).
+Add it to `#plannerActions` in `index.html` and bind it in `bindPlannerEvents`, then run `tests/e2e/layout.spec.js` (it checks every width with normal and wide fonts). The top-controls rules are at the end of `styles.css`.
 
 ### Deploy
 

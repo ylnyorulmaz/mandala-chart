@@ -149,9 +149,11 @@ test.describe("on a phone", () => {
     await openSpace(page);
     await page.locator("#nextButton").click();
     await expect(page.locator("#panelTitle")).toHaveText("Create first project");
-    const panel = await page.locator("#planetPanel").boundingBox();
+    // the sheet slides up; measure once the animation has settled
     const viewport = page.viewportSize();
-    expect(Math.round(panel.y + panel.height)).toBe(viewport.height);
-    expect(Math.round(panel.width)).toBe(viewport.width);
+    await expect.poll(async () => {
+      const panel = await page.locator("#planetPanel").boundingBox();
+      return [Math.round(panel.y + panel.height), Math.round(panel.width)];
+    }).toEqual([viewport.height, viewport.width]);
   });
 });
