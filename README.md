@@ -2,13 +2,11 @@
 
 **Mandala is a local-first visual tool for breaking a goal down, deciding what matters, and doing the next useful thing.**
 
-The product starts with one goal in the center, expands into the major drivers required to reach it, and lets each driver branch into actionable tasks and smaller steps while the whole structure remains visible on a zoomable canvas.
+You put one goal in the center, grow it into the drivers that move it, break those into actions and smaller steps, decide what to do with each one — and Mandala tells you the next concrete move. The whole structure stays visible on a zoomable canvas, in a table, in a classic 9×9 grid, or as a 3D solar system you can fly through.
 
 > **Break it down → Decide → Do next → Review**
 
-Mandala is not trying to be another generic to-do list. The core problem is the gap between **knowing what you want** and **knowing what to do next**.
-
-**Try the beta:** https://mandala-chart.yorulmazyln.workers.dev — no account, nothing to install; maps stay in your browser.
+**Try the beta:** https://mandala-chart.yorulmazyln.workers.dev — no account, nothing to install, your maps stay in your browser.
 
 ![Space view: the goal as a sun, drivers as planets, actions as moons](docs/space-planet.jpg)
 
@@ -16,277 +14,410 @@ Mandala is not trying to be another generic to-do list. The core problem is the 
 
 ---
 
-## Current prototype
+## Contents
 
-The current version is a front-end-only PWA built with HTML, CSS, JavaScript, and jQuery.
-
-It supports:
-
-- one central goal,
-- eight driver nodes,
-- recursive actions and smaller steps,
-- switchable Map, Table, and classic 9×9 Grid views,
-- a 3D **Space** view where the goal is a sun, drivers are planets and actions are moons — explorable, editable, and in sync with the planner,
-- map backup and restore: **Save** downloads a JSON file, **Import map** (in Maps) brings it back as a new map,
-- responsive mobile touch layout with safe-area support,
-- phone-friendly table cards instead of forced desktop-width scrolling,
-- simple decisions: Do / Later / Hand off / Drop,
-- dependency-aware Ready / Blocked state,
-- Impact / Effort guidance,
-- smarter Next Move selection from ready Do actions,
-- lightweight Review loop,
-- persistent mind-map canvas,
-- pan and zoom,
-- spatial arrow-key navigation,
-- Shift + arrow keyboard panning,
-- cancellable camera motion so manual dragging never fights an old focus animation,
-- fit-to-map,
-- smooth camera focus,
-- branch expansion/collapse,
-- SVG connections,
-- inline editing,
-- manual node repositioning,
-- minimap navigation,
-- impact / effort metadata,
-- duration, status, and notes,
-- local demo suggestions,
-- IndexedDB persistence via locally vendored `idb`,
-- multiple local maps,
-- optional cross-map grouping and relationships,
-- related / before-after / parent-child map links,
-- autosave version snapshots and restore,
-- JSON export,
-- PWA installation,
-- offline caching,
-- four persistent color palettes: Light, Dark, Sage, and Dawn,
-- a calm opening prompt whose italic action verb rotates through **achieve / do / finish**,
-- a slow breathing starter pulse instead of a rotating orbit.
-
-## Interaction model
-
-1. Enter one central goal.
-2. Eight driver nodes animate outward.
-3. Switch between Map, Table, and classic 9×9 Grid views at any time.
-4. Pan and zoom while keeping the whole map available.
-5. Click a node to focus the camera on that branch, or use the arrow keys to hop spatially between visible nodes.
-6. Expand a driver into executable actions.
-7. Split an action again only if it is still too broad.
-8. Collapse branches when the map becomes noisy.
-9. Decide: **Do / Later / Hand off / Drop**.
-10. Add Impact / Effort or a blocker only when they help.
-11. Use **Next move** to surface a ready action.
-12. Review and revise the map as reality changes.
-
-The design principle is:
-
-> **Overview first, focus second.**
+- [Why Mandala](#why-mandala)
+- [Features](#features)
+- [Quick start](#quick-start)
+- [Keyboard shortcuts](#keyboard-shortcuts)
+- [The Space view (3D)](#the-space-view-3d)
+- [Your data and privacy](#your-data-and-privacy)
+- [Run locally](#run-locally)
+- [Project structure](#project-structure)
+- [Architecture](#architecture)
+- [Data model](#data-model)
+- [Deploy (Cloudflare)](#deploy-cloudflare)
+- [Testing](#testing)
+- [Feedback and contributing](#feedback-and-contributing)
+- [Documentation](#documentation)
+- [Limitations and roadmap](#limitations-and-roadmap)
+- [License](#license)
 
 ---
 
-## Product principles
+## Why Mandala
 
-Mandala borrows useful ideas from Mandala planning, divide-and-conquer, WBS, controllable-action thinking, Definition of Done, Impact/Effort, Eisenhower-style prioritization, the 4Ds, dependencies, and feedback loops.
+Most productivity software starts after you already know what to do. Mandala starts earlier — in the gap between **knowing what you want** and **knowing what to do next**, where hesitation and planning loops live.
 
-Those ideas belong **under the hood**. The user should not have to operate a pile of productivity frameworks.
+The structure is always the same:
 
-The visible interaction is deliberately simpler:
+> **Goal → Drivers → Actions → Steps**
 
-1. **Break it down.**
-2. **Decide.**
-3. **Do next.**
-4. **Review.**
+- **Goal** — the one outcome in the center.
+- **Drivers** — up to eight things that must move for the goal to happen.
+- **Actions** — concrete, controllable work under each driver.
+- **Steps** — smaller pieces, only when an action is still too broad.
 
-See [Product.md](Product.md) for the full product vision and philosophy.
+Mandala borrows from Mandala/Mandalart charts, divide-and-conquer, work breakdown structures, controllable-action thinking, Definition of Done, Impact/Effort, Eisenhower-style triage, the 4Ds, dependencies, and feedback loops — but keeps all of that **under the hood**. On screen there are only four moves: break it down, decide, do the next thing, review.
 
----
+The acceptance test is not "does the map look cool?" but:
 
-## Documentation
+> **Did using Mandala cause useful actions to happen that would otherwise have been postponed?**
 
-- [Product.md](Product.md) — product vision, philosophy, audience, capabilities, constraints, limitations, and business hypothesis.
-- [ProductRoadmap.md](ProductRoadmap.md) — staged roadmap from prototype hardening through dogfooding, AI assistance, optional cloud sync, and validation.
-- [ExecutionFramework.md](ExecutionFramework.md) — the product's decomposition, decision, next-move, review, and cross-map reasoning model.
-- [Agents.md](Agents.md) — rules and constraints for coding agents working in the repository.
-- [Cloudy.md](Cloudy.md) — coding-assistant guide focused on the product architecture and interaction model.
-- [about.html](about.html) — public-facing explanation of the product and method.
-- [blog.html](blog.html) — Mandala essays and case studies; the first post tells the Shohei Ohtani goal-chart story in detail.
+See [Product.md](Product.md) and [ExecutionFramework.md](ExecutionFramework.md) for the full reasoning.
 
 ---
 
-## AI status
+## Features
 
-The current **Suggest** interaction uses lightweight local demo suggestions.
+### Planner (2D)
 
-There is currently:
+- **Map view** — a persistent, zoomable mind-map: pan, pinch/scroll zoom, fit, focus, minimap, branch collapse, drag nodes to rearrange, spatial arrow-key navigation.
+- **Table view** — the decision surface: status, decision, impact, effort, readiness and time in rows (readable cards on phones).
+- **Grid view** — the classic 9×9 Mandala chart (screens ≥ 1024 px): goal in the center, eight drivers around it, each driver's eight actions in its own 3×3 block.
+- All three views read and write the **same nodes** — they are projections, not copies.
 
-- no external model call,
-- no OpenRouter integration,
-- no Gemini integration,
-- no Groq integration,
-- no API key requirement.
+### Deciding and doing
 
-A later version may support provider-neutral AI assistance or BYOK.
+- **Decisions:** Do / Later / Hand off / Drop. Later asks for a date, Hand off for a person; Drop parks work without deleting it.
+- **Impact / Effort** sliders, optional **estimate**, **notes**, and a lightweight **Blocked by** dependency.
+- **Next move** — picks the best ready action: an unfinished leaf, decided as Do, not blocked, not under a parked branch; sorted by impact, effort, "already doing" and short estimates.
+- **Quest progress**, direct check-off, short celebrations.
+- **Review** — a quick look at what is done, ready, deferred, handed off, dropped, and blocked, with prompts to revise the plan.
 
-The intended AI role is to:
+### Maps library
 
-- suggest missing drivers,
-- identify overlap,
-- rewrite vague nodes,
-- convert outcomes into controllable actions,
-- split oversized actions,
-- critique weak plans.
+- Multiple independent maps, all stored locally.
+- **Autosave history** — up to 30 versions per map; restoring saves the current version first.
+- Optional structure *between* maps: a loose **Group**, **Related to**, **Comes before / after**, **Parent / child** (cycles are blocked).
+- **Backup and restore** — **Save** downloads a map as JSON, **Import map** brings it back as a new map (validated and cleaned on the way in).
 
-AI should assist the plan, not silently replace it.
+### Space (3D)
+
+- The active map as a **solar system**: goal = sun, drivers = planets, actions = moons, steps = moonlets.
+- Fly to any body, follow it along its orbit, see decisions, blockers and the next move, and **edit** everything from the side panel.
+- Stays in sync with an open planner tab. Details in [The Space view](#the-space-view-3d).
+
+### Everywhere
+
+- Installable **PWA**, works offline after the first visit.
+- Four palettes: Light, Dark, Sage, Dawn.
+- Phone-friendly layout with safe-area support; Grid is hidden on small screens.
+- `prefers-reduced-motion` is respected.
+- No account, no server, no analytics.
 
 ---
 
-## Stack
+## Quick start
 
-- HTML
-- CSS
-- JavaScript
-- jQuery 3.7.1
-- SVG
-- IndexedDB
-- `idb` 6.1.5 (vendored locally)
-- Three.js 0.180.0, pmndrs `postprocessing` 6.39.6 and GSAP 3.13.0 for the 3D Space view (vendored locally, loaded only by `space.html`)
-- localStorage for lightweight preferences / migration fallback
-- Service Worker
-- Web App Manifest
+1. Open the [live beta](https://mandala-chart.yorulmazyln.workers.dev) (or [run it locally](#run-locally)).
+2. Click the prompt in the middle and type your goal. Eight empty driver slots appear around it.
+3. Double-click a slot (or select it and press **Edit**) to name a driver. Use **+ Branch** to give a driver its eight action slots; branch again only if an action is still too big.
+4. Open **Inspect** on a node to set the decision, impact/effort, a blocker, an estimate, or notes. The **Table** view is the fastest place to decide many nodes at once.
+5. Press **Next move** (or Ctrl/⌘ + K) and do that one thing. Tick it off.
+6. Switch to **Space ✦** to see the whole plan as a solar system, or press **Review** when reality changes.
+7. Use **Maps → Save** now and then to keep a backup file.
 
-jQuery is vendored locally.
+---
 
-**No runtime CDN dependencies.**
+## Keyboard shortcuts
 
-There is currently no build step and no backend.
+### Planner
+
+| Key | Action |
+|---|---|
+| ← ↑ → ↓ | Hop to the nearest visible node in that direction (Map view) |
+| Shift + arrows | Pan the canvas without changing the selection |
+| + / − | Zoom in / out |
+| F | Fit the whole map |
+| Ctrl/⌘ + K | Next move |
+| Double-click a node | Edit its title inline (Enter saves) |
+| Esc | Close the inspector / dialogs, cancel inline editing |
+
+### Space
+
+| Key | Action |
+|---|---|
+| N | Fly to the next move |
+| / | Search node titles |
+| ← / → | Previous / next sibling |
+| ↑ / ↓ | Parent / first child |
+| E | Edit the focused body's title |
+| B | Add a branch (eight empty slots) |
+| D | Toggle done |
+| Space | Pause / resume orbits |
+| L | Show / hide labels |
+| Esc | Close search, go up a level, or return to the overview |
+
+---
+
+## The Space view (3D)
+
+`space.html` turns the active map into a solar system.
+
+| Map | Space |
+|---|---|
+| Goal | the **sun** in the center |
+| Driver | a **planet** on its own orbit, with a generated surface (gas giant, terra, ice, rock) |
+| Action | a **moon** circling its planet |
+| Step | a **moonlet** circling its moon |
+| Empty slot | a faint **wireframe** body — name it and it becomes a real world |
+
+What you can see:
+
+- **Done** bodies wear a golden ring; **Doing** bodies pulse.
+- **Later** bodies are faded, **Drop** bodies are grey ghosts, **Hand off** bodies carry a small blue courier, and anything under a parked parent is dimmed.
+- A **blocked** node gets a dashed red line to its blocker and a "Blocked" tag.
+- The **next move** (same rule as the planner) wears a pulsing cyan beacon.
+
+What you can do:
+
+- Drag to rotate, scroll/pinch to zoom, right-drag/two-finger drag to pan. Grabbing the camera during a flight cancels the flight.
+- Click a body, a label, a search result or a list item to fly there; the camera follows it while time slows down.
+- In the side panel: set **Open / Doing / Done**, **rename** (pencil, double-click or E), and under **Edit details** change impact, effort, decision, hand-off target, bring-back date, estimate, blocker and notes. **+ Branch** adds eight empty slots; **Clear node** (press twice) empties a node and removes its subtree.
+- The map picker switches maps; **2D map** opens the planner on the body you are looking at.
+
+Working together with the planner:
+
+- **Space ✦** in the planner's view switcher saves the map first and opens Space on the selected node (`space.html?map=…&node=…`).
+- An open planner tab and Space stay in sync: every edit in Space is applied by the planner too, and planner saves update Space live. Neither side overwrites the other.
+
+Performance and compatibility:
+
+- Planet textures are painted in small slices after the first frame and cached across edits.
+- Phones and low-core devices use a lower pixel ratio and no MSAA; the pixel ratio also steps down automatically when the frame rate stays under ~40 fps.
+- Requires WebGL 2 and import maps (current Chrome, Edge, Firefox, Safari 16.4+). Otherwise Space explains why and links back to the planner.
+
+Still planner-only: dragging nodes, collapsing branches, Ideas (suggestions), and map groups / relationships.
+
+---
+
+## Your data and privacy
+
+- Everything lives in **your browser's IndexedDB**, on your device. There is no server, no account and no analytics.
+- Data is per browser and per site address: another browser, device, or domain starts with an empty library.
+- Clearing site data deletes your maps. **Save** regularly if a map matters; **Import map** restores it anywhere.
+- The **Feedback** and **Report it** links open a GitHub issue form with technical details (page, app version, browser, screen size, WebGL support). They never include map contents, and nothing is sent unless you submit the form yourself.
 
 ---
 
 ## Run locally
 
-Serve the repository over HTTP so the service worker can register.
+There is no build step. Serve the folder over HTTP (needed for IndexedDB, ES modules and the service worker):
 
-Example:
+```sh
+python3 -m http.server 8080
+# then open http://localhost:8080
+```
 
-    python3 -m http.server 8080
+Any static server works (`npx serve`, `npx wrangler dev`, …). Opening `index.html` directly from the file system is not supported.
 
-Then open:
+When you change a cached file during development, the service worker may serve the old copy once; reload again or use DevTools → Application → "Update on reload".
 
-    http://localhost:8080
+---
+
+## Project structure
+
+```
+index.html            Planner shell: header, Map / Table / Grid views, inspector, modals
+app.js                Planner: state, layout, camera, editing, views, decisions, next move,
+                      review, maps library, import/export, sync with Space
+styles.css            Visual system for the planner, About and Blog
+storage.js            MandalaStorage — IndexedDB maps, snapshots, meta, map links
+map-ops.js            MandalaOps — edit operations shared by Space and the planner
+feedback.js           Feedback links and the "Report it" error notice; APP_VERSION
+
+space.html            Space page: import map, panel, search, fallbacks
+space.css             Space styles
+space.js              Space scene, camera flights, labels, panel, editing, sync
+space/model.js        Progress / decision / blocker / next-move rules (mirror app.js)
+space/textures.js     Procedural planet, glow and nebula textures
+space/shaders.js      Sun, atmosphere, ring and point-sprite materials
+
+about.html, blog.html Public pages
+sw.js                 Service worker (offline cache; CACHE_NAME)
+manifest.webmanifest  PWA manifest
+icon.svg              App icon
+
+vendor/               Pinned third-party libraries (no CDN at runtime)
+docs/                 README images (not published)
+.github/              Issue forms (not published)
+
+wrangler.jsonc        Cloudflare Workers static-assets config
+.assetsignore         Files kept out of the published site
+_headers              Response headers (sw.js revalidation, nosniff, referrer policy)
+
+Product.md, ProductRoadmap.md, ExecutionFramework.md   Product thinking
+Agents.md, Claude.md                                    Guides for coding agents
+```
+
+---
+
+## Architecture
+
+### Principles
+
+- **Static and local-first.** HTML, CSS and plain JavaScript; no framework, no bundler, no backend.
+- **No runtime CDNs.** Every library is vendored and version-pinned in `vendor/`. (A CDN failure once broke the app; it must not happen again.)
+- **One data model.** Map, Table, Grid and Space are views of the same node objects.
+
+### Planner (`index.html` + `app.js`)
+
+`app.js` is a single jQuery IIFE that owns the in-memory `state` (`{ rootId, nodes, version }`), renders the three views, and persists through `MandalaStorage`. Saves are debounced (~220 ms); autosave snapshots are deduplicated and rate-limited.
+
+### Storage (`storage.js`)
+
+IndexedDB database `mandala-local`, schema version **2**, through the vendored `idb` wrapper:
+
+| Store | Contents |
+|---|---|
+| `maps` | one record per map: `{ id, title, group, createdAt, updatedAt, state }` |
+| `snapshots` | autosaved versions, newest 30 per map |
+| `meta` | e.g. the active map id |
+| `mapLinks` | relationships between maps: `related`, `before`, `parent` |
+
+Older single-map `localStorage` data is migrated on first start. Palette choice stays in `localStorage`. If IndexedDB is unavailable the planner falls back to a single map in `localStorage` and says so.
+
+### Space (`space.html` + ES modules)
+
+`space.html` loads Three.js, postprocessing and GSAP through an **import map** (only on this page, so the planner stays light). `space.js` builds the scene from the stored map:
+
+- `space/model.js` holds the rules for progress, decisions, blockers and the next move — a deliberate mirror of the functions in `app.js` so both views always agree.
+- Bodies are nested pivots (sun → orbit → planet → moon ring → moon …); labels are DOM chips projected every frame and de-overlapped by priority.
+- Post-processing: bloom, AgX tone mapping, vignette, and subtle chromatic aberration (off with reduced motion).
+
+### Editing and sync (`map-ops.js` + `BroadcastChannel`)
+
+All edits made in Space are expressed as **ops** that both pages understand:
+
+| Op | Meaning |
+|---|---|
+| `{ op: "update", id, fields }` | change title, status, impact, effort, decision, duration, notes, delegatedTo, deferUntil or dependencyId (validated) |
+| `{ op: "addSlots", parentId, ids }` | add eight empty children (ids chosen by the sender, so both sides match) |
+| `{ op: "clear", id }` | empty a node, remove its subtree, clear dependencies on it |
+
+Flow on the `mandala-sync` channel:
+
+1. Space applies the ops to its copy, writes them to IndexedDB, then posts `{ type: "ops", mapId, ops }`.
+2. An open planner tab applies the same ops to its in-memory state and saves — so its next autosave cannot overwrite the change.
+3. Whenever the planner saves, it posts `{ type: "map-saved", mapId }`; Space reloads the record and updates in place, or rebuilds the system (keeping focus) when bodies were added or removed.
+
+`map-ops.js` mirrors `createNode`, `createEightSlots`, `clearSelectedNode` and `populateDependencyOptions` in `app.js`; change them together.
+
+### Deep links
+
+- `space.html?map=<id>&node=<id>` opens Space on a node (the `node` parameter is removed after use).
+- `index.html?node=<id>` opens the planner with that node selected and focused.
+
+### Offline (`sw.js`)
+
+- App files are precached; HTML/CSS/JS of the app are served **network-first** so updates arrive, other files cache-first.
+- The 3D libraries are cached on first use, not at install, so planner-only users never download them.
+- `CACHE_NAME` in `sw.js` and `APP_VERSION` in `feedback.js` share one value (currently `mandala-v30`); bump both whenever a cached file changes.
+
+---
+
+## Data model
+
+A node is plain, serializable JSON:
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | string | `n_<time36>_<random>` |
+| `title` | string | ≤ 180 chars; empty = empty slot |
+| `parentId` | string \| null | `null` for the goal |
+| `depth` | number | 0 goal, 1 driver, 2 action, 3+ step |
+| `children` | string[] | ordered; drivers are placed clockwise N, NE, E, SE, S, SW, W, NW |
+| `status` | `open` \| `doing` \| `done` | |
+| `decision` | `do` \| `defer` \| `delegate` \| `delete` | shown as Do / Later / Hand off / Drop; `delete` never deletes the node |
+| `impact`, `effort` | 1–5 | default 3 |
+| `dependencyId` | string \| null | "Blocked by" |
+| `delegatedTo` | string | Hand off target |
+| `deferUntil` | `YYYY-MM-DD` or `""` | Later date |
+| `duration` | string | estimate in minutes |
+| `notes` | string | ≤ 1200 chars |
+| `collapsed`, `tableCollapsed` | boolean | view state |
+| `offsetX`, `offsetY` | number | manual position offset in the map |
+| `createdAt` | number | epoch ms |
+
+**Export file** (`Save`): `{ exportedAt, version, rootId, nodes }`. **Import** accepts that format (or a bare `{ rootId, nodes }`), rebuilds the tree from the root, drops orphaned or malformed nodes, validates every field, and stores the result as a new map (limits: 5 MB, 5000 nodes).
 
 ---
 
 ## Deploy (Cloudflare)
 
-Mandala has no backend, so it is deployed as a static site with Cloudflare **Workers Static Assets**:
+Mandala is deployed as a static site with Cloudflare **Workers Static Assets**:
 
-    npx wrangler deploy
+```sh
+npx wrangler deploy
+```
 
-- `wrangler.jsonc` serves this folder as-is (`html_handling: "none"` keeps `/space.html` and the other paths exactly as `sw.js` caches them),
-- `.assetsignore` keeps the Markdown docs and config out of the published site,
-- `_headers` makes the browser revalidate `sw.js` so service-worker updates arrive immediately.
+- `wrangler.jsonc` serves the repository folder as-is. `html_handling: "none"` keeps `/space.html` and the other paths exactly as `sw.js` caches them.
+- `.assetsignore` keeps Markdown, `docs/`, `.github/`, `LICENSE` and config out of the published site.
+- `_headers` makes browsers revalidate `sw.js` and adds `nosniff` / referrer-policy headers.
+
+**Automatic deploys:** connect the Worker to this repository in the Cloudflare dashboard (Workers & Pages → `mandala-chart` → Settings → Builds → Connect; branch `main`, no build command, deploy command `npx wrangler deploy`). Every push to `main` then publishes.
 
 Live: https://mandala-chart.yorulmazyln.workers.dev
 
-Maps live in each browser's IndexedDB, per origin, so a new domain starts with an empty library. Use **Save** to export a map and bring it over.
+---
+
+## Testing
+
+There is no automated test suite in the repository yet. Before merging, check at least:
+
+**Planner**
+- first run, goal creation, driver / action / step branching, inline edit, inspector fields,
+- pan, zoom, fit, focus, minimap, arrow-key navigation, node drag, collapse,
+- decisions, blockers, Next move, Review, quest progress,
+- Map / Table / Grid stay in sync; Grid hidden below 1024 px,
+- multiple maps, autosave history and restore, groups and map relationships (cycle guards),
+- **Save** then **Import map** round trip; a broken file shows an error and changes nothing,
+- all four palettes, reduced motion, a narrow phone viewport.
+
+**Space**
+- overview, flights, follow, search, Next, keyboard shortcuts, labels,
+- every edit type (rename, name an empty slot, details, + Branch, Clear),
+- with a planner tab open: edits appear in the planner and survive its autosave,
+- phone layout, WebGL-less and import-map-less fallbacks.
+
+**Everywhere**
+- no network requests to CDNs, offline reload after one visit, no console errors.
+
+Browser automation with Playwright works well for this (serve the folder, use Chromium with SwiftShader for WebGL).
 
 ---
 
-## Data
+## Feedback and contributing
 
-Mandala is local-first.
+Mandala is in beta, and feedback is the most useful contribution right now:
 
-Planner data is stored in browser **IndexedDB** using the locally vendored `idb` wrapper.
+- **Feedback** (top bar on every page) opens a GitHub issue form with your environment filled in.
+- If something crashes, a small **Report it** notice opens the bug form with the error attached.
+- Or go straight to [Issues](https://github.com/ylnyorulmaz/mandala-chart/issues/new/choose).
 
-Database:
-
-    mandala-local
-
-Stores:
-
-- `maps` — multiple complete Mandala maps,
-- `snapshots` — autosaved map versions,
-- `meta` — active-map metadata,
-- `mapLinks` — optional relationships between otherwise independent maps.
-
-The current IndexedDB schema is version **2**. Map-level grouping is stored on each map record; cross-map relationships live separately in `mapLinks`, so restoring an internal map snapshot does not rewrite the outer map structure.
-
-Autosave behavior:
-
-- the live map record is saved shortly after edits,
-- a version snapshot is created after the editing burst settles,
-- snapshots are deduplicated,
-- snapshot creation is rate-limited to roughly one every 30 seconds during continuous work,
-- the newest **30 versions per map** are retained,
-- switching maps / starting a new map preserves the map being left,
-- version restore saves the current version before restoration.
-
-Existing single-map `localStorage` data is migrated into IndexedDB on first successful database initialization.
-
-Theme/palette preferences remain in `localStorage`.
-
-Use the export control to download the current map as JSON.
-
-Important: this remains **device-local** storage. There is no cloud backup or cross-device sync yet.
+Code changes are welcome too. Please read [Agents.md](Agents.md) first — it lists the hard rules (no CDNs, no framework rewrite, local-first, keep `map-ops.js` / `space/model.js` in step with `app.js`, bump the cache version) and the checks a change must pass.
 
 ---
 
-## Current limitations
+## Documentation
 
-The current iteration intentionally excludes:
-
-- accounts,
-- cloud sync,
-- live LLM calls,
-- payments,
-- team collaboration,
-- native mobile apps,
-- calendar integrations,
-- advanced dependency management,
-
-Mandala should prove repeated usefulness before becoming a larger SaaS.
+| File | What it covers |
+|---|---|
+| [Product.md](Product.md) | Vision, philosophy, audience, capabilities, constraints, business hypothesis |
+| [ExecutionFramework.md](ExecutionFramework.md) | The decomposition → decision → next move → review model |
+| [ProductRoadmap.md](ProductRoadmap.md) | Staged roadmap: hardening, dogfooding, AI assistance, optional sync, validation |
+| [Agents.md](Agents.md) | Rules, invariants and checklists for anyone (or any agent) changing the code |
+| [Claude.md](Claude.md) | Orientation guide for coding assistants: how the code fits together and where to change what |
+| [about.html](about.html) | Public explanation of the method |
+| [blog.html](blog.html) | Essays; the first post tells the Shohei Ohtani goal-chart story |
 
 ---
 
-## Development rules
+## Limitations and roadmap
 
-The repository intentionally stays lightweight.
+Intentionally not here yet:
 
-Do not introduce:
+- accounts, cloud backup or cross-device sync (use Save / Import),
+- live AI — the **Ideas** button uses local demo suggestions; a future AI layer should critique and assist with structured, confirmable changes,
+- collaboration, notifications, integrations, payments, native apps,
+- a visual "map of maps" (relationships are managed in the Maps library),
+- an automated test suite,
+- real-device QA across all phones and GPUs is still in progress.
 
-- runtime CDN dependencies,
-- framework rewrites,
-- a backend,
-- mandatory accounts,
-- heavy build tooling,
-
-without a concrete product reason.
-
-For detailed contributor rules, read [Agents.md](Agents.md).
+Mandala should prove repeated usefulness before it grows. See [ProductRoadmap.md](ProductRoadmap.md).
 
 ---
-
-## Validation goal
-
-The current prototype should be dogfooded on real work.
-
-The main acceptance question is not:
-
-> “Does the map look cool?”
-
-It is:
-
-> **“Did using Mandala cause useful actions to happen that would otherwise have been postponed?”**
-
-Repeated use, completed actions, requests for history/sync, and users returning to existing maps are stronger signals than one-time praise.
-
----
-
-## Feedback
-
-Mandala is in beta. The **Feedback** link (top bar on every page) opens a GitHub issue form with your browser, screen and app version filled in; if something crashes, a small **Report it** notice does the same with the error attached. Map contents are never included.
-
-The app version lives in `feedback.js` (`APP_VERSION`) and matches `CACHE_NAME` in `sw.js` — bump both together.
-
 
 ## License
 
@@ -301,151 +432,3 @@ Third-party libraries in `vendor/` keep their own licenses:
 | [three.js](https://threejs.org) | 0.180.0 | MIT — `vendor/three/LICENSE.txt` |
 | [postprocessing](https://github.com/pmndrs/postprocessing) | 6.39.6 | Zlib — `vendor/postprocessing/LICENSE.txt` |
 | [GSAP](https://gsap.com) | 3.13.0 | GSAP Standard "No Charge" License — `vendor/gsap/LICENSE.txt` |
-
-
-## Execution framework
-
-The current product philosophy is documented in [ExecutionFramework.md](ExecutionFramework.md):
-
-**Break it down → Decide → Do next → Review**
-
-The central rule is: **keep the intelligence; remove the methodology tax from the UX.**
-
-
-## Mobile behavior
-
-The planner is designed to remain usable on phones rather than merely shrink the desktop layout:
-
-- primary touch targets are at least about 44px,
-- the action toolbar becomes a horizontal thumb dock,
-- Map/Table controls and zoom controls avoid overlapping,
-- the Inspector and modals become bottom sheets,
-- Table rows become readable cards on narrow screens,
-- iPhone safe areas / home indicator spacing are respected,
-- the goal starter scales by both viewport width and height,
-- the map can zoom farther out on narrow screens so larger trees can fit,
-- orientation changes re-center the active node.
-
-Actual device QA is still required before claiming full cross-device coverage.
-
-
-### Map navigation
-
-Keyboard and pointer navigation are designed to cooperate:
-
-- **Arrow keys** jump to the nearest visible node in that direction.
-- If no node is selected, arrow navigation starts from the current viewport center.
-- **Shift + Arrow** pans the canvas without changing selection.
-- Clicking empty canvas clears the active node; the next arrow key starts spatial navigation from what is currently on screen.
-- Manual drag, pinch, wheel, or node drag cancels any in-progress camera focus animation, so the camera does not fight the user.
-- Pointer movement is coalesced through animation frames for smoother canvas panning.
-
-
-### 9×9 Grid view
-
-The third view is a classic Mandala / Mandalart matrix. **Grid view is available only on screens 1024px wide or larger**, so phones do not get a cramped 9×9 experience:
-
-- exactly **9×9 cells**,
-- the goal sits in the exact center,
-- the eight drivers surround the goal in the middle 3×3,
-- each driver is repeated at the center of its own outer 3×3 block,
-- that block's eight surrounding cells show the driver's eight actions,
-- action cells stay synchronized with Map and Table state,
-- empty action cells can be tapped/clicked to create that action branch,
-- deeper descendants are represented with a small count instead of trying to force recursive steps into the fixed 9×9 matrix.
-
-The Grid view is a structured overview, not a replacement for the recursive Map view. It is deliberately hidden below **1024px**; phones and narrow tablets use Map and Table only.
-
-
-### Space view (3D)
-
-`space.html` renders the active map as a solar system you can fly around:
-
-- the **goal is the sun** at the center,
-- each **driver is a planet** on its own orbit, with a procedurally generated surface (gas giant, terra, ice, rock),
-- **actions are moons** circling their planet, **steps are moonlets** circling their moon,
-- empty slots appear as faint wireframe "unformed" bodies,
-- cleared (done) nodes get a glowing golden ring; nodes marked *Doing* pulse.
-
-Decisions are visible too, using the same rules as the planner:
-
-- **Later** bodies are faded, **Drop** bodies are grey ghosts, **Hand off** bodies get a small blue courier, and anything under a parked parent is dimmed,
-- a node that is **blocked** by another gets a dashed red line to its blocker and a "Blocked" tag,
-- the planner's **Next move** (same filter and score as the 2D modal) carries a pulsing cyan beacon; **Next ✦** or `N` flies there.
-
-Interaction:
-
-- drag to rotate, scroll / pinch to zoom, right-drag / two-finger drag to pan; grabbing the camera during a flight cancels the flight,
-- click a planet, moon, label, search result, or list item to fly there; the camera then follows it along its orbit while time slows down,
-- the side panel shows path, progress (same numbers as the 2D quest progress), impact / effort / decision, blocker (clickable), notes, and child bodies, plus an **Open / Doing / Done** switch that saves to IndexedDB,
-- **edit in space**: rename a body (pencil, double-click the title, or `E`), name an empty slot to turn the wireframe ghost into a real planet or moon, change impact / effort / decision / hand-off / bring-back date / estimate / blocker / notes under **Edit details**, add a branch of eight empty slots (**+ Branch** or `B`), and **Clear node** (two-step confirm),
-- `/` searches node titles, **Esc** goes up a level, **← / →** hop between siblings, **↑ / ↓** go to the parent / first child, **Space** pauses orbits, **L** toggles labels, **D** toggles done,
-- labels are placed by priority and hidden when they would overlap.
-
-Working with the planner:
-
-- **Space ✦** in the view switcher saves the map and opens Space on the selected node (`space.html?map=…&node=…`); **2D map** in Space opens the planner on the focused node (`index.html?node=…`),
-- an open planner tab and Space stay in sync through a `BroadcastChannel` (`mandala-sync`): every Space edit is sent as an op from `map-ops.js` that the planner applies to its own state (so nothing is overwritten), and planner saves update or rebuild the system live,
-- the map picker switches between saved maps and sets the active map for the planner.
-
-Performance: planet textures are painted in small time slices after the first frame, phones and low-core devices use a lower pixel ratio and no MSAA, and the pixel ratio steps down automatically when the frame rate stays under ~40 fps. `prefers-reduced-motion` shortens flights, stops auto-rotation, and turns off chromatic aberration. Without WebGL 2 the page links back to the planner.
-
-Code: `space.js` (scene and interaction), `space/model.js` (progress / decision / next-move rules mirrored from `app.js` — change both together), `space/textures.js`, `space/shaders.js`. The 3D libraries are cached by the service worker on first use rather than at install.
-
-Dragging nodes, collapsing branches, suggestions, and map groups / relationships stay in the 2D planner.
-
-
-### Color palettes
-
-The old binary dark/light toggle is now a small palette picker with four persistent choices:
-
-- **Light** — the default warm paper look,
-- **Dark** — the existing night theme,
-- **Sage** — a soft green, calmer background,
-- **Dawn** — a warm peach / coral background.
-
-The chosen palette is stored locally and applies across the planner and About page.
-
-
-### Map groups and relationships
-
-A Mandala map is still independent by default. Users can optionally create structure *between* maps when that helps.
-
-The Maps library supports:
-
-- a lightweight **Group** name, such as `$10k/month`, `Home`, or `Project 207`,
-- **Related to** for horizontal association without hierarchy,
-- **Comes before / Comes after** for directional sequence,
-- **Parent of / Child of** for vertical hierarchy.
-
-Examples:
-
-- `Earn $10k/month` can be the parent of separate ResumeBee, CarouselBee, and other product-launch maps.
-- `Build landing page` can come before `Launch campaign`.
-- `Clean computer files` can remain completely unrelated to both.
-
-Groups are organizational labels, not hierarchy. Parent/child and before/after relationships are stored separately. The app blocks circular parent hierarchies and circular sequences.
-
-
-### Two scales of structure
-
-Mandala now has two intentionally separate structural layers:
-
-**Inside one map**
-
-> Goal → Drivers → Actions → Steps
-
-**Between maps**
-
-> Independent goals → optional Group / Related / Before-After / Parent-Child relationships
-
-A map should stay independent when that is the clearest model. Cross-map structure is optional and should prevent giant artificial Mandalas rather than create portfolio bureaucracy.
-
-The first outer-graph model keeps:
-
-- **Group** as a loose label only,
-- **Related** as symmetric association,
-- **Before / After** as an acyclic sequence,
-- **Parent / Child** as an acyclic hierarchy with one direct parent per map.
-
-There is not yet a separate zoomable "map of maps" canvas; the current outer graph is managed from the Maps library.

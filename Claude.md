@@ -1,428 +1,188 @@
 # Claude
 
-## Role
+Orientation guide for coding assistants working on Mandala. [Agents.md](Agents.md) holds the rules; this file explains how the code fits together and where to make a given change.
 
-This is the coding-assistant guide for working on Mandala.
-
-Treat `Product.md` as the source of product intent and `ProductRoadmap.md` as the source of sequencing.
-
-Do not optimize for feature count.
-
-Optimize for a product that helps a user move from an unclear goal to an obvious next action.
+Optimize for a product that moves a person from an unclear goal to an obvious next action — not for feature count.
 
 ---
 
-## What Mandala is
+## 1. Mental model
 
-Mandala is a local-first zoomable mind-map for execution.
+```
+Goal ── Drivers (≤ 8) ── Actions (8 per driver) ── Steps (only if needed)
+                                   │
+                         Decide: Do / Later / Hand off / Drop
+                                   │
+                    Next move = best ready Do leaf → do it → Review
+```
 
-Its core structure is:
-
-**Goal → Drivers → Actions → Steps**
-
-Its core behavior is:
-
-**see the whole map → focus a branch → decompose → prioritize → execute**
-
-It should feel more like navigating a spatial map than filling out a project-management form.
-
----
-
-## Current architecture
-
-Main files:
-
-- `index.html` — planner shell and canvas UI
-- `about.html` — public explanation of the concept
-- `styles.css` — visual system and responsive behavior
-- `app.js` — UI state, layout, camera, editing, views, map library, relationships, suggestions, next-action logic
-- `storage.js` — IndexedDB abstraction for maps, snapshots, metadata, Groups, and cross-map links
-- `manifest.webmanifest` — PWA metadata
-- `sw.js` — offline caching
-- `vendor/jquery-3.7.1.min.js` — local jQuery
-- `vendor/idb-6.1.5.min.js` — local idb wrapper
-- `space.html`, `space.css`, `space.js` — optional 3D "Space" view (goal = sun, drivers = planets, actions = moons) built as ES modules
-- `space/model.js` — Space's copy of the progress, decision, blocker and next-move rules; keep it in step with the matching functions in `app.js`
-- `space/textures.js`, `space/shaders.js` — procedural textures and GLSL materials for Space
-- `map-ops.js` — `window.MandalaOps`: the edit operations (update / addSlots / clear) shared by Space and the planner's sync channel; mirrors `createNode`, `createEightSlots`, `clearSelectedNode` and `populateDependencyOptions` in `app.js`
-- `vendor/three/` (Three.js 0.180.0 + OrbitControls), `vendor/postprocessing/` (pmndrs postprocessing 6.39.6), `vendor/gsap/` (GSAP 3.13.0) — loaded only by `space.html` through an import map; keep them out of `index.html` so the 2D planner stays light
-
-No framework.
-
-No backend.
-
-No build step.
+- One map = one tree of nodes in `state.nodes`, rooted at `state.rootId`.
+- Four views of that tree: **Map**, **Table**, **Grid** (planner, `index.html`) and **Space** (`space.html`).
+- Everything is stored in the browser (IndexedDB). There is no server.
+- Behavior to preserve: the canvas is persistent (no drill-down pages), nodes are spatial, focus is camera movement, decomposition is recursive, planning ends in executable leaf actions, maps are independent unless the user links them.
 
 ---
 
-## Non-negotiable rule: no CDN runtime dependencies
+## 2. Where things live
 
-The project previously broke because a CDN/SRI failure prevented jQuery from loading.
+| File | Role |
+|---|---|
+| `index.html` | Planner markup: header, view switcher, Map / Table / Grid, inspector, modals (Ideas, Next, Maps, Review) |
+| `app.js` | The planner (one jQuery IIFE, ~4000 lines) |
+| `styles.css` | Planner, About, Blog styles; later rules override earlier ones, newest overrides are at the end |
+| `storage.js` | `window.MandalaStorage` — IndexedDB access |
+| `map-ops.js` | `window.MandalaOps` — edit ops shared by Space and the planner |
+| `feedback.js` | `window.MandalaFeedback` — feedback links, error notice, `APP_VERSION` |
+| `space.html` / `space.css` | Space page, import map, panel, search, fallbacks |
+| `space.js` | Space scene, flights, labels, panel, editing, sync (ES module) |
+| `space/model.js` | Pure rules: progress, decisions, blockers, next move, demo map |
+| `space/textures.js`, `space/shaders.js` | Procedural textures; GLSL materials |
+| `sw.js` | Service worker: precache list, network-first for app code, `CACHE_NAME` |
+| `vendor/` | jQuery, idb, three (+ OrbitControls), postprocessing, GSAP — pinned, local |
+| `wrangler.jsonc`, `.assetsignore`, `_headers` | Cloudflare static-assets deploy |
 
-Do not reintroduce that failure mode.
+### Key functions in `app.js`
 
-If a dependency is needed:
+- **Startup:** `init` → `initializePlannerStorage` (IndexedDB, legacy migration) → `showEmptyMap` → `bindSyncChannel` → `openDeepLinkedNode`.
+- **State:** `defaultState`, `normalizeState` (fills missing fields), `createNode`, `createEightSlots`, `uid`, `mapUid`.
+- **Persistence:** `saveState` (debounced) → `persistCurrentMapNow` → `broadcastMapSaved`; `createAutosaveSnapshot`.
+- **Rendering:** `renderAll` (layout, edges, nodes, table, grid, minimap, progress), `switchView`, `applyActiveView`.
+- **Camera / selection:** `selectNode`, `focusCameraOnNode`, `fitAll`, `navigateMapByArrow`, `panMapByArrow`.
+- **Editing:** inline edit via `editingId`, `openInspector`, `updateSelectedDetail`, `clearSelectedNode`, `splitSelected`.
+- **Decisions:** `decisionValue`, `hasSuppressedAncestor`, `isNodeBlocked`, `setNodeStatus`, `toggleNodeDone`.
+- **Execution:** `openNextModal` + `scoreNode`, `updateQuestProgress`, `openReviewModal`, `renderTriageSummary`.
+- **Maps library:** `openMapsModal`, `renderMapsLibrary`, `openStoredMap`, `deleteStoredMap`, relationships (`openMapRelationships`).
+- **Backup:** `exportState`, `importMapFile` → `sanitizeImportedMap`.
+- **Space link:** the `#spaceViewButton` handler persists, then opens `space.html?map=…&node=…`.
 
-1. vendor it locally,
-2. pin the version,
-3. load it from the repository,
-4. add it to the service-worker cache if required.
+### Key functions in `space.js`
 
----
-
-## Product behavior to preserve
-
-### The canvas is persistent
-
-Do not replace the map with drill-down pages.
-
-### Nodes are spatial
-
-The user should be able to pan, zoom, and understand parent-child relationships.
-
-### Focus is camera movement
-
-Selecting a branch should center or emphasize it without erasing surrounding context.
-
-### Decomposition is recursive
-
-Any action can become the parent of smaller steps if it is still too broad.
-
-### Planning is not the final output
-
-The product should surface executable leaf actions.
-
-### Maps are independent unless the user connects them
-
-Do not force every goal into one tree. The outer map graph is optional and separate from node hierarchy. Groups are loose labels; Related, Before/After, and Parent/Child express different meanings and must not be collapsed into one generic "project" field.
-
----
-
-## UI direction
-
-Preferred qualities:
-
-- warm,
-- friendly,
-- personal,
-- playful without becoming childish,
-- spatial,
-- readable,
-- responsive,
-- smooth but not theatrical.
-
-The product should feel closer to a lightweight colorful game, playful mind map, or creative studio wall than a corporate SaaS dashboard. Use vibrant but warm colors, tactile controls, rounded/system game-like typography, smooth transform/opacity animations, visible quest progress, direct check-off controls, and brief confetti celebrations. Keep it fast: prefer CSS transforms and opacity, avoid heavy animation libraries, and remove celebration DOM after each burst.
-
-Avoid:
-
-- giant marketing hero UI inside the working canvas,
-- card-dashboard layouts,
-- excessive gradients,
-- huge glassmorphism layers,
-- noisy animations,
-- visual clutter.
-
-The map itself is the main interface.
+- **Startup:** `boot` → `setupRenderer`, `setupBackdrop`, `bindEvents`, `bindSync` → `loadMaps` → `buildSystem` → `intro`. `boot()` is called at the **end** of the module on purpose (module-level `let`/`const` must be initialized first).
+- **Building:** `buildSystem`, `buildChildren`, `makeSun`, `makeBody`, `registerBody`, `pumpTextures` (time-sliced, cached), `applyLook` (decision dimming, hand-off courier), `addRing` / `removeRing`, `disposeSystem`.
+- **Derived overlays:** `afterDataChange` → `rebuildDependencyLinks`, `updateNextBeacon`, `updateLabelText`, `renderSystemIndex`.
+- **Frame loop:** `tick` → `updateOrbits`, atmospheres, beacon, follow camera, `updateDependencyLinks`, `pick`, `composer.render`, `updateLabels`, `monitorPerformance`.
+- **Camera:** `focusBody`, `goOverview`, `startFlight` (spherical path around the sun), `cancelFlight`, `viewDistance`, `overviewOffset`, `syncControlLimits`.
+- **Panel:** `showPanel`, `renderMeta`, `renderChildList`, `renderEditor`, `showTitleEditor` / `saveTitle`, `addBranch`, `clearFocused`, `setStatus`.
+- **Data:** `commitOps` → `persistOps`; incoming planner saves → `scheduleRefresh` → `applyExternalRecord` → `refreshInPlace` or `rebuildPreservingFocus`.
+- **Other:** search (`openSearch`, `renderSearch`), `switchMap`, `goToNext`, `hopSibling`.
 
 ---
 
-## Suggested node hierarchy
+## 3. How data flows
 
-### Goal
+### Planner only
 
-- strongest visual weight,
-- central/root identity,
-- immediately recognizable.
+```
+user action → mutate state.nodes → saveState() → (220 ms) persistCurrentMapNow()
+            → MandalaStorage.saveMap() → broadcastMapSaved()
+            → renderAll()
+```
 
-### Driver
+### Edit in Space with the planner open
 
-- medium visual weight,
-- clearly connected to Goal,
-- distinct from executable tasks.
+```
+Space: commitOps([op]) → MandalaOps.apply(mapState, op) → redraw
+       → persistOps: getMap → apply op to record.state → saveMap
+       → BroadcastChannel "mandala-sync": { type: "ops", mapId, ops }
+Planner: MandalaOps.apply(state, op) → saveState() → renderAll() → refresh inspector
+       → persist → { type: "map-saved", mapId }
+Space: scheduleRefresh → getMap → same structure? refreshInPlace : rebuildPreservingFocus
+```
 
-### Action
-
-- lighter visual weight,
-- practical,
-- should be easy to scan.
-
-### Step
-
-- smallest visual weight,
-- used only when further decomposition is useful.
-
-Exact shapes and colors may evolve.
-
-Do not encode hierarchy through color alone.
+The echo is harmless: Space receives `map-saved` for its own change, finds the same structure, and refreshes in place.
 
 ---
 
-## Camera rules
+## 4. Recipes
 
-Pan/zoom should be implemented as a world transform rather than individually moving every node during camera movement.
+### Add a node field
 
-Camera behavior should support:
+1. `createNode` (app.js) and `MandalaOps.blankNode` (map-ops.js).
+2. Default in `normalizeState`; validation in `sanitizeImportedMap`.
+3. If editable from Space: a case in `cleanField` (map-ops.js) and a control in `space.html` + `renderEditor` / `bindEditor` (space.js).
+4. UI in the inspector (index.html + `openInspector` / input handlers) and Table if relevant.
+5. README data-model table.
 
-- pan,
-- zoom around pointer/touch midpoint,
-- fit-to-map,
-- focus node,
-- return to root,
-- minimap navigation.
+### Add a new kind of edit from Space
 
-Keep transforms smooth and avoid re-layout during camera motion.
+Add an op type in `MandalaOps.apply` (validated, all-or-nothing), call it through `commitOps` in Space. The planner picks it up automatically through `bindSyncChannel`. If it adds or removes nodes, `structureSignature` changes and Space rebuilds.
 
----
+### Change how progress or the next move works
 
-## Layout rules
+Change `app.js` (`updateQuestProgress`, `openNextModal`, `scoreNode`, `hasSuppressedAncestor`, `isNodeBlocked`) **and** `space/model.js`. Test: the 2D quest progress and the Space sun panel must show the same percentage on the same map; the Next modal and Space's Next must pick the same node.
 
-Automatic layout should prioritize readability over mathematical symmetry.
+### Add or change a cached file
 
-Good layout:
+Add it to `LOCAL_ASSETS` in `sw.js` (and to the network-first regex if it is app code), then bump `CACHE_NAME` **and** `APP_VERSION` in `feedback.js` to the same value.
 
-- keeps siblings grouped,
-- gives branches room,
-- limits crossings,
-- avoids node overlap,
-- preserves stable positions when unrelated branches change.
+### Add a third-party library
 
-Manual repositioning should not unexpectedly reset after another edit.
+Vendor it under `vendor/<name>/` with its license, add a README license-table row, reference it locally (planner: `<script>`; Space: import map entry). Never a CDN. Large or optional libraries are not precached.
 
----
+### Change Space visuals
 
-## Editing rules
+- Sizes / orbits: `bodyRadius`, `childRingRadius`, `buildSystem` (`startR`, `gap`).
+- Planet looks: `makePlanetTexture` (textures.js), `PLANET_TYPES`, `PALETTE`.
+- Decision looks: `LOOK` table + `applyLook`.
+- Post-processing: `setupRenderer` (bloom, AgX tone mapping, vignette, chromatic aberration).
+- Label rules: `labelVisibility`, `labelPriority`, `updateLabels`.
 
-Editing a node should be fast.
+### Add a planner button
 
-Prefer:
+Add it to `#plannerActions` in `index.html` and bind it in `bindPlannerEvents`. Then check that the view switcher still does not cover it at 1600 / 1240 / 1100 / 900 / 761 px (rules at the end of `styles.css`).
 
-- inline edit,
-- Enter to confirm where appropriate,
-- Escape to cancel,
-- explicit details inspector for metadata.
+### Deploy
 
-Avoid accidental navigation while editing.
-
-Deletion of a parent with children must make subtree impact clear.
+Push to `main` (Cloudflare Builds deploys it if connected) or run `npx wrangler deploy`. Keep non-public files in `.assetsignore`.
 
 ---
 
-## Planning metadata
+## 5. Gotchas
 
-Current useful metadata:
-
-- decision: Do / Later / Hand off / Drop,
-- impact,
-- effort,
-- lightweight dependency,
-- duration,
-- status,
-- notes.
-
-Do not expose Important/Urgent, Delegatable, or other methodology-derived fields by default. Keep those ideas in the reasoning layer unless real usage proves they deserve UI.
-
-Do not add more fields unless they visibly improve prioritization or execution.
+- **Two copies of some logic** (planner vs Space vs map-ops) — see the table in Agents.md §3.5. Forgetting one side makes 2D and 3D disagree.
+- **Module order in `space.js`:** don't call anything at the top of the module that touches `let`/`const` declared later (it throws a TDZ error and Space shows its fallback). Keep `boot()` at the bottom.
+- **GSAP `autoAlpha` sets `visibility: hidden`** on the first frame; an element hidden that way cannot take focus. Animate `opacity` when you need to focus something inside (see `openSearch`).
+- **`structureSignature`** decides in-place refresh vs rebuild. Anything that changes which bodies exist (titles becoming empty/filled, children lists) must change it.
+- **Texture cache:** `disposeSystem()` keeps cached planet textures; only `disposeSystem(true)` (map switch) drops them.
+- **Inputs being typed in are never refreshed** from sync (planner inspector, Space panel). Preserve that when adding fields.
+- **Service worker staleness:** after changing app files, a page may serve the old copy once. Bump the shared version.
+- **`html_handling: "none"`** in `wrangler.jsonc` is intentional: redirects from `/space.html` to `/space` would break the service-worker cache.
+- **Data is per origin:** localhost, the workers.dev URL and any custom domain each have their own maps.
+- **Feedback links never include map contents.** Keep it that way when touching `feedback.js`.
+- **Grid** is hidden under 1024 px and falls back to Map on resize.
 
 ---
 
-## Next Action logic
+## 6. UI direction
 
-Next Action should choose from executable unfinished leaf nodes.
+Warm, friendly, personal, playful without being childish, spatial, readable, smooth but not theatrical. Closer to a lightweight colorful game or a creative studio wall than a SaaS dashboard.
 
-It should not choose:
-
-- the root goal,
-- high-level drivers,
-- completed nodes,
-- nodes whose meaningful children are still open.
-
-Scoring is a heuristic, not truth.
-
-Keep the reason understandable.
+- Calm while choosing (space, natural colors, gentle motion); bright when completing (check-offs, bounded confetti, Space's golden rings and bursts).
+- Hierarchy: Goal strongest, Driver medium, Action lighter, Step smallest — never by color alone.
+- Avoid marketing heroes inside the canvas, card dashboards, heavy glass, noisy animation, clutter.
+- No fake cultural decoration.
+- Planner animations: CSS transform/opacity. Space may use GSAP and WebGL, but stays smooth on phones.
 
 ---
 
-## AI roadmap
+## 7. Testing
 
-The first real AI layer should improve node quality rather than add a chatbot.
+There is no automated suite in the repo. Use the checklist in Agents.md §16 and the README "Testing" section. Playwright with Chromium (SwiftShader handles WebGL) is a good way to drive both pages; serve the folder over HTTP or route requests to the files on disk.
 
-Useful actions:
+Most valuable end-to-end checks:
 
-- suggest drivers,
-- suggest actions,
-- rewrite as controllable action,
-- split this node,
-- find overlap,
-- find missing driver,
-- critique this plan.
-
-Prefer structured JSON output.
-
-Show proposed changes before applying them.
+1. Same map: 2D progress = Space progress; 2D Next move = Space Next.
+2. Planner tab open + edit in Space (rename, details, + Branch, Clear) → visible in the planner and still in IndexedDB after the planner's autosave.
+3. Save → clear storage → Import → identical map; a broken file changes nothing.
+4. View switcher vs planner actions at several widths.
+5. Phone viewport for planner and Space; no console errors.
 
 ---
 
-## Before making a substantial change
+## 8. Roadmap notes
 
-Read:
+- AI should first improve node quality (suggest drivers/actions, rewrite as controllable action, split, find overlap/missing drivers, critique), with structured output and confirmation before applying.
+- Possible next steps for Space: dragging/collapsing in 3D, a "map of maps" galaxy built from `mapLinks`.
+- Optional sync/accounts only after repeated real use proves the need.
 
-- `Product.md`
-- `ExecutionFramework.md`
-- `ProductRoadmap.md`
-- `Agents.md`
-- current implementation files
-
-Then ask:
-
-> Does this improve clarity, decomposition, navigation, prioritization, or execution?
-
-If not, it probably does not belong yet.
-
----
-
-## Testing checklist
-
-At minimum verify:
-
-- first-run empty state,
-- goal creation,
-- driver expansion,
-- action expansion,
-- pan,
-- zoom,
-- focus node,
-- fit map,
-- minimap,
-- edit,
-- collapse/expand,
-- manual reposition,
-- details inspector,
-- next action,
-- JSON export,
-- IndexedDB persistence after reload,
-- multiple map switching,
-- autosave snapshot restore,
-- legacy localStorage migration,
-- map Groups and cross-map link CRUD,
-- parent/sequence cycle protection,
-- relationship cleanup when a map is deleted,
-- Map/Table/Grid synchronization,
-- Grid hidden below 1024px,
-- all four palettes,
-- mobile viewport,
-- no CDN requests.
-
----
-
-## Product warning
-
-Mandala is itself a productivity project.
-
-Do not let development of Mandala become a sophisticated form of avoiding the work it is supposed to help complete.
-
-Keep changes small, ship them, dogfood them, and let repeated real usage decide the next feature.
-
-
-### Decision-model invariants
-
-The current visible philosophy is **Break it down → Decide → Do next → Review**.
-
-When changing the planner:
-
-- treat the map as a possibility space rather than a mandatory checklist,
-- preserve stable internal decision values while showing **Do / Later / Hand off / Drop** to users,
-- never conflate Drop with destructive node deletion,
-- do not expose Important/Urgent or Delegatable as permanent UI metadata,
-- keep dependency handling lightweight and explainable,
-- Next Move should favor only Ready + Do executable leaves,
-- a Later / Hand off / Drop decision on a parent suppresses descendants from immediate execution,
-- use progressive disclosure for Hand off and Later details,
-- keep map indicators small and game-like,
-- Review mode should summarize decisions and prompt plan revision after real-world feedback.
-
-
-### Calm + play visual invariant
-
-Mandala should combine two emotional states:
-
-1. **calm attention** while choosing and thinking,
-2. **bright reward** when completing useful work.
-
-Use natural colors, breathing space, subtle ring/water motifs, and gentle motion for the calm layer. Keep checkoffs, bounded confetti, progress feedback, and punchy completion moments for the game layer.
-
-Do not interpret "Eastern" inspiration as decorative cultural imitation. No kanji/bamboo/lantern/cherry-blossom theming. The target is philosophical lightness and ritual, not costume.
-
-
-### Navigation invariants
-
-The map is a spatial surface.
-
-- Arrow keys hop to the nearest rendered node in that direction.
-- No selection means directional navigation starts from viewport center.
-- Shift + Arrow pans the camera.
-- Empty-canvas click clears selection.
-- Cancel camera animations on drag, pinch, wheel, zoom, or node drag.
-- Coalesce continuous pan/pinch camera writes with requestAnimationFrame.
-- Keep pinch anchored under the gesture midpoint.
-- Use screen-space thresholds for node dragging.
-
-
-### Grid view invariants
-
-The third planner view is a classic Mandala 9×9 matrix:
-
-- 81 cells, with the Goal at the exact center,
-- eight Drivers around the Goal in the center 3×3,
-- eight surrounding 3×3 blocks, one per Driver,
-- repeated Driver at each outer block center,
-- up to eight Actions around that repeated Driver,
-- same clockwise directional order as Map,
-- shared state with Map/Table,
-- deeper descendants shown only as a count; recursive detail belongs in Map/Table.
-
-Do not copy the visual design of reference templates. Preserve Mandala's current natural palette, flow language, playful completion states, and responsive behavior.
-
-- Grid is large-screen only: hide it below 1024px viewport width and fall back to Map if a resize makes Grid unavailable.
-
-
-### Palette behavior
-
-Theme selection is now a four-choice palette menu: Light, Dark, Sage, Dawn.
-
-Persist the selected value using the existing theme localStorage key. Keep `body.dark` compatibility for the Dark palette, use root CSS variables for palette-wide backgrounds/surfaces, and keep all views readable before adding more palette choices.
-
-
-### IndexedDB persistence
-
-Planner persistence uses:
-
-- `vendor/idb-6.1.5.min.js`,
-- `storage.js`,
-- IndexedDB database `mandala-local`.
-
-Stores:
-
-- `maps`,
-- `snapshots`,
-- `meta`,
-- `mapLinks`.
-
-Current database schema version: **2**.
-
-The UI must use the `MandalaStorage` abstraction rather than direct IndexedDB calls where practical. Preserve migration from the old localStorage state. Map saves are debounced; snapshots are deduplicated, rate-limited, and capped at 30 per map. Starting a new map must not destroy the previous map. Restore must save the current version first.
-
-
-### Cross-map graph
-
-Maps may remain standalone or participate in a lightweight outer graph.
-
-Use:
-
-- `map.group` for loose grouping,
-- `mapLinks.type=related` for horizontal association,
-- `mapLinks.type=before` for sequence,
-- `mapLinks.type=parent` for hierarchy.
-
-Reverse UI labels such as After and Child of normalize into the same directed edge. Do not allow cycles in `before` or `parent`. Keep one direct parent per map for now. Map state snapshots do not contain these links; restoring a snapshot must leave outer-graph metadata intact.
-
-The Maps library currently visualizes this structure through grouped sections and relationship chips. There is no separate meta-canvas yet; if one is added later it should be a projection of the same `mapLinks` records.
+Mandala is itself a productivity project. Keep changes small, ship them, dogfood them, and let real usage decide the next feature.
