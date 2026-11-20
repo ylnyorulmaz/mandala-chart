@@ -80,7 +80,19 @@
       <span id="panelKind">DRIVER</span>
       <span class="panel-status" id="panelStatus">Open</span>
     </div>
-    <h1 id="panelTitle">Planet</h1>
+    <div class="panel-title-row">
+      <h1 id="panelTitle">Planet</h1>
+      <button class="panel-icon-btn" id="editTitleButton" type="button" aria-label="Edit title (E)" title="Edit title (E)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg>
+      </button>
+    </div>
+    <form class="title-edit" id="titleEdit" hidden>
+      <input id="titleInput" type="text" maxlength="180" autocomplete="off" aria-label="Title">
+      <div class="title-edit-actions">
+        <button class="space-btn primary" id="titleSave" type="submit">Save</button>
+        <button class="space-btn" id="titleCancel" type="button">Cancel</button>
+      </div>
+    </form>
     <p class="panel-breadcrumb" id="panelPath"></p>
 
     <div class="panel-progress" id="panelProgress">
@@ -102,8 +114,56 @@
       <button type="button" role="radio" data-status="done" aria-checked="false">Done ✓</button>
     </div>
 
+    <details class="panel-editor" id="panelEditor">
+      <summary>Edit details</summary>
+      <div class="editor-grid">
+        <div class="editor-field">
+          <span>Impact</span>
+          <div class="seg" id="impactSeg" role="radiogroup" aria-label="Impact">
+            <button type="button" role="radio" data-value="1">1</button><button type="button" role="radio" data-value="2">2</button><button type="button" role="radio" data-value="3">3</button><button type="button" role="radio" data-value="4">4</button><button type="button" role="radio" data-value="5">5</button>
+          </div>
+        </div>
+        <div class="editor-field">
+          <span>Effort</span>
+          <div class="seg" id="effortSeg" role="radiogroup" aria-label="Effort">
+            <button type="button" role="radio" data-value="1">1</button><button type="button" role="radio" data-value="2">2</button><button type="button" role="radio" data-value="3">3</button><button type="button" role="radio" data-value="4">4</button><button type="button" role="radio" data-value="5">5</button>
+          </div>
+        </div>
+        <div class="editor-field" id="decisionField">
+          <span>Decision</span>
+          <div class="seg" id="decisionSeg" role="radiogroup" aria-label="Decision">
+            <button type="button" role="radio" data-value="do">Do</button><button type="button" role="radio" data-value="defer">Later</button><button type="button" role="radio" data-value="delegate">Hand off</button><button type="button" role="radio" data-value="delete">Drop</button>
+          </div>
+        </div>
+        <label class="editor-field" id="delegateField" hidden>
+          <span>Hand off to</span>
+          <input id="delegatedToInput" type="text" maxlength="120" placeholder="Person, agent, contractor…">
+        </label>
+        <label class="editor-field" id="deferField" hidden>
+          <span>Bring back on</span>
+          <input id="deferUntilInput" type="date">
+        </label>
+        <div class="editor-row">
+          <label class="editor-field">
+            <span>Estimate (min)</span>
+            <input id="durationInput" type="number" min="0" max="1440" step="5" placeholder="25">
+          </label>
+          <label class="editor-field" id="dependencyField">
+            <span>Blocked by</span>
+            <select id="dependencySelect"></select>
+          </label>
+        </div>
+        <label class="editor-field">
+          <span>Notes</span>
+          <textarea id="notesInput" rows="3" maxlength="1200" placeholder="Definition of done, constraint, context…"></textarea>
+        </label>
+      </div>
+    </details>
+
     <div class="panel-actions">
       <button class="space-btn" id="parentButton" type="button">↑ Parent</button>
+      <button class="space-btn" id="branchButton" type="button" title="Add eight empty slots (B)">+ Branch</button>
+      <button class="space-btn danger-btn" id="clearButton" type="button">Clear node</button>
     </div>
   </aside>
 
@@ -126,6 +186,7 @@
 
   <script src="vendor/idb-6.1.5.min.js"></script>
   <script src="storage.js"></script>
+  <script src="map-ops.js"></script>
   <script src="vendor/gsap/gsap.min.js"></script>
   <script type="module" src="space.js"></script>
 </body>

@@ -1,4 +1,4 @@
-const CACHE_NAME = "mandala-v27";
+const CACHE_NAME = "mandala-v29";
 const LOCAL_ASSETS = [
   "./",
   "./index.html",
@@ -7,6 +7,7 @@ const LOCAL_ASSETS = [
   "./styles.css",
   "./app.js",
   "./storage.js",
+  "./map-ops.js",
   "./space.html",
   "./space.css",
   "./space.js",
@@ -70,7 +71,7 @@ self.addEventListener("fetch", function (event) {
   }
 
   if (url.origin === self.location.origin &&
-      /\/(?:index\.html|about\.html|blog\.html|space\.html|space\.css|space\.js|space\/(?:model|textures|shaders)\.js|styles\.css|app\.js|storage\.js|manifest\.webmanifest)$/.test(url.pathname)) {
+      /\/(?:index\.html|about\.html|blog\.html|space\.html|space\.css|space\.js|space\/(?:model|textures|shaders)\.js|styles\.css|app\.js|storage\.js|map-ops\.js|manifest\.webmanifest)$/.test(url.pathname)) {
     event.respondWith(networkFirst(event.request));
     return;
   }

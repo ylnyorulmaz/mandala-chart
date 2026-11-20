@@ -33,6 +33,7 @@ import * as model from "./space/model.js";
 
 const gsap = window.gsap;
 const Storage = window.MandalaStorage;
+const Ops = window.MandalaOps;
 
 const STORAGE_KEY = "mandala-chart-state-v2";
 const REDUCED_MOTION = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -112,6 +113,13 @@ const tmpV = new THREE.Vector3();
 const tmpV2 = new THREE.Vector3();
 
 let starMat = null;
+
+// painted planet textures survive rebuilds (edits), so bodies never flash flat
+const textureCache = new Map();
+let persistChain = Promise.resolve();
+let demoNoticeShown = false;
+let titleEditId = null;
+let clearArmedTimer = null;
 
 const sharedGeo = {
   sphereHi: new THREE.SphereGeometry(1, 96, 64),
@@ -252,7 +260,11 @@ function applyExternalRecord(record) {
   Object.keys(next.nodes).forEach((id) => {
     if (mapState.nodes[id]) Object.assign(mapState.nodes[id], next.nodes[id]);
   });
+  refreshInPlace();
+}
 
+/** Statuses, decisions, titles or fields changed but no body was added/removed. */
+function refreshInPlace() {
   for (const body of bodies) {
     applyLook(body);
     if (body.depth > 0 && !body.empty) {
@@ -291,15 +303,31 @@ function rebuildPreservingFocus(nextState) {
   syncControlLimits();
 }
 
-function broadcastStatus(node) {
-  if (!syncChannel || mode !== "db" || !mapRecord) return;
-  try {
-    syncChannel.postMessage({ type: "status", mapId: mapRecord.id, nodeId: node.id, status: node.status });
-  } catch (e) { /* ignore */ }
+/**
+ * Apply edits (see map-ops.js) to the map in Space, redraw, then save them and
+ * tell an open planner tab to apply the very same ops.
+ * Returns true when anything changed.
+ */
+function commitOps(ops) {
+  const before = model.structureSignature(mapState);
+  const applied = ops.filter((op) => Ops.apply(mapState, op));
+  if (!applied.length) return false;
+
+  if (model.structureSignature(mapState) !== before) rebuildPreservingFocus(mapState);
+  else refreshInPlace();
+
+  persistChain = persistChain.then(() => persistOps(applied)).catch(() => {});
+  return true;
 }
 
-async function persistStatus(node) {
-  if (mode === "demo") return;
+async function persistOps(ops) {
+  if (mode === "demo") {
+    if (!demoNoticeShown) {
+      demoNoticeShown = true;
+      toast("Demo system — edits are not saved.");
+    }
+    return;
+  }
 
   if (mode === "legacy") {
     try {
@@ -310,12 +338,18 @@ async function persistStatus(node) {
 
   try {
     const record = await Storage.getMap(mapRecord.id);
-    if (!record || !record.state || !record.state.nodes[node.id]) throw new Error("missing");
-    record.state.nodes[node.id].status = node.status;
+    if (!isUsableRecord(record)) throw new Error("missing");
+    ops.forEach((op) => Ops.apply(record.state, op));
+    record.title = title(record.state.nodes[record.state.rootId]) || record.title;
     record.updatedAt = Date.now();
     await Storage.saveMap(record);
     mapRecord = record;
-    broadcastStatus(node);
+    const index = mapsList.findIndex((m) => m.id === record.id);
+    if (index >= 0 && mapsList[index].title !== record.title) {
+      mapsList[index] = record;
+      renderMapPicker();
+    }
+    if (syncChannel) syncChannel.postMessage({ type: "ops", mapId: record.id, ops });
   } catch (e) {
     toast("Could not save — open the 2D planner and try again.");
   }
@@ -723,7 +757,15 @@ function makeBody(node, depth, parent, orbitGroup, opts) {
         emissive: new THREE.Color(opts.hex),
         emissiveIntensity: 0.04
       }));
-    textureQueue.push({ gen: buildGen, body, type, w, h: w / 2, seed: Math.floor(hashString(node.id) * 100000) });
+    const job = { gen: buildGen, body, type, w, h: w / 2, seed: Math.floor(hashString(node.id) * 100000) };
+    job.key = [type, opts.hex, job.seed, w].join("|");
+    const cached = textureCache.get(job.key);
+    if (cached) {
+      body.mesh.material.map = cached;
+      body.mesh.material.color.set("#ffffff");
+    } else {
+      textureQueue.push(job);
+    }
   }
   body.mesh.scale.setScalar(radius);
   body.mesh.rotation.z = (hashString(node.id + "t") - 0.5) * 0.6;
@@ -761,7 +803,12 @@ function pumpTextures() {
     const job = textureQueue.shift();
     if (job.gen !== buildGen) continue;
     const material = job.body.mesh.material;
-    material.map = makePlanetTexture(job.type, job.body.hex, job.seed, job.w, job.h);
+    let map = textureCache.get(job.key);
+    if (!map) {
+      map = makePlanetTexture(job.type, job.body.hex, job.seed, job.w, job.h);
+      textureCache.set(job.key, map);
+    }
+    material.map = map;
     material.color.copy(job.body.tint);
     material.needsUpdate = true;
   }
@@ -858,17 +905,22 @@ function addDustBelt(radius) {
   systemRoot.userData.belt = belt;
 }
 
-function disposeSystem() {
+function disposeSystem(dropTextures) {
   if (!systemRoot) return;
   textureQueue = [];
   const sharedGeos = new Set(Object.values(sharedGeo));
+  const cached = new Set(textureCache.values());
   systemRoot.traverse((obj) => {
     if (obj.geometry && !sharedGeos.has(obj.geometry)) obj.geometry.dispose();
     if (obj.material && obj.material !== hitMaterial && obj.material !== starMat) {
-      if (obj.material.map) obj.material.map.dispose();
+      if (obj.material.map && !cached.has(obj.material.map)) obj.material.map.dispose();
       obj.material.dispose();
     }
   });
+  if (dropTextures) {
+    for (const tex of textureCache.values()) tex.dispose();
+    textureCache.clear();
+  }
   scene.remove(systemRoot);
   systemRoot = null;
   depLinks = [];
@@ -1323,6 +1375,7 @@ function cancelFlight() {
 }
 
 function focusBody(body) {
+  flushAllFields();
   if (!body) return goOverview();
   lastInteraction = performance.now();
   fadeHint();
@@ -1379,6 +1432,7 @@ function focusBody(body) {
 }
 
 function goOverview(withSunPanel) {
+  flushAllFields();
   lastInteraction = performance.now();
   const off = overviewOffset();
   focused = withSunPanel ? sunBody : null;
@@ -1519,10 +1573,21 @@ function showPanel(body, opts) {
   statusEl.textContent = STATUS_LABEL[status] || status;
   statusEl.className = "panel-status " + status;
 
+  if (panel.dataset.bodyId !== node.id) {
+    panel.dataset.bodyId = node.id;
+    disarmClear();
+    if (titleEditId && titleEditId !== node.id) titleEditId = null;
+  }
+
   const h1 = $("panelTitle");
-  h1.textContent = name || (body.depth === 0 ? "Untitled goal" : "Empty slot — name it in the 2D map");
+  h1.textContent = name || (body.depth === 0 ? "Untitled goal" : "Empty slot");
   h1.classList.toggle("empty", !name);
   $("panelPath").textContent = pathOf(body);
+
+  const editingTitle = body.empty || titleEditId === node.id;
+  $("editTitleButton").hidden = editingTitle;
+  if (editingTitle) showTitleEditor(body, false);
+  else $("titleEdit").hidden = true;
 
   const stats = model.leafStats(mapState, node);
   const progress = $("panelProgress");
@@ -1552,7 +1617,10 @@ function showPanel(body, opts) {
     btn.tabIndex = on ? 0 : -1;
   });
 
+  renderEditor(body);
   $("parentButton").disabled = !body.parent;
+  $("branchButton").hidden = body.empty || body.children.length > 0;
+  $("clearButton").hidden = body.empty || body.depth === 0;
   updateFlatLink();
 
   for (const b of bodies) b.label.classList.toggle("is-focus", b === body);
@@ -1644,6 +1712,8 @@ function renderChildList(body) {
 }
 
 function hidePanel() {
+  flushAllFields();
+  titleEditId = null;
   const panel = $("planetPanel");
   for (const b of bodies) b.label.classList.remove("is-focus");
   renderSystemIndex();
@@ -1719,25 +1789,16 @@ function announceBody(body) {
 /* Status changes                                                     */
 /* ------------------------------------------------------------------ */
 
-async function setStatus(body, status) {
+function setStatus(body, status) {
   if (!body || body.empty || !title(body.node)) return;
-  const node = body.node;
-  const previous = node.status || "open";
-  if (previous === status) return;
-  node.status = status;
-
+  const id = body.node.id;
+  if (!commitOps([{ op: "update", id, fields: { status } }])) return;
+  const current = bodyById.get(id) || body;
   if (status === "done") {
-    if (body.depth > 0) addRing(body, true);
-    burst(body);
-    toast(body.depth === 0 ? "Goal reached ✦" : "Orbit cleared ✓");
-  } else if (previous === "done") {
-    removeRing(body);
+    burst(current);
+    toast(current.depth === 0 ? "Goal reached ✦" : "Orbit cleared ✓");
   }
-
-  afterDataChange();
-  showPanel(body, { quiet: true });
-  announceBody(body);
-  await persistStatus(node);
+  announceBody(current);
 }
 
 function burst(body) {
@@ -1793,6 +1854,247 @@ function goToNext() {
   } else {
     toast("No ready action — choose Do, clear a blocker, or split broad work in 2D.");
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Editing in space                                                   */
+/* ------------------------------------------------------------------ */
+
+const pendingFields = new Map();
+
+/** Text fields are saved after a short pause (and on blur), not on every key. */
+function queueField(id, key, value) {
+  let pending = pendingFields.get(id);
+  if (!pending) {
+    pending = { fields: {}, timer: null };
+    pendingFields.set(id, pending);
+  }
+  pending.fields[key] = value;
+  clearTimeout(pending.timer);
+  pending.timer = setTimeout(() => flushFields(id), 400);
+}
+
+function flushFields(id) {
+  const pending = pendingFields.get(id);
+  if (!pending) return;
+  pendingFields.delete(id);
+  clearTimeout(pending.timer);
+  commitOps([{ op: "update", id, fields: pending.fields }]);
+}
+
+function flushAllFields() {
+  Array.from(pendingFields.keys()).forEach(flushFields);
+}
+
+function setSegment(id, value) {
+  $(id).querySelectorAll("button").forEach((btn) => {
+    const on = btn.dataset.value === String(value);
+    btn.setAttribute("aria-checked", on ? "true" : "false");
+    btn.tabIndex = on ? 0 : -1;
+  });
+}
+
+function setFieldValue(el, value) {
+  if (document.activeElement !== el) el.value = value;
+}
+
+function renderEditor(body) {
+  const editor = $("panelEditor");
+  editor.hidden = body.empty;
+  if (body.empty) return;
+  const node = body.node;
+  const decision = model.decisionValue(node);
+
+  setSegment("impactSeg", node.impact || 3);
+  setSegment("effortSeg", node.effort || 3);
+  setSegment("decisionSeg", decision);
+  $("decisionField").hidden = body.depth === 0;
+  $("dependencyField").hidden = body.depth === 0;
+  $("delegateField").hidden = decision !== "delegate";
+  $("deferField").hidden = decision !== "defer";
+  setFieldValue($("delegatedToInput"), node.delegatedTo || "");
+  setFieldValue($("deferUntilInput"), node.deferUntil || "");
+  setFieldValue($("durationInput"), node.duration || "");
+  setFieldValue($("notesInput"), typeof node.notes === "string" ? node.notes : "");
+
+  const select = $("dependencySelect");
+  if (document.activeElement !== select) {
+    select.innerHTML = "";
+    const none = document.createElement("option");
+    none.value = "";
+    none.textContent = "Nothing — ready";
+    select.appendChild(none);
+    Ops.dependencyCandidates(mapState, node)
+      .sort((a, b) => a.depth - b.depth || title(a).localeCompare(title(b)))
+      .forEach((candidate) => {
+        const opt = document.createElement("option");
+        opt.value = candidate.id;
+        opt.textContent = KIND[Math.min(candidate.depth, 3)][1].toLowerCase() + ": " + title(candidate);
+        select.appendChild(opt);
+      });
+    select.value = node.dependencyId && mapState.nodes[node.dependencyId] ? node.dependencyId : "";
+  }
+}
+
+function showTitleEditor(body, focusInput) {
+  const form = $("titleEdit");
+  const input = $("titleInput");
+  form.hidden = false;
+  if (document.activeElement !== input) input.value = title(body.node);
+  input.placeholder = body.empty ? "Name this " + KIND[Math.min(body.depth, 3)][1].toLowerCase() + "…" : "";
+  $("titleSave").textContent = body.empty ? "Create" : "Save";
+  $("titleCancel").hidden = body.empty;
+  if (focusInput) {
+    input.focus();
+    input.select();
+  }
+}
+
+function startTitleEdit() {
+  if (!focused) return;
+  titleEditId = focused.node.id;
+  $("editTitleButton").hidden = true;
+  showTitleEditor(focused, true);
+}
+
+function cancelTitleEdit() {
+  titleEditId = null;
+  if (focused) showPanel(focused, { quiet: true });
+}
+
+function saveTitle() {
+  const body = focused;
+  if (!body) return;
+  const value = $("titleInput").value.trim();
+  if (!value) {
+    if (!body.empty) cancelTitleEdit();
+    return;
+  }
+  const id = body.node.id;
+  const wasEmpty = body.empty;
+  titleEditId = null;
+  $("titleInput").blur();
+  if (!commitOps([{ op: "update", id, fields: { title: value } }])) {
+    showPanel(body, { quiet: true });
+    return;
+  }
+  const current = bodyById.get(id);
+  if (wasEmpty && current) {
+    // the ghost becomes a real world
+    current.anchor.scale.setScalar(0.05);
+    gsap.to(current.anchor.scale, { x: 1, y: 1, z: 1, duration: 1.1 * MOTION, ease: "back.out(2.2)" });
+    burst(current);
+    toast(KIND[Math.min(current.depth, 3)][1].charAt(0) + KIND[Math.min(current.depth, 3)][1].slice(1).toLowerCase() + " born ✦");
+  }
+}
+
+function addBranch(target) {
+  const body = target || focused;
+  if (!body || body.empty) return;
+  if (body.children.length) {
+    toast("This body already has a branch.");
+    return;
+  }
+  const id = body.node.id;
+  const ids = [];
+  while (ids.length < 8) {
+    const candidate = Ops.newId();
+    if (!mapState.nodes[candidate] && ids.indexOf(candidate) === -1) ids.push(candidate);
+  }
+  if (!commitOps([{ op: "addSlots", parentId: id, ids }])) return;
+
+  const fresh = bodyById.get(id);
+  if (!fresh) return;
+  fresh.children.forEach((child, i) => {
+    child.anchor.scale.setScalar(0.001);
+    gsap.to(child.anchor.scale, { x: 1, y: 1, z: 1, duration: 0.9 * MOTION, delay: i * 0.06 * MOTION, ease: "back.out(2)" });
+  });
+  if (fresh.childLine) fresh.childLine.material.opacity = 0;
+  toast("New branch — name the empty slots");
+  focusBody(fresh);
+}
+
+function disarmClear() {
+  clearTimeout(clearArmedTimer);
+  const btn = $("clearButton");
+  btn.classList.remove("armed");
+  btn.textContent = "Clear node";
+}
+
+/** Two-step clear: the first press arms the button for three seconds. */
+function clearFocused() {
+  const body = focused;
+  if (!body || body.depth === 0 || body.empty) return;
+  const btn = $("clearButton");
+  if (!btn.classList.contains("armed")) {
+    btn.classList.add("armed");
+    btn.textContent = "Tap again to clear";
+    clearTimeout(clearArmedTimer);
+    clearArmedTimer = setTimeout(disarmClear, 3000);
+    return;
+  }
+  disarmClear();
+  const id = body.node.id;
+  const parentId = body.parent.node.id;
+  pendingFields.delete(id);
+  if (!commitOps([{ op: "clear", id }])) return;
+  toast("Node cleared");
+  focusBody(bodyById.get(parentId) || sunBody);
+}
+
+function bindEditor() {
+  $("editTitleButton").addEventListener("click", startTitleEdit);
+  $("panelTitle").addEventListener("dblclick", startTitleEdit);
+  $("titleEdit").addEventListener("submit", (e) => {
+    e.preventDefault();
+    saveTitle();
+  });
+  $("titleCancel").addEventListener("click", cancelTitleEdit);
+  $("titleInput").addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      if (focused && focused.empty) $("titleInput").blur();
+      else cancelTitleEdit();
+    }
+  });
+
+  const segments = [["impactSeg", "impact"], ["effortSeg", "effort"], ["decisionSeg", "decision"]];
+  segments.forEach(([elId, key]) => {
+    $(elId).addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-value]");
+      if (!btn || !focused) return;
+      const value = key === "decision" ? btn.dataset.value : parseInt(btn.dataset.value, 10);
+      commitOps([{ op: "update", id: focused.node.id, fields: { [key]: value } }]);
+    });
+    $(elId).addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+      e.preventDefault();
+      e.stopPropagation();
+      const buttons = Array.from($(elId).querySelectorAll("button"));
+      const index = buttons.findIndex((b) => b.getAttribute("aria-checked") === "true");
+      const next = buttons[(index + (e.key === "ArrowRight" ? 1 : buttons.length - 1)) % buttons.length];
+      next.click();
+      next.focus();
+    });
+  });
+
+  [["delegatedToInput", "delegatedTo"], ["durationInput", "duration"], ["notesInput", "notes"]].forEach(([elId, key]) => {
+    const el = $(elId);
+    el.addEventListener("input", () => {
+      if (focused) queueField(focused.node.id, key, el.value);
+    });
+    el.addEventListener("blur", flushAllFields);
+  });
+  $("deferUntilInput").addEventListener("change", (e) => {
+    if (focused) commitOps([{ op: "update", id: focused.node.id, fields: { deferUntil: e.target.value } }]);
+  });
+  $("dependencySelect").addEventListener("change", (e) => {
+    if (focused) commitOps([{ op: "update", id: focused.node.id, fields: { dependencyId: e.target.value || null } }]);
+  });
+
+  $("branchButton").addEventListener("click", () => addBranch());
+  $("clearButton").addEventListener("click", clearFocused);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1911,7 +2213,7 @@ async function switchMap(id) {
   focused = null;
   hovered = null;
   hidePanel();
-  disposeSystem();
+  disposeSystem(true);
   buildSystem();
   appear(1.6);
   goOverview(false);
@@ -1981,11 +2283,11 @@ function bindEvents() {
     const order = ["open", "doing", "done"];
     const current = order.indexOf(focused.node.status || "open");
     const next = order[(current + (e.key === "ArrowRight" ? 1 : 2)) % 3];
-    setStatus(focused, next).then(() => {
-      const target = $("statusSwitch").querySelector(`[data-status="${next}"]`);
-      if (target) target.focus();
-    });
+    setStatus(focused, next);
+    const target = $("statusSwitch").querySelector(`[data-status="${next}"]`);
+    if (target) target.focus();
   });
+  bindEditor();
   $("nextButton").addEventListener("click", goToNext);
   $("searchButton").addEventListener("click", () => ($("spaceSearch").hidden ? openSearch() : closeSearch()));
   $("pauseButton").addEventListener("click", togglePause);
@@ -2041,6 +2343,11 @@ function bindEvents() {
       setStatus(focused, focused.node.status === "done" ? "open" : "done");
     } else if (e.key === "n" || e.key === "N") {
       goToNext();
+    } else if ((e.key === "e" || e.key === "E") && focused) {
+      e.preventDefault();
+      startTitleEdit();
+    } else if ((e.key === "b" || e.key === "B") && focused) {
+      addBranch();
     } else if (e.key === "/") {
       openSearch();
       e.preventDefault();

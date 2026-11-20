@@ -353,20 +353,21 @@ Interaction:
 - drag to rotate, scroll / pinch to zoom, right-drag / two-finger drag to pan; grabbing the camera during a flight cancels the flight,
 - click a planet, moon, label, search result, or list item to fly there; the camera then follows it along its orbit while time slows down,
 - the side panel shows path, progress (same numbers as the 2D quest progress), impact / effort / decision, blocker (clickable), notes, and child bodies, plus an **Open / Doing / Done** switch that saves to IndexedDB,
+- **edit in space**: rename a body (pencil, double-click the title, or `E`), name an empty slot to turn the wireframe ghost into a real planet or moon, change impact / effort / decision / hand-off / bring-back date / estimate / blocker / notes under **Edit details**, add a branch of eight empty slots (**+ Branch** or `B`), and **Clear node** (two-step confirm),
 - `/` searches node titles, **Esc** goes up a level, **← / →** hop between siblings, **↑ / ↓** go to the parent / first child, **Space** pauses orbits, **L** toggles labels, **D** toggles done,
 - labels are placed by priority and hidden when they would overlap.
 
 Working with the planner:
 
 - **Space ✦** in the view switcher saves the map and opens Space on the selected node (`space.html?map=…&node=…`); **2D map** in Space opens the planner on the focused node (`index.html?node=…`),
-- an open planner tab and Space stay in sync through a `BroadcastChannel` (`mandala-sync`): a status set in Space updates the planner instead of being overwritten, and planner saves (renames, new branches) update or rebuild the system live,
+- an open planner tab and Space stay in sync through a `BroadcastChannel` (`mandala-sync`): every Space edit is sent as an op from `map-ops.js` that the planner applies to its own state (so nothing is overwritten), and planner saves update or rebuild the system live,
 - the map picker switches between saved maps and sets the active map for the planner.
 
 Performance: planet textures are painted in small time slices after the first frame, phones and low-core devices use a lower pixel ratio and no MSAA, and the pixel ratio steps down automatically when the frame rate stays under ~40 fps. `prefers-reduced-motion` shortens flights, stops auto-rotation, and turns off chromatic aberration. Without WebGL 2 the page links back to the planner.
 
 Code: `space.js` (scene and interaction), `space/model.js` (progress / decision / next-move rules mirrored from `app.js` — change both together), `space/textures.js`, `space/shaders.js`. The 3D libraries are cached by the service worker on first use rather than at install.
 
-Titles and structure are still edited in the 2D planner.
+Dragging nodes, collapsing branches, suggestions, and map groups / relationships stay in the 2D planner.
 
 
 ### Color palettes

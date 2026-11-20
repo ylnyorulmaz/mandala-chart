@@ -746,6 +746,166 @@ body.hovering #spaceCanvas { cursor: pointer; }
   font-size: 11px;
 }
 
+/* ---------- Editing ---------- */
+
+.panel-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.panel-title-row h1 { flex: 1; min-width: 0; }
+
+.panel-icon-btn {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  margin-top: 12px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: var(--space-muted);
+  background: rgba(255, 255, 255, .06);
+  cursor: pointer;
+}
+
+.panel-icon-btn:hover { color: var(--space-ink); background: rgba(255, 255, 255, .12); }
+.panel-icon-btn[hidden] { display: none; }
+
+.panel-icon-btn svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.title-edit { margin: 10px 0 6px; }
+.title-edit[hidden] { display: none; }
+
+.title-edit input,
+.editor-field input,
+.editor-field select,
+.editor-field textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--space-line);
+  border-radius: 12px;
+  color: var(--space-ink);
+  background: rgba(255, 255, 255, .06);
+  font: 700 13.5px var(--space-font);
+  outline: none;
+  color-scheme: dark;
+}
+
+.title-edit input { height: 42px; font-size: 16px; }
+
+.title-edit input:focus,
+.editor-field input:focus,
+.editor-field select:focus,
+.editor-field textarea:focus { border-color: rgba(255, 179, 92, .7); }
+
+.editor-field textarea { resize: vertical; min-height: 64px; line-height: 1.4; font-weight: 600; }
+.editor-field select option { color: #111; }
+
+.title-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.title-edit-actions .space-btn { flex: 1; }
+
+.panel-editor {
+  margin: 0 0 12px;
+  border: 1px solid var(--space-line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, .03);
+}
+
+.panel-editor[hidden] { display: none; }
+
+.panel-editor summary {
+  padding: 10px 14px;
+  color: var(--space-muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  list-style: none;
+}
+
+.panel-editor summary::-webkit-details-marker { display: none; }
+.panel-editor summary::after { content: "＋"; float: right; }
+.panel-editor[open] summary::after { content: "−"; }
+.panel-editor summary:hover { color: var(--space-ink); }
+.panel-editor summary:focus-visible { outline: 2px solid var(--space-accent); outline-offset: -2px; border-radius: 16px; }
+
+.editor-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 2px 14px 14px;
+}
+
+.editor-row {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 10px;
+}
+
+.editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.editor-field[hidden] { display: none; }
+
+.editor-field > span {
+  color: var(--space-muted);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.seg {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .06);
+}
+
+.seg button {
+  flex: 1;
+  height: 30px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--space-muted);
+  background: transparent;
+  font: 800 12px var(--space-font);
+  cursor: pointer;
+}
+
+.seg button:hover { color: var(--space-ink); }
+.seg button:focus-visible { outline: 2px solid var(--space-accent); outline-offset: 1px; }
+.seg button[aria-checked="true"] { color: var(--space-ink); background: rgba(255, 255, 255, .16); }
+#decisionSeg button[data-value="delete"][aria-checked="true"] { color: #fff; background: #6f6f7a; }
+#decisionSeg button[data-value="defer"][aria-checked="true"] { color: #1a1030; background: #c9c9dd; }
+#decisionSeg button[data-value="delegate"][aria-checked="true"] { color: #062030; background: #8be9ff; }
+
+.panel-actions .space-btn[hidden] { display: none; }
+
+.danger-btn { color: #ffb3b3; }
+.danger-btn:hover { background: rgba(255, 90, 90, .16); border-color: rgba(255, 120, 120, .4); }
+.danger-btn.armed { color: #fff; background: #d64545; border-color: transparent; }
+
 /* ---------- Search ---------- */
 
 .space-search {

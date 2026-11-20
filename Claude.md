@@ -44,6 +44,7 @@ Main files:
 - `space.html`, `space.css`, `space.js` — optional 3D "Space" view (goal = sun, drivers = planets, actions = moons) built as ES modules
 - `space/model.js` — Space's copy of the progress, decision, blocker and next-move rules; keep it in step with the matching functions in `app.js`
 - `space/textures.js`, `space/shaders.js` — procedural textures and GLSL materials for Space
+- `map-ops.js` — `window.MandalaOps`: the edit operations (update / addSlots / clear) shared by Space and the planner's sync channel; mirrors `createNode`, `createEightSlots`, `clearSelectedNode` and `populateDependencyOptions` in `app.js`
 - `vendor/three/` (Three.js 0.180.0 + OrbitControls), `vendor/postprocessing/` (pmndrs postprocessing 6.39.6), `vendor/gsap/` (GSAP 3.13.0) — loaded only by `space.html` through an import map; keep them out of `index.html` so the 2D planner stays light
 
 No framework.

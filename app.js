@@ -244,16 +244,34 @@
 
     syncChannel.onmessage = function (event) {
       var message = event.data || {};
-      if (message.type !== "status" || message.mapId !== currentMapId) return;
+      if (message.type !== "ops" || message.mapId !== currentMapId || !Array.isArray(message.ops)) return;
+      if (!window.MandalaOps || !state.rootId || !state.nodes[state.rootId]) return;
 
-      var node = state.nodes[message.nodeId];
-      if (!node || ["open", "doing", "done"].indexOf(message.status) === -1) return;
-      if (node.status === message.status) return;
+      var changed = false;
+      message.ops.forEach(function (op) {
+        if (window.MandalaOps.apply(state, op)) changed = true;
+      });
+      if (!changed) return;
 
-      node.status = message.status;
+      if (editingId && !state.nodes[editingId]) editingId = null;
+      if (selectedId && !state.nodes[selectedId]) selectedId = state.rootId;
+
       saveState();
       if (!$("body").hasClass("empty-start")) renderAll(false);
+      refreshInspectorAfterSync();
     };
+  }
+
+  // Space edited a node while its inspector is open here: show the new values,
+  // unless the user is typing in the inspector right now.
+  function refreshInspectorAfterSync() {
+    if (!selectedDetailId || !$("#inspector").hasClass("open")) return;
+    if (!state.nodes[selectedDetailId]) {
+      closeInspector();
+      return;
+    }
+    if ($(document.activeElement).closest("#inspector").length) return;
+    openInspector(selectedDetailId);
   }
 
   function broadcastMapSaved() {
@@ -1278,6 +1296,7 @@
     return "n_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
   }
 
+  // Mirrored in map-ops.js (used by Space and by the sync channel) — keep both in step.
   function createNode(title, parentId, depth) {
     var id = uid();
     state.nodes[id] = {
@@ -1309,6 +1328,7 @@
     return state.nodes[id];
   }
 
+  // Mirrored in map-ops.js (used by Space and by the sync channel) — keep both in step.
   function createEightSlots(parentId) {
     var parent = state.nodes[parentId];
     if (!parent || parent.children.length) return;
@@ -3073,6 +3093,7 @@
     $("#deferField").attr("hidden", decision !== "defer");
   }
 
+  // Mirrored in map-ops.js (used by Space and by the sync channel) — keep both in step.
   function populateDependencyOptions(node) {
     var options = ['<option value="">Nothing — ready</option>'];
 
@@ -3099,6 +3120,7 @@
     return false;
   }
 
+  // Mirrored in map-ops.js (used by Space and by the sync channel) — keep both in step.
   function clearSelectedNode() {
     if (!selectedDetailId || selectedDetailId === state.rootId) return;
 
